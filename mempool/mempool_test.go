@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -217,6 +218,107 @@ func TestTxsAvailable(t *testing.T) {
 	checkTxs(t, mempool, 100)
 	ensureFire(t, mempool.TxsAvailable(), timeoutMS)
 	ensureNoFire(t, mempool.TxsAvailable(), timeoutMS)
+}
+
+type SleepCounterApplication struct {
+	*counter.CounterApplication
+	wg *sync.WaitGroup
+}
+
+func NewSleepCounterApplication(f bool, i int) *SleepCounterApplication {
+	wg := &sync.WaitGroup{}
+	wg.Add(i)
+	return &SleepCounterApplication{counter.NewCounterApplication(f), wg}
+}
+
+func (app *SleepCounterApplication) CheckTx(tx []byte) abci.ResponseCheckTx {
+	res := app.CounterApplication.CheckTx(tx)
+	app.wg.Wait()
+	return res
+}
+
+func TestReapPriority(t *testing.T) {
+	TotalTx := 15
+	app := NewSleepCounterApplication(false, TotalTx)
+	cc := proxy.NewLocalClientCreator(app)
+
+	mempool := newMempoolWithApp(cc)
+	appConnCon, _ := cc.NewABCIClient()
+	appConnCon.SetLogger(log.TestingLogger().With("module", "abci-client", "connection", "consensus"))
+	err := appConnCon.Start()
+	require.Nil(t, err)
+
+	testResult := make(chan string, 100)
+	var wg sync.WaitGroup
+	j := 0
+	checkTxs := func(i int) {
+		txBytes := make([]byte, 8)
+		binary.BigEndian.PutUint64(txBytes, uint64(i))
+		mempool.CheckTx(txBytes, nil)
+		wg.Done()
+	}
+	//seqReap := make(chan int, 5)
+
+	reapCheck := func(threshold int) {
+		//for threshold := range seqReap {
+		txs := mempool.ReapMaxBytesMaxGas(-1, -1)
+
+		if len(txs) >= threshold {
+			str := fmt.Sprintf("Reap failed to have priority, %v > %v\n", len(txs), threshold)
+			fmt.Print(str)
+			testResult <- str
+		} else {
+			fmt.Printf("Priority reaping: %v < %v\n", len(txs), threshold)
+		}
+		j += len(txs)
+		if err := mempool.Update(0, txs, nil, nil); err != nil {
+			testResult <- err.Error()
+		}
+		for _, txBytes := range txs {
+
+			res, err := appConnCon.DeliverTxSync(txBytes)
+			if err != nil {
+				testResult <- fmt.Sprintf("Client error committing tx: %v", err)
+			}
+			if res.IsErr() {
+				testResult <- fmt.Sprintf("Error committing tx. Code:%v result:%X log:%v",
+					res.Code, res.Data, res.Log)
+			}
+			//			fmt.Println("delivered")
+		}
+
+		res, err := appConnCon.CommitSync()
+		if err != nil {
+			testResult <- fmt.Sprintf("Client error committing: %v", err)
+		}
+		if len(res.Data) != 8 {
+			testResult <- fmt.Sprintf("Error committing. Hash:%X", res.Data)
+		}
+
+		//}
+
+	}
+
+	//go reapCheck()
+	wg.Add(TotalTx)
+	for i := 1; i <= TotalTx; i++ {
+		fmt.Printf("Insert checkTX:%v\n", i)
+		go checkTxs(i)
+	}
+	//close(seqReap)
+	time.Sleep(time.Millisecond)
+	for i := 1; i <= TotalTx; i++ {
+		app.wg.Done()
+	}
+	reapCheck(TotalTx)
+	wg.Wait()
+	close(testResult)
+	k := 0
+	for s := range testResult {
+		t.Log(s)
+		k++
+	}
+	require.Equal(t, 0, k)
 }
 
 func TestSerialReap(t *testing.T) {
