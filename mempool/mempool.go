@@ -132,7 +132,9 @@ func TxID(tx []byte) string {
 type Mempool struct {
 	config *cfg.MempoolConfig
 
-	proxyMtx             sync.Mutex
+	proxyLowMtx          sync.Mutex
+	proxyNextMtx         sync.Mutex
+	proxyBlockingMtx     sync.Mutex
 	proxyAppConn         proxy.AppConnMempool
 	txs                  *clist.CList    // concurrent linked-list of good txs
 	height               int64           // the last block Update()'d to
@@ -238,8 +240,8 @@ func (mem *Mempool) InitWAL() {
 // CloseWAL closes and discards the underlying WAL file.
 // Any further writes will not be relayed to disk.
 func (mem *Mempool) CloseWAL() {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	if err := mem.wal.Close(); err != nil {
 		mem.logger.Error("Error closing WAL", "err", err)
@@ -249,12 +251,27 @@ func (mem *Mempool) CloseWAL() {
 
 // Lock locks the mempool. The consensus must be able to hold lock to safely update.
 func (mem *Mempool) Lock() {
-	mem.proxyMtx.Lock()
+	mem.proxyNextMtx.Lock()
+	mem.proxyBlockingMtx.Lock()
+	mem.proxyNextMtx.Unlock()
 }
 
 // Unlock unlocks the mempool.
 func (mem *Mempool) Unlock() {
-	mem.proxyMtx.Unlock()
+	mem.proxyBlockingMtx.Unlock()
+}
+
+//LockLow uses triple mutex to low the priority of CheckTx()
+func (mem *Mempool) LockLow() {
+	mem.proxyLowMtx.Lock()
+	mem.proxyNextMtx.Lock()
+	mem.proxyBlockingMtx.Lock()
+	mem.proxyNextMtx.Unlock()
+}
+
+func (mem *Mempool) UnlockLow() {
+	mem.proxyBlockingMtx.Unlock()
+	mem.proxyLowMtx.Unlock()
 }
 
 // Size returns the number of transactions in the mempool.
@@ -270,8 +287,8 @@ func (mem *Mempool) FlushAppConn() error {
 
 // Flush removes all transactions from the mempool and cache
 func (mem *Mempool) Flush() {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	mem.cache.Reset()
 
@@ -301,9 +318,9 @@ func (mem *Mempool) TxsWaitChan() <-chan struct{} {
 //     It gets called from another goroutine.
 // CONTRACT: Either cb will get called, or err returned.
 func (mem *Mempool) CheckTx(tx types.Tx, cb func(*abci.Response)) (err error) {
-	mem.proxyMtx.Lock()
+	mem.LockLow()
 	// use defer to unlock mutex because application (*local client*) might panic
-	defer mem.proxyMtx.Unlock()
+	defer mem.UnlockLow()
 
 	if mem.Size() >= mem.config.Size {
 		return ErrMempoolIsFull
@@ -468,8 +485,8 @@ func (mem *Mempool) notifyTxsAvailable() {
 // If both maxes are negative, there is no cap on the size of all returned
 // transactions (~ all available transactions).
 func (mem *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	for atomic.LoadInt32(&mem.rechecking) > 0 {
 		// TODO: Something better?
@@ -508,8 +525,8 @@ func (mem *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 // If max is negative, there is no cap on the size of all returned
 // transactions (~ all available transactions).
 func (mem *Mempool) ReapMaxTxs(max int) types.Txs {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	if max < 0 {
 		max = mem.txs.Len()
@@ -612,7 +629,7 @@ func (mem *Mempool) recheckTxs(txs []types.Tx) {
 	// Push txs to proxyAppConn
 	// NOTE: resCb() may be called concurrently.
 	for _, tx := range txs {
-		mem.proxyAppConn.CheckTxAsync(tx)
+		mem.proxyAppConn.ReCheckTxAsync(tx)
 	}
 	mem.proxyAppConn.FlushAsync()
 }
