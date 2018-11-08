@@ -91,6 +91,16 @@ func (app *localClient) CheckTxAsync(tx []byte) *ReqRes {
 	)
 }
 
+func (app *localClient) ReCheckTxAsync(tx []byte) *ReqRes {
+	app.mtx.Lock()
+	res := app.Application.ReCheckTx(tx)
+	app.mtx.Unlock()
+	return app.callback(
+		types.ToRequestCheckTx(tx),
+		types.ToResponseCheckTx(res),
+	)
+}
+
 func (app *localClient) QueryAsync(req types.RequestQuery) *ReqRes {
 	app.mtx.Lock()
 	res := app.Application.Query(req)
