@@ -6,8 +6,55 @@
 
 BUG FIXES:
 
-- [state] [\#2616](https://github.com/tendermint/tendermint/issues/2616) Fix panic when genesis file's `validators` field is nil
-- [consensus] [\#2634](https://github.com/tendermint/tendermint/issues/2634) Set `NextValidators` during replay
+* P2P Protocol
+  * [consensus] [\#2652](https://github.com/tendermint/tendermint/issues/2652)
+    Replace `CommitStepMessage` with `NewValidBlockMessage`
+  * [consensus] [\#2735](https://github.com/tendermint/tendermint/issues/2735) Simplify `Proposal` message to align with spec
+  * [consensus] [\#2730](https://github.com/tendermint/tendermint/issues/2730)
+    Add `Type` field to `Proposal` and use same order of fields as in the
+    SignBytes for both `Proposal` and `Vote`
+  * [p2p] [\#2654](https://github.com/tendermint/tendermint/issues/2654) Add `ProtocolVersion` struct with protocol versions to top of
+    DefaultNodeInfo and require `ProtocolVersion.Block` to match during peer handshake
+
+
+### FEATURES:
+- [abci] [\#2557](https://github.com/tendermint/tendermint/issues/2557) Add `Codespace` field to `Response{CheckTx, DeliverTx, Query}`
+- [abci] [\#2662](https://github.com/tendermint/tendermint/issues/2662) Add `BlockVersion` and `P2PVersion` to `RequestInfo`
+- [crypto/merkle] [\#2298](https://github.com/tendermint/tendermint/issues/2298) General Merkle Proof scheme for chaining various types of Merkle trees together
+- [docs/architecture] [\#1181](https://github.com/tendermint/tendermint/issues/1181) S
+plit immutable and mutable parts of priv_validator.json
+
+### IMPROVEMENTS:
+- Additional Metrics
+    - [consensus] [\#2169](https://github.com/cosmos/cosmos-sdk/issues/2169)
+    - [p2p] [\#2169](https://github.com/cosmos/cosmos-sdk/issues/2169)
+- [config] [\#2232](https://github.com/tendermint/tendermint/issues/2232) Added ValidateBasic method, which performs basic checks
+- [crypto/ed25519] [\#2558](https://github.com/tendermint/tendermint/issues/2558) Switch to use latest `golang.org/x/crypto` through our fork at
+  github.com/tendermint/crypto
+- [libs/log] [\#2707](https://github.com/tendermint/tendermint/issues/2707) Add year to log format (@yutianwu)
+- [tools] [\#2238](https://github.com/tendermint/tendermint/issues/2238) Binary dependencies are now locked to a specific git commit
+
+### BUG FIXES:
+- [\#2711](https://github.com/tendermint/tendermint/issues/2711) Validate all incoming reactor messages. Fixes various bugs due to negative ints.
+- [autofile] [\#2428](https://github.com/tendermint/tendermint/issues/2428) Group.RotateFile need call Flush() before rename (@goolAdapter)
+- [common] [\#2533](https://github.com/tendermint/tendermint/issues/2533) Fixed a bug in the `BitArray.Or` method
+- [common] [\#2506](https://github.com/tendermint/tendermint/issues/2506) Fixed a bug in the `BitArray.Sub` method (@james-ray)
+- [common] [\#2534](https://github.com/tendermint/tendermint/issues/2534) Fix `BitArray.PickRandom` to choose uniformly from true bits
+- [consensus] [\#1690](https://github.com/tendermint/tendermint/issues/1690) Wait for
+  timeoutPrecommit before starting next round
+- [consensus] [\#1745](https://github.com/tendermint/tendermint/issues/1745) Wait for
+  Proposal or timeoutProposal before entering prevote
+- [consensus] [\#2642](https://github.com/tendermint/tendermint/issues/2642) Only propose ValidBlock, not LockedBlock
+- [consensus] [\#2642](https://github.com/tendermint/tendermint/issues/2642) Initialized ValidRound and LockedRound to -1
+- [consensus] [\#1637](https://github.com/tendermint/tendermint/issues/1637) Limit the amount of evidence that can be included in a
+  block
+- [consensus] [\#2652](https://github.com/tendermint/tendermint/issues/2652) Ensure valid block property with faulty proposer
+- [evidence] [\#2515](https://github.com/tendermint/tendermint/issues/2515) Fix db iter leak (@goolAdapter)
+- [libs/event] [\#2518](https://github.com/tendermint/tendermint/issues/2518) Fix event concurrency flaw (@goolAdapter)
+- [node] [\#2434](https://github.com/tendermint/tendermint/issues/2434) Make node respond to signal interrupts while sleeping for genesis time
+- [state] [\#2616](https://github.com/tendermint/tendermint/issues/2616) Pass nil to NewValidatorSet() when genesis file's Validators field is nil
+- [p2p] [\#2555](https://github.com/tendermint/tendermint/issues/2555) Fix p2p switch FlushThrottle value (@goolAdapter)
+- [p2p] [\#2668](https://github.com/tendermint/tendermint/issues/2668) Reconnect to originally dialed address (not self-reported address) for persistent peers
 
 ## v0.25.0
 
