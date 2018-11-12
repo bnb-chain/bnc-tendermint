@@ -5,6 +5,7 @@
 package p2p
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -16,12 +17,15 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
+type AddrSig []byte
+
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port.
 type NetAddress struct {
-	ID   ID     `json:"id"`
-	IP   net.IP `json:"ip"`
-	Port uint16 `json:"port"`
+	ID        ID     `json:"id"`
+	IP        net.IP `json:"ip"`
+	Port      uint16 `json:"port"`
+	Signature AddrSig
 
 	// TODO:
 	// Name string `json:"name"` // optional DNS name
@@ -59,7 +63,7 @@ func NewNetAddress(id ID, addr net.Addr) *NetAddress {
 }
 
 // NewNetAddressString returns a new NetAddress using the provided address in
-// the form of "ID@IP:Port".
+// the form of "ID@IP:Port#Signature".
 // Also resolves the host if host is not an IP.
 // Errors are of type ErrNetAddressXxx where Xxx is in (NoID, Invalid, Lookup)
 func NewNetAddressString(addr string) (*NetAddress, error) {
@@ -67,7 +71,29 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 	if len(spl) < 2 {
 		return nil, ErrNetAddressNoID{addr}
 	}
-	return NewNetAddressStringWithOptionalID(addr)
+	if !strings.Contains(spl[1], "#") {
+		return NewNetAddressStringWithOptionalID(addr)
+	} else {
+		return NewNetAddressStringWithOptionalIDAndSignature(addr)
+	}
+}
+
+func NewNetAddressStringWithOptionalIDAndSignature(saddr string) (*NetAddress, error) {
+	spl := strings.Split(saddr, "#")
+	addr, err := NewNetAddressStringWithOptionalID(spl[0])
+	if err != nil {
+		return nil, err
+	}
+	if len(spl) < 2 {
+		return addr, nil
+	}
+	sig := spl[1]
+	bz, err := base64.StdEncoding.DecodeString(sig)
+	if err != nil {
+		return nil, err
+	}
+	addr.Signature = bz
+	return addr, nil
 }
 
 // NewNetAddressStringWithOptionalID returns a new NetAddress using the

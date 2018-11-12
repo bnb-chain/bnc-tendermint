@@ -1,12 +1,48 @@
 package p2p
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var addrTestCases = []struct {
+	addr     string
+	expected string
+	correct  bool
+}{
+	{"127.0.0.1:8080", "127.0.0.1:8080", true},
+	{"tcp://127.0.0.1:8080", "127.0.0.1:8080", true},
+	{"udp://127.0.0.1:8080", "127.0.0.1:8080", true},
+	{"udp//127.0.0.1:8080", "", false},
+	// {"127.0.0:8080", false},
+	{"notahost", "", false},
+	{"127.0.0.1:notapath", "", false},
+	{"notahost:8080", "", false},
+	{"8082", "", false},
+	{"127.0.0:8080000", "", false},
+
+	{"deadbeef@127.0.0.1:8080", "", false},
+	{"this-isnot-hex@127.0.0.1:8080", "", false},
+	{"xxxxbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "", false},
+	{"deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", true},
+
+	{"tcp://deadbeef@127.0.0.1:8080", "", false},
+	{"tcp://this-isnot-hex@127.0.0.1:8080", "", false},
+	{"tcp://xxxxbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "", false},
+	{"tcp://deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", true},
+
+	{"tcp://@127.0.0.1:8080", "", false},
+	{"tcp://@", "", false},
+	{"", "", false},
+	{"@", "", false},
+	{" @", "", false},
+	{" @ ", "", false},
+}
 
 func TestNewNetAddress(t *testing.T) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:8080")
@@ -21,48 +57,33 @@ func TestNewNetAddress(t *testing.T) {
 }
 
 func TestNewNetAddressStringWithOptionalID(t *testing.T) {
-	testCases := []struct {
-		addr     string
-		expected string
-		correct  bool
-	}{
-		{"127.0.0.1:8080", "127.0.0.1:8080", true},
-		{"tcp://127.0.0.1:8080", "127.0.0.1:8080", true},
-		{"udp://127.0.0.1:8080", "127.0.0.1:8080", true},
-		{"udp//127.0.0.1:8080", "", false},
-		// {"127.0.0:8080", false},
-		{"notahost", "", false},
-		{"127.0.0.1:notapath", "", false},
-		{"notahost:8080", "", false},
-		{"8082", "", false},
-		{"127.0.0:8080000", "", false},
-
-		{"deadbeef@127.0.0.1:8080", "", false},
-		{"this-isnot-hex@127.0.0.1:8080", "", false},
-		{"xxxxbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "", false},
-		{"deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", true},
-
-		{"tcp://deadbeef@127.0.0.1:8080", "", false},
-		{"tcp://this-isnot-hex@127.0.0.1:8080", "", false},
-		{"tcp://xxxxbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "", false},
-		{"tcp://deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef@127.0.0.1:8080", true},
-
-		{"tcp://@127.0.0.1:8080", "", false},
-		{"tcp://@", "", false},
-		{"", "", false},
-		{"@", "", false},
-		{" @", "", false},
-		{" @ ", "", false},
-	}
-
-	for _, tc := range testCases {
+	for idx, tc := range addrTestCases {
 		addr, err := NewNetAddressStringWithOptionalID(tc.addr)
 		if tc.correct {
-			if assert.Nil(t, err, tc.addr) {
-				assert.Equal(t, tc.expected, addr.String())
+			if assert.Nil(t, err, fmt.Sprintf("%s (idx: %d)", tc.addr, idx)) {
+				assert.Equal(t, tc.expected, addr.String(), fmt.Sprintf("%s (idx: %d)", addr, idx))
 			}
 		} else {
-			assert.NotNil(t, err, tc.addr)
+			assert.NotNil(t, err, fmt.Sprintf("%s (idx: %d)", tc.addr, idx))
+		}
+	}
+}
+
+func TestNewNetAddressStringWithOptionalIDAndSignature(t *testing.T) {
+	exptSig := "SIGNATURE"
+	testSig := base64.StdEncoding.EncodeToString([]byte(exptSig))
+	withSig := func(addr string) string {
+		return fmt.Sprintf("%s#%s", addr, testSig)
+	}
+	for idx, tc := range addrTestCases {
+		signed := withSig(tc.addr)
+		addr, err := NewNetAddressStringWithOptionalIDAndSignature(signed)
+		if tc.correct {
+			if assert.Nil(t, err, fmt.Sprintf("%s (idx: %d)", tc.addr, idx)) {
+				assert.Equal(t, exptSig, string(addr.Signature), fmt.Sprintf("%s (idx: %d)", addr.Signature, idx))
+			}
+		} else {
+			assert.NotNil(t, err, fmt.Sprintf("%s (idx: %d)", tc.addr, idx))
 		}
 	}
 }
