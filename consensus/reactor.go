@@ -256,11 +256,13 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		}
 		switch msg := msg.(type) {
 		case *ProposalMessage:
+			conR.Logger.Info("Received proposal from peer", "peer", src.NodeInfo().Moniker, "height", msg.Proposal.Height)
 			ps.SetHasProposal(msg.Proposal)
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 		case *ProposalPOLMessage:
 			ps.ApplyProposalPOLMessage(msg)
 		case *BlockPartMessage:
+			conR.Logger.Info("Received block part from peer", "peer", src.NodeInfo().Moniker, "height", msg.Height)
 			ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index)
 
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}

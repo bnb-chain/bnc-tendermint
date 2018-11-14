@@ -525,7 +525,9 @@ FOR_LOOP:
 			if msgBytes != nil {
 				c.Logger.Debug("Received bytes", "chID", pkt.ChannelID, "msgBytes", fmt.Sprintf("%X", msgBytes))
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
+				c.Logger.Info("Received bytes start", "chID", pkt.ChannelID, "peer", c.conn.RemoteAddr().String())
 				c.onReceive(pkt.ChannelID, msgBytes)
+				c.Logger.Info("Received bytes finished", "chID", pkt.ChannelID, "peer", c.conn.RemoteAddr().String())
 			}
 		default:
 			err := fmt.Errorf("Unknown message type %v", reflect.TypeOf(packet))
