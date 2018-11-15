@@ -18,15 +18,23 @@ import (
 const (
 	MempoolChannel = byte(0x30)
 
-	maxMsgSize                 = 1048576 // 1MB TODO make it configurable
-	peerCatchupSleepIntervalMS = 100     // If peer is behind, sleep this amount
+	maxMsgSize                 = 1048576  // 1MB TODO make it configurable
+	peerCatchupSleepIntervalMS = 100      // If peer is behind, sleep this amount
+	MempoolPacketChannelSize   = 1024 * 8 // 8K messages can be queued
 )
+
+type MempoolPacket struct {
+	chID     byte
+	src      p2p.Peer
+	msgBytes []byte
+}
 
 // MempoolReactor handles mempool tx broadcasting amongst peers.
 type MempoolReactor struct {
 	p2p.BaseReactor
 	config  *cfg.MempoolConfig
 	Mempool *Mempool
+	recvCh  chan *MempoolPacket
 }
 
 // NewMempoolReactor returns a new MempoolReactor with the given config and mempool.
@@ -34,6 +42,7 @@ func NewMempoolReactor(config *cfg.MempoolConfig, mempool *Mempool) *MempoolReac
 	memR := &MempoolReactor{
 		config:  config,
 		Mempool: mempool,
+		recvCh:  make(chan *MempoolPacket, MempoolPacketChannelSize),
 	}
 	memR.BaseReactor = *p2p.NewBaseReactor("MempoolReactor", memR)
 	return memR
@@ -50,7 +59,14 @@ func (memR *MempoolReactor) OnStart() error {
 	if !memR.config.Broadcast {
 		memR.Logger.Info("Tx broadcasting is disabled")
 	}
+	go memR.receiveRoutine()
 	return nil
+}
+
+// OnStop implements p2p.BaseReactor
+// Close message queue channel
+func (memR *MempoolReactor) OnStop() {
+	close(memR.recvCh)
 }
 
 // GetChannels implements Reactor.
@@ -76,8 +92,19 @@ func (memR *MempoolReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 }
 
 // Receive implements Reactor.
-// It adds any received transactions to the mempool.
 func (memR *MempoolReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
+	memR.recvCh <- &MempoolPacket{chID: chID, src: src, msgBytes: msgBytes}
+}
+
+func (memR *MempoolReactor) receiveRoutine() {
+	memR.Logger.Debug("Starting ReceiveRoutine for mempool")
+	for p := range memR.recvCh {
+		memR.receiveImpl(p.chID, p.src, p.msgBytes)
+	}
+}
+
+// It adds any received transactions to the mempool.
+func (memR *MempoolReactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
