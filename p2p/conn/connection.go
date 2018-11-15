@@ -576,7 +576,13 @@ FOR_LOOP:
 			if msgBytes != nil {
 				c.Logger.Debug("Received bytes", "chID", pkt.ChannelID, "msgBytes", fmt.Sprintf("%X", msgBytes))
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
-				c.onReceive(pkt.ChannelID, msgBytes)
+				// except the mempool actually is using an asynchronus Receive() to prevent jamming requests
+				// stopping block producing (tested via )
+
+				// this copy is due to the underlying memory is shared, and causes problem for async call
+				msgCopy := make([]byte, len(msgBytes))
+				copy(msgCopy, msgBytes)
+				c.onReceive(pkt.ChannelID, msgCopy)
 			}
 		default:
 			err := fmt.Errorf("Unknown message type %v", reflect.TypeOf(packet))

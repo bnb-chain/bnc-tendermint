@@ -300,7 +300,6 @@ func TestReapPriority(t *testing.T) {
 	//go reapCheck()
 	wg.Add(TotalTx)
 	for i := 1; i <= TotalTx; i++ {
-		fmt.Printf("Insert checkTX:%v\n", i)
 		go checkTxs(i)
 	}
 	//close(seqReap)
