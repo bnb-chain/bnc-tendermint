@@ -462,7 +462,8 @@ func (mem *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		// Check total size requirement
-		aminoOverhead := int64(amino.UvarintSize(uint64(len(memTx.tx))))
+		// TODO: merge tendermint
+		aminoOverhead := int64(amino.UvarintSize(uint64(len(memTx.tx)))) + 1
 		if maxBytes > -1 && totalBytes+int64(len(memTx.tx))+aminoOverhead > maxBytes {
 			return txs
 		}
