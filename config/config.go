@@ -452,10 +452,10 @@ func DefaultP2PConfig() *P2PConfig {
 		AddrBookStrict:          true,
 		MaxNumInboundPeers:      40,
 		MaxNumOutboundPeers:     10,
-		FlushThrottleTimeout:    100 * time.Millisecond,
+		FlushThrottleTimeout:    10 * time.Millisecond,
 		MaxPacketMsgPayloadSize: 1024 * 1024,      // 1 MB
-		SendRate:                50 * 1024 * 1024, // 50 mB/s
-		RecvRate:                50 * 1024 * 1024, // 50 mB/s
+		SendRate:                50 * 1024 * 1024, // 50 MB/s
+		RecvRate:                50 * 1024 * 1024, // 50 MB/s
 		PexReactor:              true,
 		SeedMode:                false,
 		AllowDuplicateIP:        false,
