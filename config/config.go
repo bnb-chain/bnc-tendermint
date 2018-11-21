@@ -353,8 +353,8 @@ func DefaultP2PConfig() *P2PConfig {
 		MaxNumOutboundPeers:     10,
 		FlushThrottleTimeout:    10,
 		MaxPacketMsgPayloadSize: 1024 * 1024,      // 1 MB
-		SendRate:                50 * 1024 * 1024, // 5 mB/s
-		RecvRate:                50 * 1024 * 1024, // 5 mB/s
+		SendRate:                50 * 1024 * 1024, // 50 MB/s
+		RecvRate:                50 * 1024 * 1024, // 50 MB/s
 		PexReactor:              true,
 		SeedMode:                false,
 		AllowDuplicateIP:        true, // so non-breaking yet
