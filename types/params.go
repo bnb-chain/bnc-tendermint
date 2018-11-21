@@ -11,7 +11,7 @@ const (
 	MaxBlockSizeBytes = 104857600 // 100MB
 
 	// BlockPartSizeBytes is the size of one block part.
-	BlockPartSizeBytes = 65536 // 64kB
+	BlockPartSizeBytes = 1024 * 1024 // 1MB
 )
 
 // ConsensusParams contains consensus critical parameters that determine the
@@ -51,7 +51,7 @@ func DefaultConsensusParams() *ConsensusParams {
 // DefaultBlockSizeParams returns a default BlockSizeParams.
 func DefaultBlockSizeParams() BlockSizeParams {
 	return BlockSizeParams{
-		MaxBytes: 22020096, // 21MB
+		MaxBytes: 1024 * 1024, // 1M
 		MaxGas:   -1,
 	}
 }
