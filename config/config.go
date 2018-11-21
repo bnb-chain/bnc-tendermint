@@ -351,10 +351,10 @@ func DefaultP2PConfig() *P2PConfig {
 		AddrBookStrict:          true,
 		MaxNumInboundPeers:      40,
 		MaxNumOutboundPeers:     10,
-		FlushThrottleTimeout:    100,
-		MaxPacketMsgPayloadSize: 1024,    // 1 kB
-		SendRate:                5120000, // 5 mB/s
-		RecvRate:                5120000, // 5 mB/s
+		FlushThrottleTimeout:    10,
+		MaxPacketMsgPayloadSize: 1024 * 1024,      // 1 MB
+		SendRate:                50 * 1024 * 1024, // 5 mB/s
+		RecvRate:                50 * 1024 * 1024, // 5 mB/s
 		PexReactor:              true,
 		SeedMode:                false,
 		AllowDuplicateIP:        true, // so non-breaking yet
@@ -488,7 +488,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		SkipTimeoutCommit:           false,
 		CreateEmptyBlocks:           true,
 		CreateEmptyBlocksInterval:   0,
-		PeerGossipSleepDuration:     100,
+		PeerGossipSleepDuration:     10,
 		PeerQueryMaj23SleepDuration: 2000,
 		BlockTimeIota:               1000,
 	}

@@ -18,9 +18,9 @@ import (
 const (
 	MempoolChannel = byte(0x30)
 
-	maxMsgSize                 = 1048576  // 1MB TODO make it configurable
-	peerCatchupSleepIntervalMS = 100      // If peer is behind, sleep this amount
-	MempoolPacketChannelSize   = 1024 * 8 // 8K messages can be queued
+	maxMsgSize                 = 1048576    // 1MB TODO make it configurable
+	peerCatchupSleepIntervalMS = 100        // If peer is behind, sleep this amount
+	MempoolPacketChannelSize   = 1024 * 200 // 200K messages can be queued
 )
 
 type MempoolPacket struct {
