@@ -17,7 +17,7 @@ import (
 const (
 	// see README
 	defaultPerPage = 30
-	maxPerPage     = 100
+	maxPerPage     = 10000
 )
 
 var subscribeTimeout = rpcserver.WriteTimeout / 2
@@ -150,6 +150,7 @@ func validatePage(page, perPage, totalCount int) int {
 
 func validatePerPage(perPage int) int {
 	if perPage < 1 || perPage > maxPerPage {
+		logger.Error("Wrong perPage parameter", "perPage", perPage, "defaultPerPage", defaultPerPage)
 		return defaultPerPage
 	}
 	return perPage
