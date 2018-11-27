@@ -39,6 +39,12 @@ func IDAddressString(id ID, hostPort string) string {
 	return fmt.Sprintf("%s@%s", id, hostPort)
 }
 
+// IDAddressSigString returns id@hostPort#signature.
+func IDAddressSigString(id ID, hostPort string, signature []byte) string {
+	sigB64 := base64.StdEncoding.EncodeToString(signature)
+	return fmt.Sprintf("%s#%s", IDAddressString(id, hostPort), sigB64)
+}
+
 // NewNetAddress returns a new NetAddress using the provided TCP
 // address. When testing, other net.Addr (except TCP) will result in
 // using 0.0.0.0:0. When normal run, other net.Addr (except TCP) will
@@ -192,12 +198,15 @@ func (na *NetAddress) Same(other interface{}) bool {
 	return false
 }
 
-// String representation: <ID>@<IP>:<PORT>
+// String representation: <ID>@<IP>:<PORT>(#<SIGNATURE>)
 func (na *NetAddress) String() string {
 	if na.str == "" {
 		addrStr := na.DialString()
 		if na.ID != "" {
 			addrStr = IDAddressString(na.ID, addrStr)
+		}
+		if len(na.Signature) != 0 {
+			addrStr = IDAddressSigString(na.ID, addrStr, na.Signature)
 		}
 		na.str = addrStr
 	}

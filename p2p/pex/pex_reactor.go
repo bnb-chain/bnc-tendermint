@@ -588,6 +588,11 @@ func (r *PEXReactor) getPeersToCrawl() []crawlPeerInfo {
 			continue // dont use peers without id
 		}
 
+		// TODO: SIGCHECK
+		if len(addr.Addr.Signature) > 0 {
+			continue
+		}
+
 		of = append(of, crawlPeerInfo{
 			Addr:        addr.Addr,
 			LastAttempt: addr.LastAttempt,

@@ -29,6 +29,17 @@ func newKnownAddress(addr *p2p.NetAddress, src *p2p.NetAddress) *knownAddress {
 	}
 }
 
+func oldKnownAddress(addr *p2p.NetAddress, src *p2p.NetAddress) *knownAddress {
+	return &knownAddress{
+		Addr:        addr,
+		Src:         src,
+		Attempts:    0,
+		LastAttempt: time.Now(),
+		BucketType:  bucketTypeOld,
+		Buckets:     nil,
+	}
+}
+
 func (ka *knownAddress) ID() p2p.ID {
 	return ka.Addr.ID
 }
@@ -108,6 +119,15 @@ func (ka *knownAddress) removeBucketRef(bucketIdx int) int {
 
 */
 func (ka *knownAddress) isBad() bool {
+	// Has VALID signature --> good
+	// TODO: SIGCHECK implement proper signature check
+	if len(ka.Addr.Signature) > 0 {
+		return false
+	}
+
+	// Has INVALID signature --> bad
+	// ...
+
 	// Is Old --> good
 	if ka.BucketType == bucketTypeOld {
 		return false

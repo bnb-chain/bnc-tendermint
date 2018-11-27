@@ -4,7 +4,6 @@ import (
 	rpc "github.com/tendermint/tendermint/rpc/lib/server"
 )
 
-// TODO: better system than "unsafe" prefix
 // NOTE: Amino is registered in rpc/core/types/wire.go.
 var Routes = map[string]*rpc.RPCFunc{
 	// subscribe/unsubscribe are reserved for websocket events.
@@ -38,6 +37,9 @@ var Routes = map[string]*rpc.RPCFunc{
 	// abci API
 	"abci_query": rpc.NewRPCFunc(ABCIQuery, "path,data,height,trusted"),
 	"abci_info":  rpc.NewRPCFunc(ABCIInfo, ""),
+
+	// signed peers routes
+	"add_signed_peers": rpc.NewRPCFunc(AddSignedPeers, "peers,persistent"),
 }
 
 func AddUnsafeRoutes() {

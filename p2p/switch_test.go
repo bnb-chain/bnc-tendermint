@@ -393,7 +393,7 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	err = sw.addOutboundPeerWithConfig(rp.Addr(), conf, true)
 	require.NotNil(err)
 
-	// DialPeerWithAddres - sw.peerConfig resets the dialer
+	// DialPeerWithAddress - sw.peerConfig resets the dialer
 
 	// TODO: same as above
 	for i := 0; i < 20; i++ {

@@ -369,11 +369,12 @@ func TestPEXReactorDialPeer(t *testing.T) {
 	}
 }
 
+var _ p2p.Peer = mockPeer{}
 type mockPeer struct {
 	*cmn.BaseService
 	pubKey               crypto.PubKey
 	addr                 *p2p.NetAddress
-	outbound, persistent bool
+	outbound, persistent, signed bool
 }
 
 func newMockPeer() mockPeer {
@@ -390,6 +391,7 @@ func newMockPeer() mockPeer {
 func (mp mockPeer) ID() p2p.ID         { return mp.addr.ID }
 func (mp mockPeer) IsOutbound() bool   { return mp.outbound }
 func (mp mockPeer) IsPersistent() bool { return mp.persistent }
+func (mp mockPeer) IsSigned() bool { return mp.signed }
 func (mp mockPeer) NodeInfo() p2p.NodeInfo {
 	return p2p.NodeInfo{
 		ID:         mp.addr.ID,

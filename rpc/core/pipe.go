@@ -41,7 +41,7 @@ type transport interface {
 }
 
 type peers interface {
-	DialPeersAsync(p2p.AddrBook, []string, bool) error
+	DialPeersAsync([]string, bool, bool) error
 	NumPeers() (outbound, inbound, dialig int)
 	Peers() p2p.IPeerSet
 }

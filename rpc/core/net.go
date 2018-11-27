@@ -54,18 +54,20 @@ func NetInfo() (*ctypes.ResultNetInfo, error) {
 	}, nil
 }
 
-func UnsafeDialSeeds(seeds []string) (*ctypes.ResultDialSeeds, error) {
-	if len(seeds) == 0 {
-		return &ctypes.ResultDialSeeds{}, errors.New("No seeds provided")
+func AddSignedPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, error) {
+	if len(peers) == 0 {
+		return &ctypes.ResultDialPeers{}, errors.New("No peers provided")
 	}
 	// starts go routines to dial each peer after random delays
-	logger.Info("DialSeeds", "addrBook", addrBook, "seeds", seeds)
-	err := p2pPeers.DialPeersAsync(addrBook, seeds, false)
+	logger.Info("AddSignedPeers", "addrBook", addrBook, "peers", peers, "persistent", persistent)
+	err := p2pPeers.DialPeersAsync(peers, persistent, true)
 	if err != nil {
-		return &ctypes.ResultDialSeeds{}, err
+		return &ctypes.ResultDialPeers{}, err
 	}
-	return &ctypes.ResultDialSeeds{"Dialing seeds in progress. See /net_info for details"}, nil
+	return &ctypes.ResultDialPeers{"Dialing peers in progress. See /net_info for details"}, nil
 }
+
+// unsafe peers operations
 
 func UnsafeDialPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, error) {
 	if len(peers) == 0 {
@@ -73,12 +75,27 @@ func UnsafeDialPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, 
 	}
 	// starts go routines to dial each peer after random delays
 	logger.Info("DialPeers", "addrBook", addrBook, "peers", peers, "persistent", persistent)
-	err := p2pPeers.DialPeersAsync(addrBook, peers, persistent)
+	err := p2pPeers.DialPeersAsync(peers, persistent, false)
 	if err != nil {
 		return &ctypes.ResultDialPeers{}, err
 	}
 	return &ctypes.ResultDialPeers{"Dialing peers in progress. See /net_info for details"}, nil
 }
+
+func UnsafeDialSeeds(seeds []string) (*ctypes.ResultDialSeeds, error) {
+	if len(seeds) == 0 {
+		return &ctypes.ResultDialSeeds{}, errors.New("No seeds provided")
+	}
+	// starts go routines to dial each peer after random delays
+	logger.Info("DialSeeds", "addrBook", addrBook, "seeds", seeds)
+	err := p2pPeers.DialPeersAsync(seeds, false, false)
+	if err != nil {
+		return &ctypes.ResultDialSeeds{}, err
+	}
+	return &ctypes.ResultDialSeeds{"Dialing seeds in progress. See /net_info for details"}, nil
+}
+
+// / unsafe
 
 // Get genesis file.
 //

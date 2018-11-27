@@ -534,7 +534,8 @@ func (n *Node) OnStart() error {
 
 	// Always connect to persistent peers
 	if n.config.P2P.PersistentPeers != "" {
-		err = n.sw.DialPeersAsync(n.addrBook, splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "), true)
+		// TODO: might persistent peers include gateways - maybe true?
+		err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "), true, false)
 		if err != nil {
 			return err
 		}

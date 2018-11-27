@@ -27,6 +27,9 @@ type Peer interface {
 	Status() tmconn.ConnectionStatus
 	OriginalAddr() *NetAddress
 
+	// bnc specials
+	IsSigned() bool // was this peer added with a valid validator signature?
+
 	Send(byte, []byte) bool
 	TrySend(byte, []byte) bool
 
@@ -166,9 +169,15 @@ func (p *peer) IsOutbound() bool {
 	return p.peerConn.outbound
 }
 
-// IsPersistent returns true if the peer is persitent, false otherwise.
+// IsPersistent returns true if the peer is persistent, false otherwise.
 func (p *peer) IsPersistent() bool {
 	return p.peerConn.persistent
+}
+
+// IsSigned returns true if this peer was created with a signature.
+func (p *peer) IsSigned() bool {
+	// TOOD: SIGCHECK
+	return len(p.OriginalAddr().Signature) != 0
 }
 
 // NodeInfo returns a copy of the peer's NodeInfo.

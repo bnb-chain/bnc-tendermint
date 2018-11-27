@@ -211,7 +211,12 @@ func (a *addrBook) RemoveAddress(addr *p2p.NetAddress) {
 func (a *addrBook) IsGood(addr *p2p.NetAddress) bool {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
-	return a.addrLookup[addr.ID].isOld()
+	ka := a.addrLookup[addr.ID]
+	// TODO: SIGCHECK
+	if len(ka.Addr.Signature) > 0 {
+		return true
+	}
+	return ka.isOld()
 }
 
 // HasAddress returns true if the address is in the book.
@@ -637,8 +642,9 @@ func (a *addrBook) pickOldest(bucketType byte, bucketIdx int) *knownAddress {
 	return oldest
 }
 
-// adds the address to a "new" bucket. if its already in one,
-// it only adds it probabilistically
+// adds the address to a "new" bucket if it does not contain a valid signature,
+// or to the "old" bucket if it does.
+// if its already in one, it only adds it probabilistically
 func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 	if addr == nil || src == nil {
 		return ErrAddrBookNilAddr{addr, src}
@@ -661,6 +667,8 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 		return ErrAddrBookPrivateSrc{src}
 	}
 
+	bucket := a.calcNewBucket(addr, src)
+
 	ka := a.addrLookup[addr.ID]
 	if ka != nil {
 		// If its already old and the addr is the same, ignore it.
@@ -676,11 +684,15 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 		if a.rand.Int31n(factor) != 0 {
 			return nil
 		}
+	// TODO: SIGCHECK
+	} else if len(addr.Signature) > 0 {
+		ka = oldKnownAddress(addr, src)
+		a.addToOldBucket(ka, bucket)
+		return nil
 	} else {
 		ka = newKnownAddress(addr, src)
 	}
 
-	bucket := a.calcNewBucket(addr, src)
 	a.addToNewBucket(ka, bucket)
 	return nil
 }

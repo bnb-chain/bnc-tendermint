@@ -377,7 +377,9 @@ func (sw *Switch) MarkPeerAsGood(peer Peer) {
 // DialPeersAsync dials a list of peers asynchronously in random order (optionally, making them persistent).
 // Used to dial peers from config on startup or from unsafe-RPC (trusted sources).
 // TODO: remove addrBook arg since it's now set on the switch
-func (sw *Switch) DialPeersAsync(addrBook AddrBook, peers []string, persistent bool) error {
+func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly bool) error {
+	addrBook := sw.addrBook
+
 	netAddrs, errs := NewNetAddressStrings(peers)
 	// only log errors, dial correct addresses
 	for _, err := range errs {
@@ -403,6 +405,11 @@ func (sw *Switch) DialPeersAsync(addrBook AddrBook, peers []string, persistent b
 		// Persist some peers to disk right away.
 		// NOTE: integration tests depend on this
 		addrBook.Save()
+	}
+
+	// skip dialling if we are only adding signed peer addresses
+	if signedOnly {
+		return nil
 	}
 
 	// permute the list, dial them in random order.
@@ -438,6 +445,10 @@ func (sw *Switch) DialPeersAsync(addrBook AddrBook, peers []string, persistent b
 // DialPeerWithAddress dials the given peer and runs sw.addPeer if it connects and authenticates successfully.
 // If `persistent == true`, the switch will always try to reconnect to this peer if the connection ever fails.
 func (sw *Switch) DialPeerWithAddress(addr *NetAddress, persistent bool) error {
+	// skip dialling if we are adding a signed peer address
+	if len(addr.Signature) > 0 {
+		return nil
+	}
 	sw.dialing.Set(string(addr.ID), addr)
 	defer sw.dialing.Delete(string(addr.ID))
 	return sw.addOutboundPeerWithConfig(addr, sw.config, persistent)
