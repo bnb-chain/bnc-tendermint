@@ -263,6 +263,7 @@ func makeHTTPHandler(rpcFunc *RPCFunc, cdc *amino.Codec, logger log.Logger) func
 		logger.Debug("HTTP HANDLER", "req", r)
 		args, err := httpParamsToArgs(rpcFunc, cdc, r)
 		if err != nil {
+			fmt.Println(err)
 			WriteRPCResponseHTTP(w, types.RPCInvalidParamsError("", errors.Wrap(err, "Error converting http params to arguments")))
 			return
 		}

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	abci "github.com/tendermint/tendermint/abci/types"
-	crypto "github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto"
 	cmn "github.com/tendermint/tendermint/libs/common"
 
 	"github.com/tendermint/tendermint/p2p"
@@ -107,6 +107,7 @@ type ResultDialPeers struct {
 
 // A peer
 type Peer struct {
+	HostPort         string `json:"host_port"`
 	p2p.NodeInfo     `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
@@ -194,10 +195,10 @@ type ResultABCIQuery struct {
 // empty results
 type (
 	ResultUnsafeFlushMempool struct{}
-	ResultUnsafeProfile      struct{}
-	ResultSubscribe          struct{}
-	ResultUnsubscribe        struct{}
-	ResultHealth             struct{}
+	ResultUnsafeProfile struct{}
+	ResultSubscribe struct{}
+	ResultUnsubscribe struct{}
+	ResultHealth struct{}
 )
 
 // Event data from a subscription

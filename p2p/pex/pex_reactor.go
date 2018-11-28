@@ -552,7 +552,7 @@ func (r *PEXReactor) crawlPeersRoutine() {
 func (r *PEXReactor) hasPotentialPeers() bool {
 	out, in, dial := r.Switch.NumPeers()
 
-	return out+in+dial > 0 && len(r.book.ListOfKnownAddresses()) > 0
+	return out+in+dial > 0 && len(r.book.ListOfKnownAddresses(true)) > 0
 }
 
 // crawlPeerInfo handles temporary data needed for the
@@ -581,18 +581,13 @@ func (of oldestFirst) Less(i, j int) bool { return of[i].LastAttempt.Before(of[j
 func (r *PEXReactor) getPeersToCrawl() []crawlPeerInfo {
 	var of oldestFirst
 
+	// exclude addresses that have signatures attached (do not crawl them)
 	// TODO: be more selective
-	addrs := r.book.ListOfKnownAddresses()
+	addrs := r.book.ListOfKnownAddresses(true)
 	for _, addr := range addrs {
 		if len(addr.ID()) == 0 {
 			continue // dont use peers without id
 		}
-
-		// TODO: SIGCHECK
-		if len(addr.Addr.Signature) > 0 {
-			continue
-		}
-
 		of = append(of, crawlPeerInfo{
 			Addr:        addr.Addr,
 			LastAttempt: addr.LastAttempt,

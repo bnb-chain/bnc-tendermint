@@ -73,7 +73,7 @@ func TestNewNetAddressStringWithOptionalIDAndSignature(t *testing.T) {
 	exptSig := "SIGNATURE"
 	testSig := base64.StdEncoding.EncodeToString([]byte(exptSig))
 	withSig := func(addr string) string {
-		return fmt.Sprintf("%s#%s", addr, testSig)
+		return fmt.Sprintf("%s$%s", addr, testSig)
 	}
 	for idx, tc := range addrTestCases {
 		signed := withSig(tc.addr)

@@ -112,13 +112,7 @@ func newPeer(
 	chDescs []*tmconn.ChannelDescriptor,
 	onPeerError func(Peer, interface{}),
 ) *peer {
-	p := &peer{
-		peerConn: pc,
-		nodeInfo: nodeInfo,
-		channels: nodeInfo.Channels,
-		Data:     cmn.NewCMap(),
-	}
-
+	p := newUnconnectedPeer(pc, nodeInfo)
 	p.mconn = createMConnection(
 		pc.conn,
 		p,
@@ -129,6 +123,20 @@ func newPeer(
 	)
 	p.BaseService = *cmn.NewBaseService(nil, "Peer", p)
 
+	return p
+}
+
+func newUnconnectedPeer(
+	pc peerConn,
+	nodeInfo NodeInfo,
+) *peer {
+	p := &peer{
+		peerConn: pc,
+		nodeInfo: nodeInfo,
+		channels: nodeInfo.Channels,
+		Data:     cmn.NewCMap(),
+	}
+	p.BaseService = *cmn.NewBaseService(nil, "Peer", p)
 	return p
 }
 
@@ -196,6 +204,9 @@ func (p *peer) OriginalAddr() *NetAddress {
 
 // Status returns the peer's ConnectionStatus.
 func (p *peer) Status() tmconn.ConnectionStatus {
+	if p.mconn == nil {
+		return tmconn.ConnectionStatus{}
+	}
 	return p.mconn.Status()
 }
 

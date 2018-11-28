@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
@@ -39,10 +41,10 @@ func IDAddressString(id ID, hostPort string) string {
 	return fmt.Sprintf("%s@%s", id, hostPort)
 }
 
-// IDAddressSigString returns id@hostPort#signature.
+// IDAddressSigString returns id@hostPort$signature.
 func IDAddressSigString(id ID, hostPort string, signature []byte) string {
 	sigB64 := base64.StdEncoding.EncodeToString(signature)
-	return fmt.Sprintf("%s#%s", IDAddressString(id, hostPort), sigB64)
+	return fmt.Sprintf("%s$%s", IDAddressString(id, hostPort), sigB64)
 }
 
 // NewNetAddress returns a new NetAddress using the provided TCP
@@ -69,7 +71,7 @@ func NewNetAddress(id ID, addr net.Addr) *NetAddress {
 }
 
 // NewNetAddressString returns a new NetAddress using the provided address in
-// the form of "ID@IP:Port#Signature".
+// the form of "ID@IP:Port$Signature".
 // Also resolves the host if host is not an IP.
 // Errors are of type ErrNetAddressXxx where Xxx is in (NoID, Invalid, Lookup)
 func NewNetAddressString(addr string) (*NetAddress, error) {
@@ -77,7 +79,7 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 	if len(spl) < 2 {
 		return nil, ErrNetAddressNoID{addr}
 	}
-	if !strings.Contains(spl[1], "#") {
+	if !strings.Contains(spl[1], "$") {
 		return NewNetAddressStringWithOptionalID(addr)
 	} else {
 		return NewNetAddressStringWithOptionalIDAndSignature(addr)
@@ -85,7 +87,7 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 }
 
 func NewNetAddressStringWithOptionalIDAndSignature(saddr string) (*NetAddress, error) {
-	spl := strings.Split(saddr, "#")
+	spl := strings.Split(saddr, "$")
 	addr, err := NewNetAddressStringWithOptionalID(spl[0])
 	if err != nil {
 		return nil, err
@@ -198,7 +200,7 @@ func (na *NetAddress) Same(other interface{}) bool {
 	return false
 }
 
-// String representation: <ID>@<IP>:<PORT>(#<SIGNATURE>)
+// String representation: <ID>@<IP>:<PORT>($<SIGNATURE>)
 func (na *NetAddress) String() string {
 	if na.str == "" {
 		addrStr := na.DialString()
@@ -222,6 +224,11 @@ func (na *NetAddress) DialString() string {
 
 // Dial calls net.Dial on the address.
 func (na *NetAddress) Dial() (net.Conn, error) {
+	// TODO: SIGCHECK
+	if len(na.Signature) > 0 {
+		// do not dial peers with signatures
+		return nil, errors.New("Cannot dial a peer with a signature")
+	}
 	conn, err := net.Dial("tcp", na.DialString())
 	if err != nil {
 		return nil, err

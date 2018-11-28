@@ -66,7 +66,7 @@ type AddrBook interface {
 	GetSelectionWithBias(biasTowardsNewAddrs int) []*p2p.NetAddress
 
 	// TODO: remove
-	ListOfKnownAddresses() []*knownAddress
+	ListOfKnownAddresses(excludeSigned bool) []*knownAddress
 
 	// Persist to disk
 	Save()
@@ -465,12 +465,16 @@ ADDRS_LOOP:
 }
 
 // ListOfKnownAddresses returns the new and old addresses.
-func (a *addrBook) ListOfKnownAddresses() []*knownAddress {
+func (a *addrBook) ListOfKnownAddresses(excludeSigned bool) []*knownAddress {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 
 	addrs := []*knownAddress{}
 	for _, addr := range a.addrLookup {
+		// TODO: SIGCHECK?
+		if excludeSigned && len(addr.Addr.Signature) > 0 {
+			continue
+		}
 		addrs = append(addrs, addr.copy())
 	}
 	return addrs

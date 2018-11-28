@@ -409,6 +409,14 @@ func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly boo
 
 	// skip dialling if we are only adding signed peer addresses
 	if signedOnly {
+		perm := sw.rng.Perm(len(netAddrs))
+		for i := 0; i < len(perm); i++ {
+			go func(i int) {
+				j := perm[i]
+				addr := netAddrs[j]
+				sw.DialPeerWithAddress(addr, persistent)
+			}(i)
+		}
 		return nil
 	}
 
@@ -447,6 +455,13 @@ func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly boo
 func (sw *Switch) DialPeerWithAddress(addr *NetAddress, persistent bool) error {
 	// skip dialling if we are adding a signed peer address
 	if len(addr.Signature) > 0 {
+		sw.Logger.Info(
+			"Adding signed peer. Will bypass dial.",
+			"addr", addr,
+			"persistent", persistent,
+			"numPeers", sw.peers.Size(),
+		)
+		sw.addOutboundPeerWithoutDial(addr, sw.config, persistent)
 		return nil
 	}
 	sw.dialing.Set(string(addr.ID), addr)
@@ -535,6 +550,20 @@ func (sw *Switch) acceptRoutine() {
 			)
 		}
 	}
+}
+
+func (sw *Switch) addOutboundPeerWithoutDial(
+	addr *NetAddress,
+	cfg *config.P2PConfig,
+	persistent bool,
+) error {
+	p := newUnconnectedPeer(
+		peerConn{true, persistent, sw.config, nil, addr.IP, addr},
+		sw.nodeInfo)
+	if err := sw.peers.Add(p); err != nil {
+		return err
+	}
+	return nil
 }
 
 // dial the peer; make secret connection; authenticate against the dialed ID;
