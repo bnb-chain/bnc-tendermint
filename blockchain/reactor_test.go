@@ -91,7 +91,7 @@ func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals 
 	// pool.height is determined from the store.
 	fastSync := true
 	blockExec := sm.NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), proxyApp.Consensus(),
-		sm.MockMempool{}, sm.MockEvidencePool{})
+		sm.MockMempool{}, sm.MockEvidencePool{}, true)
 
 	// let's add some blocks in
 	for blockHeight := int64(1); blockHeight <= maxBlockHeight; blockHeight++ {

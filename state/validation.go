@@ -13,7 +13,7 @@ import (
 //-----------------------------------------------------
 // Validate block
 
-func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
+func validateBlock(stateDB dbm.DB, state State, block *types.Block, withAppStat bool) error {
 	// Validate internal consistency.
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -56,8 +56,9 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
 	}
 
 	// Validate app info
-	if !bytes.Equal(block.AppHash, state.AppHash) {
-		return fmt.Errorf("Wrong Block.Header.AppHash.  Expected %X, got %v",
+	if withAppStat && !bytes.Equal(block.AppHash, state.AppHash) {
+		return fmt.Errorf(
+			"Wrong Block.Header.AppHash.  Expected %X, got %v",
 			state.AppHash,
 			block.AppHash,
 		)
@@ -68,8 +69,9 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
 			block.ConsensusHash,
 		)
 	}
-	if !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
-		return fmt.Errorf("Wrong Block.Header.LastResultsHash.  Expected %X, got %v",
+	if withAppStat && !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
+		return fmt.Errorf(
+			"Wrong Block.Header.LastResultsHash.  Expected %X, got %v",
 			state.LastResultsHash,
 			block.LastResultsHash,
 		)

@@ -218,7 +218,7 @@ func NewNode(config *cfg.Config,
 	// Create the handshaker, which calls RequestInfo, sets the AppVersion on the state,
 	// and replays any blocks as necessary to sync tendermint with the app.
 	consensusLogger := logger.With("module", "consensus")
-	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
+	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc, config.WithAppStat)
 	handshaker.SetLogger(consensusLogger)
 	if err := handshaker.Handshake(proxyApp); err != nil {
 		return nil, fmt.Errorf("Error during handshake: %v", err)
@@ -317,6 +317,7 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		config.WithAppStat,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 

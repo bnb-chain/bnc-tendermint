@@ -117,6 +117,9 @@ prof_laddr = "{{ .BaseConfig.ProfListenAddress }}"
 # so the app can decide if we should keep the connection or not
 filter_peers = {{ .BaseConfig.FilterPeers }}
 
+# If false, will not check appHash when apply block
+with_app_stat = {{ .BaseConfig.WithAppStat }}
+
 ##### advanced configuration options #####
 
 ##### rpc server configuration options #####

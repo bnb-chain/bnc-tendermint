@@ -147,7 +147,7 @@ func TestReactorWithEvidence(t *testing.T) {
 		evpool := newMockEvidencePool(addr)
 
 		// Make ConsensusState
-		blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyAppConnCon, mempool, evpool)
+		blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyAppConnCon, mempool, evpool, true)
 		cs := NewConsensusState(thisConfig.Consensus, state, blockExec, blockStore, mempool, evpool)
 		cs.SetLogger(log.TestingLogger().With("module", "consensus"))
 		cs.SetPrivValidator(pv)
