@@ -33,19 +33,23 @@ type BlockExecutor struct {
 	evpool  EvidencePool
 
 	logger log.Logger
+
+	// whether to check appHash
+	withAppState bool
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
 func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus,
-	mempool Mempool, evpool EvidencePool) *BlockExecutor {
+	mempool Mempool, evpool EvidencePool, withAppState bool) *BlockExecutor {
 	return &BlockExecutor{
-		db:       db,
-		proxyApp: proxyApp,
-		eventBus: types.NopEventBus{},
-		mempool:  mempool,
-		evpool:   evpool,
-		logger:   logger,
+		db:           db,
+		proxyApp:     proxyApp,
+		eventBus:     types.NopEventBus{},
+		mempool:      mempool,
+		evpool:       evpool,
+		logger:       logger,
+		withAppState: withAppState,
 	}
 }
 
@@ -60,7 +64,7 @@ func (blockExec *BlockExecutor) SetEventBus(eventBus types.BlockEventPublisher) 
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
 func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) error {
-	return validateBlock(blockExec.db, state, block)
+	return validateBlock(blockExec.db, state, block, blockExec.withAppState)
 }
 
 // ApplyBlock validates the block against the state, executes it against the app,

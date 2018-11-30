@@ -144,6 +144,9 @@ type BaseConfig struct {
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
 	FilterPeers bool `mapstructure:"filter_peers"` // false
+
+	// Whether application get state
+	WithAppStat bool `mapstructure:"with_app_stat"`
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
@@ -161,6 +164,7 @@ func DefaultBaseConfig() BaseConfig {
 		FilterPeers:       false,
 		DBBackend:         "leveldb",
 		DBPath:            "data",
+		WithAppStat:       true,
 	}
 }
 

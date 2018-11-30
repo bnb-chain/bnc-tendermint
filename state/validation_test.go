@@ -12,7 +12,7 @@ import (
 func TestValidateBlock(t *testing.T) {
 	state, _ := state(1, 1)
 
-	blockExec := NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), nil, nil, nil)
+	blockExec := NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), nil, nil, nil, true)
 
 	// proper block must pass
 	block := makeBlock(state, 1)
