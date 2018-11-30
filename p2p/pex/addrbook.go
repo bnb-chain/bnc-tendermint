@@ -13,9 +13,12 @@ import (
 	"sync"
 	"time"
 
-	crypto "github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/rpc/core"
+	sm "github.com/tendermint/tendermint/state"
 )
 
 const (
@@ -83,6 +86,12 @@ type addrBook struct {
 	filePath          string
 	routabilityStrict bool
 	key               string // random prefix for bucket placement
+
+	// set through setters
+	// StateDB is set on the address book to allow for access to validator pubkeys for peer sig checks
+	stateDB dbm.DB
+	// consensus state is used to get the latest block height
+	consensusState core.Consensus
 
 	// accessed concurrently
 	mtx        sync.Mutex
@@ -212,11 +221,37 @@ func (a *addrBook) IsGood(addr *p2p.NetAddress) bool {
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 	ka := a.addrLookup[addr.ID]
-	// TODO: SIGCHECK
-	if len(ka.Addr.Signature) > 0 {
+	// SIG CHECK
+	valid, err := a.HasValidSignature(addr)
+	if valid && err == nil {
 		return true
 	}
 	return ka.isOld()
+}
+
+// HasValidSignature checks to whether an address has a valid validator signature.
+func (a *addrBook) HasValidSignature(addr *p2p.NetAddress) (bool, error) {
+	if !addr.HasSignature() {
+		return false, nil
+	}
+	// The latest validator that we know is the
+	// NextValidator of the last block.
+	height := a.consensusState.GetState().LastBlockHeight + 1
+	validators, err := sm.LoadValidators(a.stateDB, height)
+	if err != nil {
+		return false, err
+	}
+	// test the signature against all the validator pubkeys.
+	for _, val := range validators.Validators {
+		sig, err := addr.DecodeSignature()
+		if err != nil {
+			return false, err
+		}
+		if val.PubKey.VerifyBytes([]byte(addr.DialString()), sig) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // HasAddress returns true if the address is in the book.
@@ -471,13 +506,23 @@ func (a *addrBook) ListOfKnownAddresses(excludeSigned bool) []*knownAddress {
 
 	addrs := []*knownAddress{}
 	for _, addr := range a.addrLookup {
-		// TODO: SIGCHECK?
+		// skip signed peers if `excludeSigned` was passed in
 		if excludeSigned && len(addr.Addr.Signature) > 0 {
 			continue
 		}
 		addrs = append(addrs, addr.copy())
 	}
 	return addrs
+}
+
+//----------------------------------------------------------
+
+func (a *addrBook) SetStateDB(stateDB dbm.DB) {
+	a.stateDB = stateDB
+}
+
+func (a *addrBook) SetConsensusState(consensusState core.Consensus) {
+	a.consensusState = consensusState
 }
 
 //------------------------------------------------
@@ -688,11 +733,14 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 		if a.rand.Int31n(factor) != 0 {
 			return nil
 		}
-	// TODO: SIGCHECK
-	} else if len(addr.Signature) > 0 {
+		// TODO: SIGCHECK
+	} else if valid, err := a.HasValidSignature(addr); valid && err == nil {
 		ka = oldKnownAddress(addr, src)
 		a.addToOldBucket(ka, bucket)
 		return nil
+	} else if addr.HasSignature() {
+		// outright reject this faker
+		return ErrAddrBookSigNotValid{addr, addr.Signature}
 	} else {
 		ka = newKnownAddress(addr, src)
 	}

@@ -184,7 +184,7 @@ func (p *peer) IsPersistent() bool {
 
 // IsSigned returns true if this peer was created with a signature.
 func (p *peer) IsSigned() bool {
-	// TOOD: SIGCHECK
+	// TOOD: SIGCHECK (maybe not needed)
 	return len(p.OriginalAddr().Signature) != 0
 }
 

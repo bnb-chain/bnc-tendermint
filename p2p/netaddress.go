@@ -224,7 +224,7 @@ func (na *NetAddress) DialString() string {
 
 // Dial calls net.Dial on the address.
 func (na *NetAddress) Dial() (net.Conn, error) {
-	// TODO: SIGCHECK
+	// TODO: SIGCHECK (maybe not be needed)
 	if len(na.Signature) > 0 {
 		// do not dial peers with signatures
 		return nil, errors.New("Cannot dial a peer with a signature")
@@ -257,6 +257,19 @@ func (na *NetAddress) Routable() bool {
 func (na *NetAddress) Valid() bool {
 	return na.IP != nil && !(na.IP.IsUnspecified() || na.RFC3849() ||
 		na.IP.Equal(net.IPv4bcast))
+}
+
+// HasSignature returns whether this address contains a signature.
+func (na *NetAddress) HasSignature() bool {
+	return len(na.Signature) > 0
+}
+
+// DecodeSignature decodes an address's signature, if one is present.
+func (na *NetAddress) DecodeSignature() ([]byte, error) {
+	if !na.HasSignature() {
+		return nil, errors.New("No signature was found on this NetAddress")
+	}
+	return base64.StdEncoding.DecodeString(string(na.Signature))
 }
 
 // Local returns true if it is a local address.

@@ -431,6 +431,12 @@ func NewNode(config *cfg.Config,
 	// Note we currently use the addrBook regardless at least for AddOurAddress
 	addrBook := pex.NewAddrBook(config.P2P.AddrBookFile(), config.P2P.AddrBookStrict)
 
+	// stateDB is set on the address book to allow for access to validator pubkeys for peer sig checks.
+	addrBook.SetStateDB(stateDB)
+
+	// consensusState allows the addrbook to query for the latest block height.
+	addrBook.SetConsensusState(consensusState)
+
 	// Add ourselves to addrbook to prevent dialing ourselves
 	addrBook.AddOurAddress(nodeInfo.NetAddress())
 
