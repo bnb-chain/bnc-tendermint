@@ -113,6 +113,11 @@ type Peer struct {
 	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
 }
 
+// Signed peer output
+type ResultSignPeer struct {
+	SignedAddr string `json:"signed_addr"`
+}
+
 // Validators for a height
 type ResultValidators struct {
 	BlockHeight int64              `json:"block_height"`

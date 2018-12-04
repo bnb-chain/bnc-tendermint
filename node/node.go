@@ -13,8 +13,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	amino "github.com/tendermint/go-amino"
 
+	amino "github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
 	bc "github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
@@ -436,6 +436,12 @@ func NewNode(config *cfg.Config,
 
 	// consensusState allows the addrbook to query for the latest block height.
 	addrBook.SetConsensusState(consensusState)
+
+	// privValidator allows the addrbook to generate signed peer dial strings.
+	// TODO: bad - currently using a FilePV concrete impl so that we can get at the privkey in addrbook.
+	if _, ok := privValidator.(*privval.FilePV); ok {
+		addrBook.SetPrivValidator(privValidator.(*privval.FilePV))
+	}
 
 	// Add ourselves to addrbook to prevent dialing ourselves
 	addrBook.AddOurAddress(nodeInfo.NetAddress())

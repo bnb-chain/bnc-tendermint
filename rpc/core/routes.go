@@ -43,6 +43,9 @@ var Routes = map[string]*rpc.RPCFunc{
 }
 
 func AddUnsafeRoutes() {
+	// peer signature generate API
+	Routes["unsafe_sign_peer"] = rpc.NewRPCFunc(UnsafeSignPeer, "peer")
+
 	// control API
 	Routes["dial_seeds"] = rpc.NewRPCFunc(UnsafeDialSeeds, "seeds")
 	Routes["dial_peers"] = rpc.NewRPCFunc(UnsafeDialPeers, "peers,persistent")

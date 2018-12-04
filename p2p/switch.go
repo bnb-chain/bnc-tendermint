@@ -37,6 +37,7 @@ type AddrBook interface {
 	OurAddress(*NetAddress) bool
 	MarkGood(*NetAddress)
 	RemoveAddress(*NetAddress)
+	SignPeerString(string) (*NetAddress, error)
 	HasAddress(*NetAddress) bool
 	Save()
 }
@@ -388,7 +389,6 @@ func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly boo
 
 	ourAddr := sw.nodeInfo.NetAddress()
 
-	// TODO: this code feels like it's in the wrong place.
 	// The integration tests depend on the addrBook being saved
 	// right away but maybe we can change that. Recall that
 	// the addrBook is only written to disk every 2min

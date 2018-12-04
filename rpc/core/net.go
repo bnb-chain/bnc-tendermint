@@ -3,6 +3,7 @@ package core
 import (
 	"github.com/pkg/errors"
 
+	"github.com/tendermint/tendermint/p2p"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 )
 
@@ -69,6 +70,25 @@ func AddSignedPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, e
 }
 
 // unsafe peers operations
+
+func UnsafeSignPeer(peer string) (*ctypes.ResultSignPeer, error) {
+	logger.Info("UnsafeSignPeer", "peer", peer)
+	if len(peer) == 0 {
+		return &ctypes.ResultSignPeer{}, errors.New("No peer provided")
+	}
+	// try to create a NetAddress out of it
+	addr, err := p2p.NewNetAddressStringWithOptionalIDAndSignature(peer)
+	if err != nil {
+		return &ctypes.ResultSignPeer{}, err
+	}
+	signed, err := addrBook.SignPeerString(addr.String())
+	if err != nil {
+		return &ctypes.ResultSignPeer{}, err
+	}
+	return &ctypes.ResultSignPeer{
+		SignedAddr: signed.String(),
+	}, nil
+}
 
 func UnsafeDialPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, error) {
 	if len(peers) == 0 {

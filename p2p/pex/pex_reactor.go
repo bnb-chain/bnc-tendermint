@@ -399,6 +399,12 @@ func (r *PEXReactor) ensurePeers() {
 		// so we don't even consider dialing peers that we want to wait
 		// before dialling again, or have dialed too many times already
 		r.Logger.Info("Will dial address", "addr", try)
+
+		// do not dial an address that has a valid signature
+		if validSig, _ := r.book.HasValidSignature(try); validSig {
+			continue
+		}
+
 		toDial[try.ID] = try
 	}
 

@@ -13,10 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tendermint/tendermint/__vendor/github.com/pkg/errors"
 	"github.com/tendermint/tendermint/crypto"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/rpc/core"
 	sm "github.com/tendermint/tendermint/state"
 )
@@ -61,6 +63,12 @@ type AddrBook interface {
 	MarkAttempt(*p2p.NetAddress)
 	MarkBad(*p2p.NetAddress)
 
+	// Signs a peer dial string with the node's validator key
+	SignPeerString(string) (*p2p.NetAddress, error)
+
+	// Checks whether an address has a valid validator signature.
+	HasValidSignature(addr *p2p.NetAddress) (bool, error)
+
 	IsGood(*p2p.NetAddress) bool
 
 	// Send a selection of addresses to peers
@@ -92,6 +100,9 @@ type addrBook struct {
 	stateDB dbm.DB
 	// consensus state is used to get the latest block height
 	consensusState core.Consensus
+	// validator privkey is used to sign peer dial strings produced by this node
+	// TODO: might not always be FilePV
+	privValidator *privval.FilePV
 
 	// accessed concurrently
 	mtx        sync.Mutex
@@ -198,6 +209,14 @@ func (a *addrBook) AddPrivateIDs(IDs []string) {
 // Returns error if the addr is non-routable. Does not add self.
 // NOTE: addr must not be nil
 func (a *addrBook) AddAddress(addr *p2p.NetAddress, src *p2p.NetAddress) error {
+	if addr.HasSignature() {
+		if valid, _ := a.HasValidSignature(addr); !valid {
+			a.Logger.Error("Address had a signature but it is invalid! Refusing to add it.",
+				"addr", addr, "ID", addr.ID)
+			return errors.New("Caught an attempt to add an address with an invalid signature")
+		}
+	}
+
 	a.mtx.Lock()
 	defer a.mtx.Unlock()
 	return a.addAddress(addr, src)
@@ -215,27 +234,41 @@ func (a *addrBook) RemoveAddress(addr *p2p.NetAddress) {
 	a.removeFromAllBuckets(ka)
 }
 
-// IsGood returns true if peer was ever marked as good and haven't
-// done anything wrong since then.
-func (a *addrBook) IsGood(addr *p2p.NetAddress) bool {
-	a.mtx.Lock()
-	defer a.mtx.Unlock()
-	ka := a.addrLookup[addr.ID]
-	// SIG CHECK
-	valid, err := a.HasValidSignature(addr)
-	if valid && err == nil {
-		return true
+// SignPeerString signs a peer string
+func (a *addrBook) SignPeerString(idHostPort string) (*p2p.NetAddress, error) {
+	if a.privValidator == nil {
+		return nil, errors.New("privValidator is nil, cannot generate a signed dial string")
 	}
-	return ka.isOld()
+	// the latest validator that we know is the
+	// next validator of the last block
+	height := a.consensusState.GetState().LastBlockHeight + 1
+	validators, err := sm.LoadValidators(a.stateDB, height)
+	if err != nil {
+		return nil, err
+	}
+	// sign the given idHostPort with the first validator we know about
+	if len(validators.Validators) < 1 {
+		return nil, errors.New("No validators available to sign an address")
+	}
+	signed, err := a.privValidator.PrivKey.Sign([]byte(idHostPort))
+	if err != nil {
+		return nil, err
+	}
+	addr, err := p2p.NewNetAddressStringWithOptionalID(idHostPort)
+	if err != nil {
+		return nil, err
+	}
+	addr.Signature = signed
+	return addr, nil
 }
 
-// HasValidSignature checks to whether an address has a valid validator signature.
+// HasValidSignature checks whether an address has a valid validator signature.
 func (a *addrBook) HasValidSignature(addr *p2p.NetAddress) (bool, error) {
 	if !addr.HasSignature() {
 		return false, nil
 	}
-	// The latest validator that we know is the
-	// NextValidator of the last block.
+	// the latest validator that we know is the
+	// next validator of the last block
 	height := a.consensusState.GetState().LastBlockHeight + 1
 	validators, err := sm.LoadValidators(a.stateDB, height)
 	if err != nil {
@@ -252,6 +285,20 @@ func (a *addrBook) HasValidSignature(addr *p2p.NetAddress) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+// IsGood returns true if peer was ever marked as good and haven't
+// done anything wrong since then.
+func (a *addrBook) IsGood(addr *p2p.NetAddress) bool {
+	a.mtx.Lock()
+	defer a.mtx.Unlock()
+	ka := a.addrLookup[addr.ID]
+	// SIG CHECK
+	valid, err := a.HasValidSignature(addr)
+	if valid && err == nil {
+		return true
+	}
+	return ka.isOld()
 }
 
 // HasAddress returns true if the address is in the book.
@@ -525,6 +572,10 @@ func (a *addrBook) SetConsensusState(consensusState core.Consensus) {
 	a.consensusState = consensusState
 }
 
+func (a *addrBook) SetPrivValidator(privValidator *privval.FilePV) {
+	a.privValidator = privValidator
+}
+
 //------------------------------------------------
 
 // Size returns the number of addresses in the book.
@@ -733,7 +784,6 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 		if a.rand.Int31n(factor) != 0 {
 			return nil
 		}
-		// TODO: SIGCHECK
 	} else if valid, err := a.HasValidSignature(addr); valid && err == nil {
 		ka = oldKnownAddress(addr, src)
 		a.addToOldBucket(ka, bucket)

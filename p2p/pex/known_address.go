@@ -120,7 +120,7 @@ func (ka *knownAddress) removeBucketRef(bucketIdx int) int {
 */
 func (ka *knownAddress) isBad() bool {
 	// Has VALID signature --> good
-	// TODO: SIGCHECK implement proper signature check (maybe not be needed)
+	// TODO: SIGCHECK do a proper signature check (maybe not be needed)
 	if len(ka.Addr.Signature) > 0 {
 		return false
 	}
