@@ -138,6 +138,9 @@ grpc_max_open_connections = {{ .RPC.GRPCMaxOpenConnections }}
 # Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool
 unsafe = {{ .RPC.Unsafe }}
 
+# Activate unsafe BNC RPC commands like /unsafe_sign_peer
+bnc_unsafe_rpc = {{ .RPC.BncUnsafeRpc }}
+
 # Maximum number of simultaneous connections (including WebSocket).
 # Does not include gRPC connections. See grpc_max_open_connections
 # If you want to accept more significant number than the default, make sure

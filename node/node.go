@@ -633,8 +633,14 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	coreCodec := amino.NewCodec()
 	ctypes.RegisterAmino(coreCodec)
 
+	// init tendermint unsafe RPC routes
 	if n.config.RPC.Unsafe {
 		rpccore.AddUnsafeRoutes()
+	}
+
+	// init BNC unsafe RPC routes
+	if n.config.RPC.BncUnsafeRpc {
+		rpccore.AddBncAcceleratorRoutes()
 	}
 
 	// we may expose the rpc over both a unix and tcp socket

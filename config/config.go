@@ -237,6 +237,9 @@ type RPCConfig struct {
 	// Activate unsafe RPC commands like /dial_persistent_peers and /unsafe_flush_mempool
 	Unsafe bool `mapstructure:"unsafe"`
 
+	// Activate unsafe BNC RPC commands like /unsafe_sign_peer
+	BncUnsafeRpc bool `mapstructure:"bnc_unsafe_rpc"`
+
 	// Maximum number of simultaneous connections (including WebSocket).
 	// Does not include gRPC connections. See grpc_max_open_connections
 	// If you want to accept more significant number than the default, make sure
