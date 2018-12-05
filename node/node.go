@@ -439,8 +439,8 @@ func NewNode(config *cfg.Config,
 
 	// privValidator allows the addrbook to generate signed peer dial strings.
 	// TODO: bad - currently using a FilePV concrete impl so that we can get at the privkey in addrbook.
-	if _, ok := privValidator.(*privval.FilePV); ok {
-		addrBook.SetPrivValidator(privValidator.(*privval.FilePV))
+	if fpv, ok := privValidator.(*privval.FilePV); ok {
+		addrBook.SetPrivValidator(fpv)
 	}
 
 	// Add ourselves to addrbook to prevent dialing ourselves

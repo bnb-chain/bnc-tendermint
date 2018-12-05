@@ -484,4 +484,7 @@ func (book *addrBookMock) HasAddress(addr *NetAddress) bool {
 func (book *addrBookMock) RemoveAddress(addr *NetAddress) {
 	delete(book.addrs, addr.String())
 }
+func (book *addrBookMock) SignPeerString(idHostPort string) (*NetAddress, error) {
+	return NewNetAddressStringWithOptionalID(idHostPort)
+}
 func (book *addrBookMock) Save() {}

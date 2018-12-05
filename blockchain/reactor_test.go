@@ -203,6 +203,7 @@ func (tp *bcrTestPeer) Status() p2p.ConnectionStatus         { return p2p.Connec
 func (tp *bcrTestPeer) ID() p2p.ID                           { return tp.id }
 func (tp *bcrTestPeer) IsOutbound() bool                     { return false }
 func (tp *bcrTestPeer) IsPersistent() bool                   { return true }
+func (tp *bcrTestPeer) IsSigned() bool                       { return false }
 func (tp *bcrTestPeer) Get(s string) interface{}             { return s }
 func (tp *bcrTestPeer) Set(string, interface{})              {}
 func (tp *bcrTestPeer) RemoteIP() net.IP                     { return []byte{127, 0, 0, 1} }

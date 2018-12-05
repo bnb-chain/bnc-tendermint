@@ -40,6 +40,11 @@ func (p *peer) IsPersistent() bool {
 	return false
 }
 
+// IsSigned always returns false.
+func (p *peer) IsSigned() bool {
+	return false
+}
+
 // NodeInfo always returns empty node info.
 func (p *peer) NodeInfo() p2p.NodeInfo {
 	return p2p.NodeInfo{}
