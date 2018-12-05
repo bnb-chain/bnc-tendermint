@@ -44,7 +44,7 @@ var Routes = map[string]*rpc.RPCFunc{
 
 func AddBncAcceleratorRoutes() {
 	// peer signature generator API
-	Routes["unsafe_sign_peer"] = rpc.NewRPCFunc(UnsafeSignPeer, "peer")
+	Routes["unsafe_sign_peer"] = rpc.NewRPCFunc(UnsafeSignPeerAddr, "peer")
 }
 
 func AddUnsafeRoutes() {

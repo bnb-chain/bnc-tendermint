@@ -377,7 +377,7 @@ func (sw *Switch) MarkPeerAsGood(peer Peer) {
 
 // DialPeersAsync dials a list of peers asynchronously in random order (optionally, making them persistent).
 // Used to dial peers from config on startup or from unsafe-RPC (trusted sources).
-// TODO: remove addrBook arg since it's now set on the switch
+// TODO: remove addrBook arg since it's now set on theError in peer's address switch
 func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly bool) error {
 	addrBook := sw.addrBook
 
@@ -388,6 +388,7 @@ func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly boo
 	}
 
 	ourAddr := sw.nodeInfo.NetAddress()
+	inAddrBook := make(map[*NetAddress]bool)
 
 	// The integration tests depend on the addrBook being saved
 	// right away but maybe we can change that. Recall that
@@ -399,6 +400,8 @@ func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly boo
 			if !netAddr.Same(ourAddr) {
 				if err := addrBook.AddAddress(netAddr, ourAddr); err != nil {
 					sw.Logger.Error("Can't add peer's address to addrbook", "err", err)
+				} else {
+					inAddrBook[netAddr] = true
 				}
 			}
 		}
@@ -414,7 +417,10 @@ func (sw *Switch) DialPeersAsync(peers []string, persistent bool, signedOnly boo
 			go func(i int) {
 				j := perm[i]
 				addr := netAddrs[j]
-				sw.DialPeerWithAddress(addr, persistent)
+				// only add if we were able to include the address in the addrbook
+				if _, ok := inAddrBook[addr]; ok && inAddrBook[addr] == true {
+					sw.DialPeerWithAddress(addr, persistent)
+				}
 			}(i)
 		}
 		return nil

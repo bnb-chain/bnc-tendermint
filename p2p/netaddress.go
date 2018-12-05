@@ -1,11 +1,11 @@
 // Modified for Tendermint
+// Modified for Binance Chain
 // Originally Copyright (c) 2013-2014 Conformal Systems LLC.
 // https://github.com/conformal/btcd/blob/master/LICENSE
 
 package p2p
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/pkg/errors"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
@@ -38,13 +39,16 @@ type NetAddress struct {
 
 // IDAddressString returns id@hostPort.
 func IDAddressString(id ID, hostPort string) string {
+	if len(id) == 0 {
+		return hostPort
+	}
 	return fmt.Sprintf("%s@%s", id, hostPort)
 }
 
 // IDAddressSigString returns id@hostPort$signature.
 func IDAddressSigString(id ID, hostPort string, signature []byte) string {
-	sigB64 := base64.StdEncoding.EncodeToString(signature)
-	return fmt.Sprintf("%s$%s", IDAddressString(id, hostPort), sigB64)
+	sigEnc := base58.CheckEncode(signature, 0x01)
+	return fmt.Sprintf("%s$%s", IDAddressString(id, hostPort), sigEnc)
 }
 
 // NewNetAddress returns a new NetAddress using the provided TCP
@@ -84,24 +88,6 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 	} else {
 		return NewNetAddressStringWithOptionalIDAndSignature(addr)
 	}
-}
-
-func NewNetAddressStringWithOptionalIDAndSignature(saddr string) (*NetAddress, error) {
-	spl := strings.Split(saddr, "$")
-	addr, err := NewNetAddressStringWithOptionalID(spl[0])
-	if err != nil {
-		return nil, err
-	}
-	if len(spl) < 2 {
-		return addr, nil
-	}
-	sig := spl[1]
-	bz, err := base64.StdEncoding.DecodeString(sig)
-	if err != nil {
-		return nil, err
-	}
-	addr.Signature = bz
-	return addr, nil
 }
 
 // NewNetAddressStringWithOptionalID returns a new NetAddress using the
@@ -151,6 +137,26 @@ func NewNetAddressStringWithOptionalID(addr string) (*NetAddress, error) {
 	na := NewNetAddressIPPort(ip, uint16(port))
 	na.ID = id
 	return na, nil
+}
+
+// NewNetAddressStringWithOptionalIDAndSignature is as above, but allows
+// for net addresses that contain a signature suffix.
+func NewNetAddressStringWithOptionalIDAndSignature(saddr string) (*NetAddress, error) {
+	spl := strings.Split(saddr, "$")
+	addr, err := NewNetAddressStringWithOptionalID(spl[0])
+	if err != nil {
+		return nil, err
+	}
+	if len(spl) < 2 {
+		return addr, nil
+	}
+	sig := spl[1]
+	bz, _, err := base58.CheckDecode(sig)
+	if err != nil {
+		return nil, err
+	}
+	addr.Signature = bz
+	return addr, nil
 }
 
 // NewNetAddressStrings returns an array of NetAddress'es build using
@@ -204,11 +210,22 @@ func (na *NetAddress) Same(other interface{}) bool {
 func (na *NetAddress) String() string {
 	if na.str == "" {
 		addrStr := na.DialString()
-		if na.ID != "" {
-			addrStr = IDAddressString(na.ID, addrStr)
-		}
 		if len(na.Signature) != 0 {
 			addrStr = IDAddressSigString(na.ID, addrStr, na.Signature)
+		} else if na.ID != "" {
+			addrStr = IDAddressString(na.ID, addrStr)
+		}
+		na.str = addrStr
+	}
+	return na.str
+}
+
+// StringNoSig representation: <ID>@<IP>:<PORT>
+func (na *NetAddress) StringNoSig() string {
+	if na.str == "" {
+		addrStr := na.DialString()
+		if na.ID != "" {
+			addrStr = IDAddressString(na.ID, addrStr)
 		}
 		na.str = addrStr
 	}
@@ -262,14 +279,6 @@ func (na *NetAddress) Valid() bool {
 // HasSignature returns whether this address contains a signature.
 func (na *NetAddress) HasSignature() bool {
 	return len(na.Signature) > 0
-}
-
-// DecodeSignature decodes an address's signature, if one is present.
-func (na *NetAddress) DecodeSignature() ([]byte, error) {
-	if !na.HasSignature() {
-		return nil, errors.New("No signature was found on this NetAddress")
-	}
-	return base64.StdEncoding.DecodeString(string(na.Signature))
 }
 
 // Local returns true if it is a local address.

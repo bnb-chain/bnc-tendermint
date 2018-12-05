@@ -71,22 +71,24 @@ func AddSignedPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, e
 
 // unsafe peers operations
 
-func UnsafeSignPeer(peer string) (*ctypes.ResultSignPeer, error) {
-	logger.Info("UnsafeSignPeer", "peer", peer)
+func UnsafeSignPeerAddr(peer string) (*ctypes.ResultSignPeer, error) {
+	logger.Info("UnsafeSignPeerAddr", "peer", peer)
 	if len(peer) == 0 {
 		return &ctypes.ResultSignPeer{}, errors.New("No peer provided")
 	}
-	// try to create a NetAddress out of it
-	addr, err := p2p.NewNetAddressStringWithOptionalIDAndSignature(peer)
+	// try to create a NetAddress out of it. do not read a signature at this point
+	addr, err := p2p.NewNetAddressStringWithOptionalID(peer)
 	if err != nil {
 		return &ctypes.ResultSignPeer{}, err
 	}
-	signed, err := addrBook.SignPeerString(addr.String())
+	addrStr := addr.String()
+	signed, err := addrBook.SignPeerString(addrStr)
 	if err != nil {
 		return &ctypes.ResultSignPeer{}, err
 	}
 	return &ctypes.ResultSignPeer{
-		SignedAddr: signed.String(),
+		OriginalAddr: addrStr,
+		SignedAddr:   signed.String(),
 	}, nil
 }
 

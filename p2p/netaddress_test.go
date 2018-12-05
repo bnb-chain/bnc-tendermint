@@ -1,11 +1,11 @@
 package p2p
 
 import (
-	"encoding/base64"
 	"fmt"
 	"net"
 	"testing"
 
+	"github.com/btcsuite/btcutil/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,7 +71,7 @@ func TestNewNetAddressStringWithOptionalID(t *testing.T) {
 
 func TestNewNetAddressStringWithOptionalIDAndSignature(t *testing.T) {
 	exptSig := "SIGNATURE"
-	testSig := base64.StdEncoding.EncodeToString([]byte(exptSig))
+	testSig := base58.CheckEncode([]byte(exptSig), 0x01)
 	withSig := func(addr string) string {
 		return fmt.Sprintf("%s$%s", addr, testSig)
 	}

@@ -115,7 +115,8 @@ type Peer struct {
 
 // Signed peer output
 type ResultSignPeer struct {
-	SignedAddr string `json:"signed_addr"`
+	OriginalAddr string `json:"original_addr"`
+	SignedAddr   string `json:"signed_addr"`
 }
 
 // Validators for a height

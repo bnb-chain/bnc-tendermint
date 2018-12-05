@@ -13,7 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tendermint/tendermint/__vendor/github.com/pkg/errors"
+	"github.com/pkg/errors"
+
 	"github.com/tendermint/tendermint/crypto"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -210,9 +211,9 @@ func (a *addrBook) AddPrivateIDs(IDs []string) {
 // NOTE: addr must not be nil
 func (a *addrBook) AddAddress(addr *p2p.NetAddress, src *p2p.NetAddress) error {
 	if addr.HasSignature() {
-		if valid, _ := a.HasValidSignature(addr); !valid {
+		if valid, err := a.HasValidSignature(addr); !valid {
 			a.Logger.Error("Address had a signature but it is invalid! Refusing to add it.",
-				"addr", addr, "ID", addr.ID)
+				"addr", addr, "ID", addr.ID, "err", err)
 			return errors.New("Caught an attempt to add an address with an invalid signature")
 		}
 	}
@@ -274,13 +275,9 @@ func (a *addrBook) HasValidSignature(addr *p2p.NetAddress) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	// test the signature against all the validator pubkeys.
+	// test the signature against all the validator pubkeys
 	for _, val := range validators.Validators {
-		sig, err := addr.DecodeSignature()
-		if err != nil {
-			return false, err
-		}
-		if val.PubKey.VerifyBytes([]byte(addr.DialString()), sig) {
+		if val.PubKey.VerifyBytes([]byte(addr.StringNoSig()), addr.Signature) {
 			return true, nil
 		}
 	}
@@ -785,6 +782,7 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 			return nil
 		}
 	} else if valid, err := a.HasValidSignature(addr); valid && err == nil {
+		bucket = a.calcOldBucket(addr)
 		ka = oldKnownAddress(addr, src)
 		a.addToOldBucket(ka, bucket)
 		return nil
