@@ -641,8 +641,10 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	case *ProposalMessage:
 		// will not cause transition.
 		// once proposal is set, we can receive block parts
+		cs.Logger.Info("Receive ProposalMessage", "height", msg.Proposal.Height)
 		err = cs.setProposal(msg.Proposal)
 	case *BlockPartMessage:
+		cs.Logger.Info("Receive BlockPartMessage", "height", msg.Height)
 		// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
 		added, err := cs.addProposalBlockPart(msg, peerID)
 		if added {
@@ -656,6 +658,8 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
+		cs.Logger.Info("Receive VoteMessage", "height", msg.Vote.Height, "vote", msg.Vote.String())
+
 		added, err := cs.tryAddVote(msg.Vote, peerID)
 		if added {
 			cs.statsMsgQueue <- mi

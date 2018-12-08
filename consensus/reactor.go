@@ -203,8 +203,10 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		switch msg := msg.(type) {
 		case *NewRoundStepMessage:
 			ps.ApplyNewRoundStepMessage(msg)
+			conR.Logger.Info("Receive NewRoundStepMessage", "src", src.NodeInfo().Moniker, "height", msg.Height)
 		case *CommitStepMessage:
 			ps.ApplyCommitStepMessage(msg)
+			conR.Logger.Info("Receive CommitStepMessage", "src", src.NodeInfo().Moniker, "height", msg.Height)
 		case *HasVoteMessage:
 			ps.ApplyHasVoteMessage(msg)
 		case *VoteSetMaj23Message:
@@ -256,11 +258,14 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		}
 		switch msg := msg.(type) {
 		case *ProposalMessage:
+			conR.Logger.Info("Receive ProposalMessage", "src", src.NodeInfo().Moniker, "height", msg.Proposal.Height)
 			ps.SetHasProposal(msg.Proposal)
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 		case *ProposalPOLMessage:
+			conR.Logger.Info("Receive ProposalPOLMessage", "src", src.NodeInfo().Moniker, "height", msg.Height)
 			ps.ApplyProposalPOLMessage(msg)
 		case *BlockPartMessage:
+			conR.Logger.Info("Receive BlockPartMessage", "src", src.NodeInfo().Moniker, "height", msg.Height)
 			ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index)
 
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
@@ -275,6 +280,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		}
 		switch msg := msg.(type) {
 		case *VoteMessage:
+			conR.Logger.Info("Receive VoteMessage", "src", src.NodeInfo().Moniker, "height", msg.Vote.Height, "vote", msg.Vote.String())
 			cs := conR.conS
 			cs.mtx.Lock()
 			height, valSize, lastCommitSize := cs.Height, cs.Validators.Size(), cs.LastCommit.Size()
@@ -510,7 +516,7 @@ OUTER_LOOP:
 			// Proposal: share the proposal metadata with peer.
 			{
 				msg := &ProposalMessage{Proposal: rs.Proposal}
-				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
+				logger.Info("Sending proposal", "height", prs.Height, "round", prs.Round, "to", peer.NodeInfo().Moniker)
 				if peer.Send(DataChannel, cdc.MustMarshalBinaryBare(msg)) {
 					ps.SetHasProposal(rs.Proposal)
 				}
