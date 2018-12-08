@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/golang-lru"
 	"github.com/pkg/errors"
 
 	amino "github.com/tendermint/go-amino"
@@ -126,6 +127,8 @@ type Mempool struct {
 	logger log.Logger
 
 	metrics *Metrics
+
+	lruCache *lru.Cache
 }
 
 // MempoolOption sets an optional parameter on the Mempool.
@@ -159,6 +162,9 @@ func NewMempool(
 	for _, option := range options {
 		option(mempool)
 	}
+
+	lruCache, _ := lru.New(100000)
+	mempool.lruCache = lruCache
 	return mempool
 }
 
@@ -294,7 +300,22 @@ func (mem *Mempool) TxsWaitChan() <-chan struct{} {
 // cb: A callback from the CheckTx command.
 //     It gets called from another goroutine.
 // CONTRACT: Either cb will get called, or err returned.
+
+var lruCache = newLruCache()
+
+func newLruCache() *lru.Cache {
+	lruCache, _ := lru.New(100000)
+	return lruCache
+}
+
 func (mem *Mempool) CheckTx(tx types.Tx, cb func(*abci.Response)) (err error) {
+	txHash := string(tx.Hash())
+	if _, ok := lruCache.Get(txHash); ok {
+		mem.logger.Info("CheckTx hit cache")
+		return ErrTxInCache
+	}
+	lruCache.Add(txHash, true)
+
 	mem.LockLow()
 	defer mem.UnlockLow()
 
