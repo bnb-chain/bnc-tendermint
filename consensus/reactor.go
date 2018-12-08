@@ -472,7 +472,7 @@ OUTER_LOOP:
 					Round:  rs.Round,  // This tells peer that this part applies to us.
 					Part:   part,
 				}
-				logger.Debug("Sending block part", "height", prs.Height, "round", prs.Round)
+				logger.Debug("Sending block part", "to", peer.NodeInfo().Moniker, "height", prs.Height, "round", prs.Round)
 				if peer.Send(DataChannel, cdc.MustMarshalBinaryBare(msg)) {
 					ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				}
@@ -516,7 +516,7 @@ OUTER_LOOP:
 			// Proposal: share the proposal metadata with peer.
 			{
 				msg := &ProposalMessage{Proposal: rs.Proposal}
-				logger.Info("Sending proposal", "height", prs.Height, "round", prs.Round, "to", peer.NodeInfo().Moniker)
+				logger.Info("Sending proposal", "to", peer.NodeInfo().Moniker, "height", prs.Height, "round", prs.Round)
 				if peer.Send(DataChannel, cdc.MustMarshalBinaryBare(msg)) {
 					ps.SetHasProposal(rs.Proposal)
 				}
