@@ -5,16 +5,25 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/stretchr/testify/assert"
-
+	cfg "github.com/tendermint/tendermint/config"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
+	nm "github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/privval"
+	"github.com/tendermint/tendermint/rpc/core"
 )
+
+var node *nm.Node
+lnode := client.NewLocal(node)
 
 func createTempFileName(prefix string) string {
 	f, err := ioutil.TempFile("", prefix)
@@ -415,5 +424,80 @@ func TestPrivatePeers(t *testing.T) {
 	if assert.Error(t, err) {
 		_, ok := err.(ErrAddrBookPrivateSrc)
 		assert.True(t, ok)
+	}
+}
+
+func TestSignPeerString(t *testing.T) {
+	type fields struct {
+		filePath          string
+		routabilityStrict bool
+		key               string
+		stateDB           dbm.DB
+		consensusState    core.Consensus
+		privValidator     *privval.FilePV
+		mtx               sync.Mutex
+		rand              *cmn.Rand
+		ourAddrs          map[string]struct{}
+		privateIDs        map[p2p.ID]struct{}
+		addrLookup        map[p2p.ID]*knownAddress
+		bucketsOld        []map[string]*knownAddress
+		bucketsNew        []map[string]*knownAddress
+		nOld              int
+		nNew              int
+		wg                sync.WaitGroup
+	}
+	type args struct {
+		idHostPort string
+	}
+	config := cfg.ResetTestRoot("state_")
+	dbType := dbm.DBBackendType(config.DBBackend)
+	stateDB := dbm.NewDB("state", dbType, config.DBDir())
+	client :=
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *p2p.NetAddress
+		wantErr bool
+	}{
+		{
+			name: "Happy path",
+			fields: fields{
+				stateDB: stateDB,
+				consensusState: GetClients()[0]
+			},
+			args: args{"id@1.1.1.1:1337"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &addrBook{
+				filePath:          tt.fields.filePath,
+				routabilityStrict: tt.fields.routabilityStrict,
+				key:               tt.fields.key,
+				stateDB:           tt.fields.stateDB,
+				consensusState:    tt.fields.consensusState,
+				privValidator:     tt.fields.privValidator,
+				mtx:               tt.fields.mtx,
+				rand:              tt.fields.rand,
+				ourAddrs:          tt.fields.ourAddrs,
+				privateIDs:        tt.fields.privateIDs,
+				addrLookup:        tt.fields.addrLookup,
+				bucketsOld:        tt.fields.bucketsOld,
+				bucketsNew:        tt.fields.bucketsNew,
+				nOld:              tt.fields.nOld,
+				nNew:              tt.fields.nNew,
+				wg:                tt.fields.wg,
+				wg:                tt.fields.wg,
+			}
+			got, err := a.SignPeerString(tt.args.idHostPort)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("addrBook.SignPeerString() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("addrBook.SignPeerString() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
