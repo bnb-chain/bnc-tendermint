@@ -114,6 +114,26 @@ func (app *PersistentKVStoreApplication) EndBlock(req types.RequestEndBlock) typ
 	return types.ResponseEndBlock{ValidatorUpdates: app.ValUpdates}
 }
 
+func (app *PersistentKVStoreApplication) LatestSnapshot() (height int64, numKeys map[string]int64, err error) {
+	return 0, make(map[string]int64), nil
+}
+
+func (app *PersistentKVStoreApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error) {
+	return make(map[string][][]byte, 0), nil
+}
+
+func (app *PersistentKVStoreApplication) StartRecovery(height int64, numKeys map[string]int64) error {
+	return nil
+}
+
+func (app *PersistentKVStoreApplication) WriteRecoveryChunk(storeName string, chunk [][]byte) error {
+	return nil
+}
+
+func (app *PersistentKVStoreApplication) EndRecovery(height int64) error {
+	return nil
+}
+
 //---------------------------------------------
 // update validators
 

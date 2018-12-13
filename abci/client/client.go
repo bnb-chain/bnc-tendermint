@@ -48,6 +48,12 @@ type Client interface {
 	InitChainSync(types.RequestInitChain) (*types.ResponseInitChain, error)
 	BeginBlockSync(types.RequestBeginBlock) (*types.ResponseBeginBlock, error)
 	EndBlockSync(types.RequestEndBlock) (*types.ResponseEndBlock, error)
+
+	LatestSnapshot() (height int64, numKeys map[string]int64, err error) // query application state height and numOfKeys
+	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error)
+	StartRecovery(height int64, numKeys map[string]int64) error
+	WriteRecoveryChunk(storeName string, chunk [][]byte) error
+	EndRecovery(height int64) error
 }
 
 //----------------------------------------

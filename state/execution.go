@@ -109,6 +109,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Update the app hash and save the state.
 	state.AppHash = appHash
+	fmt.Printf("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
 	SaveState(blockExec.db, state)
 
 	fail.Fail() // XXX

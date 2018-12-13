@@ -24,6 +24,13 @@ type Application interface {
 	DeliverTx(tx []byte) ResponseDeliverTx           // Deliver a tx for full processing
 	EndBlock(RequestEndBlock) ResponseEndBlock       // Signals the end of a block, returns changes to the validator set
 	Commit() ResponseCommit                          // Commit the state and return the application Merkle root hash
+
+	// State Connection
+	LatestSnapshot() (height int64, numKeys map[string]int64, err error) // query application state height and numOfKeys
+	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error)
+	StartRecovery(height int64, numKeys map[string]int64) error
+	WriteRecoveryChunk(storeName string, chunk [][]byte) error
+	EndRecovery(height int64) error
 }
 
 //-------------------------------------------------------
@@ -76,6 +83,26 @@ func (BaseApplication) BeginBlock(req RequestBeginBlock) ResponseBeginBlock {
 
 func (BaseApplication) EndBlock(req RequestEndBlock) ResponseEndBlock {
 	return ResponseEndBlock{}
+}
+
+func (BaseApplication) LatestSnapshot() (height int64, numKeys map[string]int64, err error) {
+	return 0, make(map[string]int64), nil
+}
+
+func (BaseApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error) {
+	return make(map[string][][]byte, 0), nil
+}
+
+func (BaseApplication) StartRecovery(height int64, numKeys map[string]int64) error {
+	return nil
+}
+
+func (BaseApplication) WriteRecoveryChunk(storeName string, chunk [][]byte) error {
+	return nil
+}
+
+func (BaseApplication) EndRecovery(height int64) error {
+	return nil
 }
 
 //-------------------------------------------------------
@@ -140,4 +167,24 @@ func (app *GRPCApplication) BeginBlock(ctx context.Context, req *RequestBeginBlo
 func (app *GRPCApplication) EndBlock(ctx context.Context, req *RequestEndBlock) (*ResponseEndBlock, error) {
 	res := app.app.EndBlock(*req)
 	return &res, nil
+}
+
+func (app *GRPCApplication) LatestSnapshot() (height int64, numKeys map[string]int64, err error) {
+	return 0, make(map[string]int64), nil
+}
+
+func (app *GRPCApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error) {
+	return make(map[string][][]byte, 0), nil
+}
+
+func (app *GRPCApplication) StartRecovery(height int64, numKeys map[string]int64) error {
+	return nil
+}
+
+func (app *GRPCApplication) WriteRecoveryChunk(storeName string, chunk [][]byte) error {
+	return nil
+}
+
+func (app *GRPCApplication) EndRecovery(height int64) error {
+	return nil
 }

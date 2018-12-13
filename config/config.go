@@ -113,6 +113,8 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSync bool `mapstructure:"fast_sync"`
 
+	FastestSyncHeight int64 `mapstructure:"fastest_sync_height"`
+
 	// Database backend: leveldb | memdb | cleveldb
 	DBBackend string `mapstructure:"db_backend"`
 
@@ -161,6 +163,7 @@ func DefaultBaseConfig() BaseConfig {
 		LogLevel:          DefaultPackageLogLevels(),
 		ProfListenAddress: "",
 		FastSync:          true,
+		FastestSyncHeight: -1,
 		FilterPeers:       false,
 		DBBackend:         "leveldb",
 		DBPath:            "data",
