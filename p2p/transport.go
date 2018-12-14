@@ -400,6 +400,9 @@ func (mt *MultiplexTransport) wrapPeer(
 	cfg peerConfig,
 	dialedAddr *NetAddress,
 ) Peer {
+	if cfg.outbound {
+		dialedAddr, _ = NewNetAddressString(IDAddressString(ni.ID, ni.ListenAddr))
+	}
 
 	peerConn := newPeerConn(
 		cfg.outbound,
