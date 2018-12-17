@@ -74,14 +74,14 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block, withAppStat 
 			block.LastResultsHash,
 		)
 	}
-	if !bytes.Equal(block.ValidatorsHash, state.Validators.Hash()) {
+	if withAppStat && !bytes.Equal(block.ValidatorsHash, state.Validators.Hash()) {
 		return fmt.Errorf(
 			"Wrong Block.Header.ValidatorsHash.  Expected %X, got %v",
 			state.Validators.Hash(),
 			block.ValidatorsHash,
 		)
 	}
-	if !bytes.Equal(block.NextValidatorsHash, state.NextValidators.Hash()) {
+	if withAppStat && !bytes.Equal(block.NextValidatorsHash, state.NextValidators.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.NextValidatorsHash.  Expected %X, got %v", state.NextValidators.Hash(), block.NextValidatorsHash)
 	}
 
