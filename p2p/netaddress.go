@@ -32,7 +32,16 @@ type NetAddress struct {
 
 // IDAddressString returns id@hostPort.
 func IDAddressString(id ID, hostPort string) string {
-	return fmt.Sprintf("%s@%s", id, hostPort)
+	protocol := ""
+	if strings.Contains(hostPort, "://") {
+		parts := strings.Split(hostPort, "://")
+		protocol, hostPort = parts[0], parts[1]
+	}
+	if protocol != "" {
+		return fmt.Sprintf("%s://%s@%s", protocol, id, hostPort)
+	} else {
+		return fmt.Sprintf("%s@%s", id, hostPort)
+	}
 }
 
 // NewNetAddress returns a new NetAddress using the provided TCP

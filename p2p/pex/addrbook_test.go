@@ -211,7 +211,7 @@ func randIPv4Address(t *testing.T) *p2p.NetAddress {
 		)
 		port := cmn.RandIntn(65535-1) + 1
 		id := p2p.ID(hex.EncodeToString(cmn.RandBytes(p2p.IDByteLength)))
-		idAddr := p2p.IDAddressString(id, fmt.Sprintf("%v:%v", ip, port))
+		idAddr := p2p.IDAddressString(id, fmt.Sprintf("tcp://%v:%v", ip, port))
 		addr, err := p2p.NewNetAddressString(idAddr)
 		assert.Nil(t, err, "error generating rand network address")
 		if addr.Routable() {

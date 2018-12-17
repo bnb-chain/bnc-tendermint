@@ -395,12 +395,17 @@ func (mt *MultiplexTransport) wrapPeer(
 	ni NodeInfo,
 	cfg peerConfig,
 ) Peer {
+	var originalNetAddr *NetAddress
+	if cfg.outbound {
+		originalNetAddr, _ = NewNetAddressString(IDAddressString(ni.ID, ni.ListenAddr))
+	}
 	p := newPeer(
 		peerConn{
-			conn:       c,
-			config:     &mt.p2pConfig,
-			outbound:   cfg.outbound,
-			persistent: cfg.persistent,
+			conn:         c,
+			config:       &mt.p2pConfig,
+			outbound:     cfg.outbound,
+			persistent:   cfg.persistent,
+			originalAddr: originalNetAddr,
 		},
 		mt.mConfig,
 		ni,
