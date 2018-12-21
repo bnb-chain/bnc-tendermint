@@ -14,14 +14,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	abci "github.com/tendermint/tendermint/abci/types"
+	cfg "github.com/tendermint/tendermint/config"
 	crypto "github.com/tendermint/tendermint/crypto"
 	auto "github.com/tendermint/tendermint/libs/autofile"
 	dbm "github.com/tendermint/tendermint/libs/db"
-
-	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
@@ -320,7 +318,7 @@ func testHandshakeReplay(t *testing.T, nBlocks int, mode uint) {
 	walFile := tempWALWithData(walBody)
 	config.Consensus.SetWalFile(walFile)
 
-	privVal := privval.LoadFilePV(config.PrivValidatorFile())
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
 
 	wal, err := NewWAL(walFile)
 	if err != nil {
@@ -638,7 +636,8 @@ func TestInitChainUpdateValidators(t *testing.T) {
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config := ResetConfig("proxy_test_")
-	privVal := privval.LoadFilePV(config.PrivValidatorFile())
+
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
 	stateDB, state, store := stateAndStore(config, privVal.GetPubKey())
 
 	oldValAddr := state.Validators.Validators[0].Address
