@@ -299,7 +299,7 @@ func (h *Handshaker) ReplayBlocks(state sm.State, appHash []byte, appBlockHeight
 
 	// First handle edge cases and constraints on the storeBlockHeight.
 	if storeBlockHeight == 0 {
-		return appHash, checkAppHash(state, appHash)
+		return appHash, checkAppHash(state, appHash, !h.withAppStat)
 
 	} else if storeBlockHeight < appBlockHeight {
 		// the app should never be ahead of the store (but this is under app's control)
@@ -326,7 +326,7 @@ func (h *Handshaker) ReplayBlocks(state sm.State, appHash []byte, appBlockHeight
 
 		} else if appBlockHeight == storeBlockHeight {
 			// We're good!
-			return appHash, checkAppHash(state, appHash)
+			return appHash, checkAppHash(state, appHash, !h.withAppStat)
 		}
 
 	} else if storeBlockHeight == stateBlockHeight+1 {
@@ -401,7 +401,7 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBl
 		appHash = state.AppHash
 	}
 
-	return appHash, checkAppHash(state, appHash)
+	return appHash, checkAppHash(state, appHash, h.withAppStat)
 }
 
 // ApplyBlock on the proxyApp with the last block.
@@ -422,7 +422,10 @@ func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.Ap
 	return state, nil
 }
 
-func checkAppHash(state sm.State, appHash []byte) error {
+func checkAppHash(state sm.State, appHash []byte, skip bool) error {
+	if skip {
+		return nil
+	}
 	if !bytes.Equal(state.AppHash, appHash) {
 		panic(fmt.Errorf("Tendermint state.AppHash does not match AppHash after replay. Got %X, expected %X", appHash, state.AppHash).Error())
 	}
