@@ -311,6 +311,10 @@ func (cli *socketClient) CheckTxSync(tx []byte) (*types.ResponseCheckTx, error) 
 	return reqres.Response.GetCheckTx(), cli.Error()
 }
 
+func (cli *socketClient) SimulateTxSync(tx []byte) (*types.ResponseCheckTx, error) {
+	panic("Not Implemented")
+}
+
 func (cli *socketClient) QuerySync(req types.RequestQuery) (*types.ResponseQuery, error) {
 	reqres := cli.queueRequest(types.ToRequestQuery(req))
 	cli.FlushSync()

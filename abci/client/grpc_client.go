@@ -284,6 +284,10 @@ func (cli *grpcClient) CheckTxSync(tx []byte) (*types.ResponseCheckTx, error) {
 	return reqres.Response.GetCheckTx(), cli.Error()
 }
 
+func (cli *grpcClient) SimulateTxSync(tx []byte) (*types.ResponseCheckTx, error) {
+	panic("Not Implemented")
+}
+
 func (cli *grpcClient) QuerySync(req types.RequestQuery) (*types.ResponseQuery, error) {
 	reqres := cli.QueryAsync(req)
 	return reqres.Response.GetQuery(), cli.Error()

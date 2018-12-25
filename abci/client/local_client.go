@@ -190,6 +190,11 @@ func (app *localClient) CheckTxSync(tx []byte) (*types.ResponseCheckTx, error) {
 	return &res, nil
 }
 
+func (app *localClient) SimulateTxSync(tx []byte) (*types.ResponseCheckTx, error) {
+	res := app.Application.SimulateTx(tx)
+	return &res, nil
+}
+
 func (app *localClient) QuerySync(req types.RequestQuery) (*types.ResponseQuery, error) {
 	app.mtx.Lock()
 	res := app.Application.Query(req)

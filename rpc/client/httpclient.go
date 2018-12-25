@@ -100,6 +100,15 @@ func (c *HTTP) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	return c.broadcastTX("broadcast_tx_sync", tx)
 }
 
+func (c *HTTP) SimulateTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	result := new(ctypes.ResultBroadcastTx)
+	_, err := c.rpc.Call("simulate_tx_sync", map[string]interface{}{"tx": tx}, result)
+	if err != nil {
+		return nil, errors.Wrap(err, "SimulateTxSync")
+	}
+	return result, nil
+}
+
 func (c *HTTP) broadcastTX(route string, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	result := new(ctypes.ResultBroadcastTx)
 	_, err := c.rpc.Call(route, map[string]interface{}{"tx": tx}, result)

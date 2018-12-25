@@ -82,6 +82,10 @@ func (app *PersistentKVStoreApplication) ReCheckTx(tx []byte) types.ResponseChec
 	return app.app.CheckTx(tx)
 }
 
+func (app *PersistentKVStoreApplication) SimulateTx(tx []byte) types.ResponseCheckTx {
+	return app.app.SimulateTx(tx)
+}
+
 // Commit will panic if InitChain was not called
 func (app *PersistentKVStoreApplication) Commit() types.ResponseCommit {
 	return app.app.Commit()

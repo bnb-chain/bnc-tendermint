@@ -63,6 +63,11 @@ func (a ABCIApp) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	return &ctypes.ResultBroadcastTx{c.Code, c.Data, c.Log, tx.Hash()}, nil
 }
 
+func (a ABCIApp) SimulateTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	c := a.App.SimulateTx(tx)
+	return &ctypes.ResultBroadcastTx{c.Code, c.Data, c.Log, tx.Hash()}, nil
+}
+
 // ABCIMock will send all abci related request to the named app,
 // so you can test app behavior from a client without needing
 // an entire tendermint node
@@ -111,6 +116,14 @@ func (m ABCIMock) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, erro
 }
 
 func (m ABCIMock) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	res, err := m.Broadcast.GetResponse(tx)
+	if err != nil {
+		return nil, err
+	}
+	return res.(*ctypes.ResultBroadcastTx), nil
+}
+
+func (m ABCIMock) SimulateTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	res, err := m.Broadcast.GetResponse(tx)
 	if err != nil {
 		return nil, err
@@ -194,6 +207,17 @@ func (r *ABCIRecorder) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, 
 	res, err := r.Client.BroadcastTxSync(tx)
 	r.addCall(Call{
 		Name:     "broadcast_tx_sync",
+		Args:     tx,
+		Response: res,
+		Error:    err,
+	})
+	return res, err
+}
+
+func (r *ABCIRecorder) SimulateTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	res, err := r.Client.SimulateTxSync(tx)
+	r.addCall(Call{
+		Name:     "simulate_tx_sync",
 		Args:     tx,
 		Response: res,
 		Error:    err,

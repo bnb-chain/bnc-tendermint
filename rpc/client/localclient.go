@@ -76,6 +76,10 @@ func (Local) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	return core.BroadcastTxSync(tx)
 }
 
+func (Local) SimulateTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	return core.SimulateTxSync(tx)
+}
+
 func (Local) NetInfo() (*ctypes.ResultNetInfo, error) {
 	return core.NetInfo()
 }

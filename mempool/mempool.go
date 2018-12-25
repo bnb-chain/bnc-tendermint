@@ -338,6 +338,10 @@ func (mem *Mempool) CheckTx(tx types.Tx, cb func(*abci.Response)) (err error) {
 	return nil
 }
 
+func(mem *Mempool) SimulateTx(tx types.Tx) (*abci.ResponseCheckTx, error) {
+	return mem.proxyAppConn.SimulateTxSync(tx)
+}
+
 // ABCI callback function
 func (mem *Mempool) resCb(req *abci.Request, res *abci.Response) {
 	if mem.recheckCursor == nil {

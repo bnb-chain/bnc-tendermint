@@ -17,6 +17,7 @@ type Application interface {
 	// Mempool Connection
 	CheckTx(tx []byte) ResponseCheckTx   // Validate a tx for the mempool
 	ReCheckTx(tx []byte) ResponseCheckTx // Validate a tx for the mempool
+	SimulateTx(tx []byte) ResponseCheckTx
 
 	// Consensus Connection
 	InitChain(RequestInitChain) ResponseInitChain    // Initialize blockchain with validators and other info from TendermintCore
@@ -55,6 +56,10 @@ func (BaseApplication) CheckTx(tx []byte) ResponseCheckTx {
 }
 
 func (BaseApplication) ReCheckTx(tx []byte) ResponseCheckTx {
+	return ResponseCheckTx{Code: CodeTypeOK}
+}
+
+func (BaseApplication) SimulateTx(tx []byte) ResponseCheckTx {
 	return ResponseCheckTx{Code: CodeTypeOK}
 }
 

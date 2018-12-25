@@ -209,6 +209,51 @@ func BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	}
 }
 
+//-----------------------------------------------------------------------------
+//
+// ```shell
+// curl 'localhost:26657/simulate_tx_sync?tx="123"'
+// ```
+//
+// ```go
+// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// result, err := client.SimulateTxSync("123")
+// ```
+//
+// > The above command returns JSON structured like this:
+//
+// ```json
+// {
+// 	"error": "",
+// 	"result": {
+// 		"hash": "E39AAB7A537ABAA237831742DCE1117F187C3C52",
+// 		"log": "",
+// 		"data": "",
+// 		"code": 0
+// 	},
+// 	"id": "",
+// 	"jsonrpc": "2.0"
+// }
+// ```
+//
+// ### Query Parameters
+//
+// | Parameter | Type | Default | Required | Description     |
+// |-----------+------+---------+----------+-----------------|
+// | tx        | Tx   | nil     | true     | The transaction |
+func SimulateTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+	res, err := mempool.SimulateTx(tx)
+	if err != nil {
+		return nil, fmt.Errorf("Error simulating transaction: %v", err)
+	}
+	return &ctypes.ResultBroadcastTx{
+		Code: res.Code,
+		Data: res.Data,
+		Log:  res.Log,
+		Hash: tx.Hash(),
+	}, nil
+}
+
 // Get unconfirmed transactions (maximum ?limit entries) including their number.
 //
 // ```shell
