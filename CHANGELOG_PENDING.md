@@ -10,9 +10,7 @@ BREAKING CHANGES:
 
 * Go API
 
-<<<<<<< HEAD
 FEATURES:
-=======
 * Blockchain Protocol
 
 * P2P Protocol
@@ -20,9 +18,6 @@ FEATURES:
 
 ### FEATURES:
 - [privval] \#1181 Split immutable and mutable parts of priv_validator.json
-
-### IMPROVEMENTS:
->>>>>>> 41e2eee... R4R: Split immutable and mutable parts of priv_validator.json (#2870)
 
 IMPROVEMENTS:
 
