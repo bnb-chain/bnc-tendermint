@@ -105,8 +105,8 @@ func (app *localClient) CheckTxAsync(tx []byte) *ReqRes {
 
 func (app *localClient) ReCheckTxAsync(tx []byte) *ReqRes {
 	app.mtx.Lock()
+	defer app.mtx.Unlock()
 	res := app.Application.ReCheckTx(tx)
-	app.mtx.Unlock()
 	return app.callback(
 		types.ToRequestCheckTx(tx),
 		types.ToResponseCheckTx(res),

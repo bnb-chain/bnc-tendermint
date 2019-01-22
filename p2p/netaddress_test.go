@@ -26,8 +26,8 @@ func TestIDAddressString(t *testing.T) {
 		hostPort string
 		expect   string
 	}{
-		{"123xxx", "tcp://127.0.0.1:8080", "tcp://123xxx@127.0.0.1:8080"},
-		{"123xxx", "udp://127.0.0.1:8080", "udp://123xxx@127.0.0.1:8080"},
+		{"123xxx", "tcp://127.0.0.1:8080", "123xxx@127.0.0.1:8080"},
+		{"123xxx", "udp://127.0.0.1:8080", "123xxx@127.0.0.1:8080"},
 		{"123xxx", "127.0.0.1:8080", "123xxx@127.0.0.1:8080"},
 	}
 	for _, tc := range testCases {

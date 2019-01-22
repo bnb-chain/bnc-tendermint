@@ -94,7 +94,7 @@ func TestValidateBlockEvidence(t *testing.T) {
 	var height int64 = 1 // TODO(#2589): generalize
 	state, stateDB := state(1, int(height))
 
-	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, nil)
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, nil, true)
 
 	// make some evidence
 	addr, _ := state.Validators.GetByIndex(0)

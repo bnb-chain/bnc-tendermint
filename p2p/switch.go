@@ -283,12 +283,9 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.stopAndRemovePeer(peer, reason)
 
 	if peer.IsPersistent() {
-		addr := peer.OriginalAddr()
-		if addr == nil {
-			// FIXME: persistent peers can't be inbound right now.
-			// self-reported address for inbound persistent peers
-			addr = peer.NodeInfo().NetAddress()
-		}
+		// FIXME: persistent peers can't be inbound right now.
+		// self-reported address for inbound persistent peers
+		addr := peer.NodeInfo().NetAddress()
 		go sw.reconnectToPeer(addr)
 	}
 }
