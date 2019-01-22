@@ -196,6 +196,7 @@ type Handshaker struct {
 	stateDB      dbm.DB
 	initialState sm.State
 	store        sm.BlockStore
+	eventBus     types.BlockEventPublisher
 	genDoc       *types.GenesisDoc
 	logger       log.Logger
 
@@ -210,6 +211,7 @@ func NewHandshaker(stateDB dbm.DB, state sm.State,
 		stateDB:      stateDB,
 		initialState: state,
 		store:        store,
+		eventBus:     eventBus,
 		genDoc:       genDoc,
 		logger:       log.NewNopLogger(),
 		nBlocks:      0,

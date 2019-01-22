@@ -315,7 +315,8 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 	err = eventBus.Start()
 	require.NoError(t, err)
 	defer eventBus.Stop()
-	blockExec.SetEventBus(eventBus)
+
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), eventBus, MockMempool{}, MockEvidencePool{})
 
 	updatesCh := make(chan interface{}, 1)
 	err = eventBus.Subscribe(context.Background(), "TestEndBlockValidatorUpdates", types.EventQueryValidatorSetUpdates, updatesCh)
