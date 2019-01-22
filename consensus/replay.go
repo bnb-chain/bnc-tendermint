@@ -196,6 +196,7 @@ type Handshaker struct {
 	stateDB      dbm.DB
 	initialState sm.State
 	store        sm.BlockStore
+	eventBus     types.BlockEventPublisher
 	genDoc       *types.GenesisDoc
 	logger       log.Logger
 
@@ -204,12 +205,13 @@ type Handshaker struct {
 }
 
 func NewHandshaker(stateDB dbm.DB, state sm.State,
-	store sm.BlockStore, genDoc *types.GenesisDoc, withAppStat bool) *Handshaker {
+	store sm.BlockStore, eventBus types.BlockEventPublisher, genDoc *types.GenesisDoc, withAppStat bool) *Handshaker {
 
 	return &Handshaker{
 		stateDB:      stateDB,
 		initialState: state,
 		store:        store,
+		eventBus:     eventBus,
 		genDoc:       genDoc,
 		logger:       log.NewNopLogger(),
 		nBlocks:      0,
@@ -409,7 +411,7 @@ func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.Ap
 	block := h.store.LoadBlock(height)
 	meta := h.store.LoadBlockMeta(height)
 
-	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, sm.MockMempool{}, sm.MockEvidencePool{}, h.withAppStat)
+	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, h.eventBus, sm.MockMempool{}, sm.MockEvidencePool{}, h.withAppStat)
 
 	var err error
 	state, err = blockExec.ApplyBlock(state, meta.BlockID, block)

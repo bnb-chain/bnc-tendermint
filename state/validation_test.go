@@ -7,12 +7,13 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/types"
 )
 
 func TestValidateBlock(t *testing.T) {
 	state, _ := state(1, 1)
 
-	blockExec := NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), nil, nil, nil, true)
+	blockExec := NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), nil, types.NopEventBus{}, nil, nil, true)
 
 	// proper block must pass
 	block := makeBlock(state, 1)
