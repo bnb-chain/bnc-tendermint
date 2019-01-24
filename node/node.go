@@ -259,7 +259,7 @@ func NewNode(config *cfg.Config,
 	fastSync := config.FastSync
 	if state.Validators.Size() == 1 {
 		addr, _ := state.Validators.GetByIndex(0)
-		privValAddr := privValidator.GetPubKey().Address()
+		privValAddr := privValidator.GetAddress()
 		if bytes.Equal(privValAddr, addr) {
 			fastSync = false
 		}
