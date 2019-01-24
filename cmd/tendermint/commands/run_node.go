@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-
 	nm "github.com/tendermint/tendermint/node"
 )
 
@@ -19,6 +18,7 @@ func AddNodeFlags(cmd *cobra.Command) {
 
 	// priv val flags
 	cmd.Flags().String("priv_validator_laddr", config.PrivValidatorListenAddr, "Socket address to listen on for connections from external priv_validator process")
+	cmd.Flags().String("priv_validator_password", "12345678", "Private key file password")
 
 	// node flags
 	cmd.Flags().Bool("fast_sync", config.FastSync, "Fast blockchain syncing")
@@ -52,7 +52,8 @@ func NewRunNodeCmd(nodeProvider nm.NodeProvider) *cobra.Command {
 		Use:   "node",
 		Short: "Run the tendermint node",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			n, err := nodeProvider(config, logger)
+			// Create & start node
+			n, err := nodeProvider(config, logger, "12345678")
 			if err != nil {
 				return fmt.Errorf("Failed to create node: %v", err)
 			}

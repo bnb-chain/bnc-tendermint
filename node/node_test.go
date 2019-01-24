@@ -33,7 +33,7 @@ func TestNodeStartStop(t *testing.T) {
 	config := cfg.ResetTestRoot("node_node_test")
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestNodeDelayedStop(t *testing.T) {
 	now := tmtime.Now()
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	n.GenesisDoc().GenesisTime = now.Add(5 * time.Second)
 	require.NoError(t, err)
 
@@ -106,7 +106,7 @@ func TestNodeSetAppVersion(t *testing.T) {
 	config := cfg.ResetTestRoot("node_app_version_test")
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	require.NoError(t, err)
 
 	// default config uses the kvstore app
@@ -142,7 +142,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	}()
 	defer pvsc.Stop()
 
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SocketVal{}, n.PrivValidator())
 }
@@ -154,7 +154,7 @@ func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
 	config := cfg.ResetTestRoot("node_priv_val_tcp_test")
 	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
 
-	_, err := DefaultNewNode(config, log.TestingLogger())
+	_, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	assert.Error(t, err)
 }
 
@@ -176,7 +176,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		n, err := DefaultNewNode(config, log.TestingLogger())
+		n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 		require.NoError(t, err)
 		assert.IsType(t, &privval.SocketVal{}, n.PrivValidator())
 	}()

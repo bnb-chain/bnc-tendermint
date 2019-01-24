@@ -28,7 +28,7 @@ import (
 // stripped down version of node (proxy app, event bus, consensus state) with a
 // persistent kvstore application and special consensus wal instance
 // (byteBufferWAL) and waits until numBlocks are created. If the node fails to produce given numBlocks, it returns an error.
-func WALGenerateNBlocks(wr io.Writer, numBlocks int) (err error) {
+func WALGenerateNBlocks(wr io.Writer, numBlocks int, privKeyPassword string) (err error) {
 	config := getConfig()
 
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
@@ -42,7 +42,7 @@ func WALGenerateNBlocks(wr io.Writer, numBlocks int) (err error) {
 	// NOTE: we don't do handshake so need to set state.Version.Consensus.App directly.
 	privValidatorKeyFile := config.PrivValidatorKeyFile()
 	privValidatorStateFile := config.PrivValidatorStateFile()
-	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
+	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile, privKeyPassword)
 	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
 	if err != nil {
 		return errors.Wrap(err, "failed to read genesis file")
@@ -102,11 +102,11 @@ func WALGenerateNBlocks(wr io.Writer, numBlocks int) (err error) {
 }
 
 //WALWithNBlocks returns a WAL content with numBlocks.
-func WALWithNBlocks(numBlocks int) (data []byte, err error) {
+func WALWithNBlocks(numBlocks int, privKeyPassword string) (data []byte, err error) {
 	var b bytes.Buffer
 	wr := bufio.NewWriter(&b)
 
-	if err := WALGenerateNBlocks(wr, numBlocks); err != nil {
+	if err := WALGenerateNBlocks(wr, numBlocks, privKeyPassword); err != nil {
 		return []byte{}, err
 	}
 

@@ -46,13 +46,17 @@ func LoadOldFilePV(filePath string) (*OldFilePV, error) {
 // Upgrade convets the OldFilePV to the new FilePV, separating the immutable and mutable components,
 // and persisting them to the keyFilePath and stateFilePath, respectively.
 // It renames the original file by adding ".bak".
-func (oldFilePV *OldFilePV) Upgrade(keyFilePath, stateFilePath string) *FilePV {
+func (oldFilePV *OldFilePV) Upgrade(keyFilePath, stateFilePath, password string) *FilePV {
 	privKey := oldFilePV.PrivKey
+	privKeyBinary, _ := cdc.MarshalBinaryLengthPrefixed(privKey)
+	encryptedKey, _ := EncryptKey(privKeyBinary, password, 8, 8)
+
 	pvKey := FilePVKey{
-		PrivKey:  privKey,
-		PubKey:   privKey.PubKey(),
-		Address:  privKey.PubKey().Address(),
-		filePath: keyFilePath,
+		PrivKey:      privKey,
+		PubKey:       privKey.PubKey(),
+		Address:      privKey.PubKey().Address(),
+		EncryptedKey: encryptedKey,
+		filePath:     keyFilePath,
 	}
 
 	pvState := FilePVLastSignState{

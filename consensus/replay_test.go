@@ -17,17 +17,16 @@ import (
 
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	abci "github.com/tendermint/tendermint/abci/types"
+	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/crypto"
 	auto "github.com/tendermint/tendermint/libs/autofile"
 	dbm "github.com/tendermint/tendermint/libs/db"
-	"github.com/tendermint/tendermint/version"
-
-	cfg "github.com/tendermint/tendermint/config"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
+	"github.com/tendermint/tendermint/version"
 )
 
 var consensusReplayConfig *cfg.Config
@@ -54,7 +53,7 @@ func init() {
 func startNewConsensusStateAndWaitForBlock(t *testing.T, lastBlockHeight int64, blockDB dbm.DB, stateDB dbm.DB) {
 	logger := log.TestingLogger()
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
-	privValidator := loadPrivValidator(consensusReplayConfig)
+	privValidator := loadPrivValidator(consensusReplayConfig, "12345678")
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
 	cs.SetLogger(logger)
 
@@ -131,7 +130,7 @@ LOOP:
 		logger := log.NewNopLogger()
 		stateDB := dbm.NewMemDB()
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
-		privValidator := loadPrivValidator(consensusReplayConfig)
+		privValidator := loadPrivValidator(consensusReplayConfig, "12345678")
 		blockDB := dbm.NewMemDB()
 		cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
 		cs.SetLogger(logger)
@@ -314,12 +313,13 @@ func tempWALWithData(data []byte) string {
 func testHandshakeReplay(t *testing.T, nBlocks int, mode uint) {
 	config := ResetConfig("proxy_test_")
 
-	walBody, err := WALWithNBlocks(NUM_BLOCKS)
+	walBody, err := WALWithNBlocks(NUM_BLOCKS, "12345678")
 	require.NoError(t, err)
+
 	walFile := tempWALWithData(walBody)
 	config.Consensus.SetWalFile(walFile)
 
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), "12345678")
 
 	wal, err := NewWAL(walFile)
 	require.NoError(t, err)
@@ -633,7 +633,7 @@ func TestInitChainUpdateValidators(t *testing.T) {
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config := ResetConfig("proxy_test_")
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), "12345678")
 	stateDB, state, store := stateAndStore(config, privVal.GetPubKey(), 0x0)
 
 	oldValAddr := state.Validators.Validators[0].Address

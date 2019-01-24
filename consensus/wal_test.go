@@ -7,18 +7,17 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	// "sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/tendermint/tendermint/consensus/types"
 	"github.com/tendermint/tendermint/libs/autofile"
 	"github.com/tendermint/tendermint/libs/log"
 	tmtypes "github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestWALTruncate(t *testing.T) {
@@ -42,7 +41,7 @@ func TestWALTruncate(t *testing.T) {
 
 	//60 block's size nearly 70K, greater than group's headBuf size(4096 * 10), when headBuf is full, truncate content will Flush to the file.
 	//at this time, RotateFile is called, truncate content exist in each file.
-	err = WALGenerateNBlocks(wal.Group(), 60)
+	err = WALGenerateNBlocks(wal.Group(), 60, "12345678")
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Millisecond) //wait groupCheckDuration, make sure RotateFile run
@@ -90,7 +89,7 @@ func TestWALEncoderDecoder(t *testing.T) {
 }
 
 func TestWALSearchForEndHeight(t *testing.T) {
-	walBody, err := WALWithNBlocks(6)
+	walBody, err := WALWithNBlocks(6, "12345678")
 	if err != nil {
 		t.Fatal(err)
 	}
