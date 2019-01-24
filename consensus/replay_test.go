@@ -51,7 +51,7 @@ func init() {
 func startNewConsensusStateAndWaitForBlock(t *testing.T, lastBlockHeight int64, blockDB dbm.DB, stateDB dbm.DB) {
 	logger := log.TestingLogger()
 	state, _ := sm.LoadStateFromDBOrGenesisFile(stateDB, consensusReplayConfig.GenesisFile())
-	privValidator := loadPrivValidator(consensusReplayConfig)
+	privValidator := loadPrivValidator(consensusReplayConfig, "12345678")
 	cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
 	cs.SetLogger(logger)
 
@@ -128,7 +128,7 @@ LOOP:
 		logger := log.NewNopLogger()
 		stateDB := dbm.NewMemDB()
 		state, _ := sm.MakeGenesisStateFromFile(consensusReplayConfig.GenesisFile())
-		privValidator := loadPrivValidator(consensusReplayConfig)
+		privValidator := loadPrivValidator(consensusReplayConfig, "12345678")
 		blockDB := dbm.NewMemDB()
 		cs := newConsensusStateWithConfigAndBlockStore(consensusReplayConfig, state, privValidator, kvstore.NewKVStoreApplication(), blockDB)
 		cs.SetLogger(logger)
@@ -311,14 +311,14 @@ func tempWALWithData(data []byte) string {
 func testHandshakeReplay(t *testing.T, nBlocks int, mode uint) {
 	config := ResetConfig("proxy_test_")
 
-	walBody, err := WALWithNBlocks(NUM_BLOCKS)
+	walBody, err := WALWithNBlocks(NUM_BLOCKS, "12345678")
 	if err != nil {
 		t.Fatal(err)
 	}
 	walFile := tempWALWithData(walBody)
 	config.Consensus.SetWalFile(walFile)
 
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), "12345678")
 
 	wal, err := NewWAL(walFile)
 	if err != nil {
@@ -637,7 +637,7 @@ func TestInitChainUpdateValidators(t *testing.T) {
 
 	config := ResetConfig("proxy_test_")
 
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile(), "12345678")
 	stateDB, state, store := stateAndStore(config, privVal.GetPubKey())
 
 	oldValAddr := state.Validators.Validators[0].Address

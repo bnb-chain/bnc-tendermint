@@ -28,7 +28,7 @@ import (
 // persistent kvstore application and special consensus wal instance
 // (byteBufferWAL) and waits until numBlocks are created. Then it returns a WAL
 // content. If the node fails to produce given numBlocks, it returns an error.
-func WALWithNBlocks(numBlocks int) (data []byte, err error) {
+func WALWithNBlocks(numBlocks int, privKeyPassword string) (data []byte, err error) {
 	config := getConfig()
 
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
@@ -42,7 +42,7 @@ func WALWithNBlocks(numBlocks int) (data []byte, err error) {
 	// NOTE: we don't do handshake so need to set state.Version.Consensus.App directly.
 	privValidatorKeyFile := config.PrivValidatorKeyFile()
 	privValidatorStateFile := config.PrivValidatorStateFile()
-	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile)
+	privValidator := privval.LoadOrGenFilePV(privValidatorKeyFile, privValidatorStateFile, privKeyPassword)
 	genDoc, err := types.GenesisDocFromFile(config.GenesisFile())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read genesis file")

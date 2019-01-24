@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amino "github.com/tendermint/go-amino"
-
 	abci "github.com/tendermint/tendermint/abci/types"
 	bc "github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
@@ -76,12 +75,12 @@ func DefaultGenesisDocProviderFunc(config *cfg.Config) GenesisDocProvider {
 }
 
 // NodeProvider takes a config and a logger and returns a ready to go Node.
-type NodeProvider func(*cfg.Config, log.Logger) (*Node, error)
+type NodeProvider func(*cfg.Config, log.Logger, string) (*Node, error)
 
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
-func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
+func DefaultNewNode(config *cfg.Config, logger log.Logger, password string) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -102,11 +101,11 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 			"newKey", newPrivValKey,
 			"newState", newPrivValState,
 		)
-		oldPV.Upgrade(newPrivValKey, newPrivValState)
+		oldPV.Upgrade(newPrivValKey, newPrivValState, password)
 	}
 
 	return NewNode(config,
-		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
+		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState, password),
 		nodeKey,
 		proxy.DefaultClientCreator(config.ProxyApp, config.ABCI, config.DBDir()),
 		DefaultGenesisDocProviderFunc(config),

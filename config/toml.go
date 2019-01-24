@@ -350,8 +350,8 @@ var testGenesis = `{
   "validators": [
     {
       "pub_key": {
-        "type": "tendermint/PubKeyEd25519",
-        "value":"AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
+		"type": "tendermint/PubKeyEd25519",
+		"value": "2/mpqxOWIZ8tuADU3cksMwqOy3EfYOn0DWvkJjBPX+I="
       },
       "power": "10",
       "name": ""
@@ -361,14 +361,29 @@ var testGenesis = `{
 }`
 
 var testPrivValidatorKey = `{
-  "address": "A3258DCBF45DCA0DF052981870F2D1441A36D145",
+  "address": "11CCACCDDC4FD4D7CA9D7F573CD3749162464C66",
   "pub_key": {
     "type": "tendermint/PubKeyEd25519",
-    "value": "AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
+    "value": "2/mpqxOWIZ8tuADU3cksMwqOy3EfYOn0DWvkJjBPX+I="
   },
-  "priv_key": {
-    "type": "tendermint/PrivKeyEd25519",
-    "value": "EVkqJO/jIXp3rkASXfh9YnyToYXRXhBr6g9cQVxPFnQBP/5povV4HTjvsy530kybxKHwEi85iU8YL0qQhSYVoQ=="
+  "encrypt_key": {
+    "crypto": {
+      "cipher": "aes-128-ctr",
+      "ciphertext": "16e8045a20c1f32ace09e3283fc495a95f921955224682e93997da1c699aa7b20f21a0c2f6e6ddd36a0e887b28c621a623da8eb8f6c0b2d1fb61f0b89ceedf9d1838ea7dabcb",
+      "cipherparams": {
+        "iv": "6b3b165c61eb92083f92737d99966a7a"
+      },
+      "kdf": "scrypt",
+      "kdfparams": {
+        "n": "8",
+        "r": "8",
+        "p": "8",
+        "dklen": "12",
+        "salt": "f2f7d12dfda769743a1d84b499aaf35f6fa8836702e716b1cada23b6ed01e766"
+      },
+      "mac": "47680e80d0f8be0c88027efaf7fe7c8e4d45e23b3a0fd80c11266a26bb044513"
+    },
+    "version": "1"
   }
 }`
 

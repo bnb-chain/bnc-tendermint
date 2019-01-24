@@ -3,17 +3,15 @@ package consensus
 import (
 	"bytes"
 	"crypto/rand"
-	"fmt"
-	// "sync"
+	"fmt" // "sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/consensus/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestWALEncoderDecoder(t *testing.T) {
@@ -42,7 +40,7 @@ func TestWALEncoderDecoder(t *testing.T) {
 }
 
 func TestWALSearchForEndHeight(t *testing.T) {
-	walBody, err := WALWithNBlocks(6)
+	walBody, err := WALWithNBlocks(6, "12345678")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	cfg "github.com/tendermint/tendermint/config"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/p2p"
@@ -22,6 +21,7 @@ var (
 	nNonValidators int
 	outputDir      string
 	nodeDirPrefix  string
+	privPassword   string
 
 	populatePersistentPeers bool
 	hostnamePrefix          string
@@ -40,6 +40,8 @@ func init() {
 		"Number of non-validators to initialize the testnet with")
 	TestnetFilesCmd.Flags().StringVar(&outputDir, "o", "./mytestnet",
 		"Directory to store initialization data for the testnet")
+	TestnetFilesCmd.Flags().StringVar(&privPassword, "password", "12345678",
+		"Password of private key file")
 	TestnetFilesCmd.Flags().StringVar(&nodeDirPrefix, "node-dir-prefix", "node",
 		"Prefix the directory name for each node with (node results in node0, node1, ...)")
 
@@ -91,12 +93,12 @@ func testnetFiles(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		initFilesWithConfig(config)
+		initFilesWithConfig(config, privPassword)
 
 		pvKeyFile := filepath.Join(nodeDir, config.BaseConfig.PrivValidatorKey)
 		pvStateFile := filepath.Join(nodeDir, config.BaseConfig.PrivValidatorState)
 
-		pv := privval.LoadFilePV(pvKeyFile, pvStateFile)
+		pv := privval.LoadFilePV(pvKeyFile, pvStateFile, privPassword)
 		genVals[i] = types.GenesisValidator{
 			Address: pv.GetPubKey().Address(),
 			PubKey:  pv.GetPubKey(),
@@ -115,7 +117,7 @@ func testnetFiles(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		initFilesWithConfig(config)
+		initFilesWithConfig(config, privPassword)
 	}
 
 	// Generate genesis doc from generated validators

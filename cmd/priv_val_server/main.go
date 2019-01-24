@@ -7,7 +7,6 @@ import (
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
-
 	"github.com/tendermint/tendermint/privval"
 )
 
@@ -17,6 +16,7 @@ func main() {
 		chainID          = flag.String("chain-id", "mychain", "chain id")
 		privValKeyPath   = flag.String("priv-key", "", "priv val key file path")
 		privValStatePath = flag.String("priv-state", "", "priv val state file path")
+		password         = flag.String("password", "12345678", "password")
 
 		logger = log.NewTMLogger(
 			log.NewSyncWriter(os.Stdout),
@@ -32,7 +32,7 @@ func main() {
 		"privStatePath", *privValStatePath,
 	)
 
-	pv := privval.LoadFilePV(*privValKeyPath, *privValStatePath)
+	pv := privval.LoadFilePV(*privValKeyPath, *privValStatePath, *password)
 
 	rs := privval.NewRemoteSigner(
 		logger,

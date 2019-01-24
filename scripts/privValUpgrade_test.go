@@ -80,15 +80,15 @@ func TestLoadAndUpgrade(t *testing.T) {
 			err := ioutil.WriteFile(oldFilePath, []byte(oldPrivvalContent), 0600)
 			require.NoError(t, err)
 			if tt.wantPanic {
-				require.Panics(t, func() { loadAndUpgrade(tt.args.oldPVPath, tt.args.newPVKeyPath, tt.args.newPVStatePath) })
+				require.Panics(t, func() { loadAndUpgrade(tt.args.oldPVPath, tt.args.newPVKeyPath, tt.args.newPVStatePath, "12345678") })
 			} else {
-				err = loadAndUpgrade(tt.args.oldPVPath, tt.args.newPVKeyPath, tt.args.newPVStatePath)
+				err = loadAndUpgrade(tt.args.oldPVPath, tt.args.newPVKeyPath, tt.args.newPVStatePath, "12345678")
 				if tt.wantErr {
 					assert.Error(t, err)
 					fmt.Println("ERR", err)
 				} else {
 					assert.NoError(t, err)
-					upgradedPV := privval.LoadFilePV(tt.args.newPVKeyPath, tt.args.newPVStatePath)
+					upgradedPV := privval.LoadFilePV(tt.args.newPVKeyPath, tt.args.newPVStatePath, "12345678")
 					oldPV, err := privval.LoadOldFilePV(tt.args.oldPVPath + ".bak")
 					require.NoError(t, err)
 

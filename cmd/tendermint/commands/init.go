@@ -12,6 +12,15 @@ import (
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
+var (
+	initPrivPassword string
+)
+
+func init() {
+	InitFilesCmd.Flags().StringVar(&initPrivPassword, "password", "12345678",
+		"Password of private key file")
+}
+
 // InitFilesCmd initialises a fresh Tendermint Core instance.
 var InitFilesCmd = &cobra.Command{
 	Use:   "init",
@@ -20,20 +29,20 @@ var InitFilesCmd = &cobra.Command{
 }
 
 func initFiles(cmd *cobra.Command, args []string) error {
-	return initFilesWithConfig(config)
+	return initFilesWithConfig(config, initPrivPassword)
 }
 
-func initFilesWithConfig(config *cfg.Config) error {
+func initFilesWithConfig(config *cfg.Config, password string) error {
 	// private validator
 	privValKeyFile := config.PrivValidatorKeyFile()
 	privValStateFile := config.PrivValidatorStateFile()
 	var pv *privval.FilePV
 	if cmn.FileExists(privValKeyFile) {
-		pv = privval.LoadFilePV(privValKeyFile, privValStateFile)
+		pv = privval.LoadFilePV(privValKeyFile, privValStateFile, password)
 		logger.Info("Found private validator", "keyFile", privValKeyFile,
 			"stateFile", privValStateFile)
 	} else {
-		pv = privval.GenFilePV(privValKeyFile, privValStateFile)
+		pv = privval.GenFilePV(privValKeyFile, privValStateFile, password)
 		pv.Save()
 		logger.Info("Generated private validator", "keyFile", privValKeyFile,
 			"stateFile", privValStateFile)

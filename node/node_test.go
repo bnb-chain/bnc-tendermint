@@ -9,12 +9,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/tendermint/tendermint/libs/log"
-
 	cfg "github.com/tendermint/tendermint/config"
+	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/types"
-
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
 
@@ -22,7 +19,7 @@ func TestNodeStartStop(t *testing.T) {
 	config := cfg.ResetTestRoot("node_node_test")
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	assert.NoError(t, err, "expected no err on DefaultNewNode")
 	err1 := n.Start()
 	if err1 != nil {
@@ -83,7 +80,7 @@ func TestNodeDelayedStop(t *testing.T) {
 	now := tmtime.Now()
 
 	// create & start node
-	n, err := DefaultNewNode(config, log.TestingLogger())
+	n, err := DefaultNewNode(config, log.TestingLogger(), "12345678")
 	n.GenesisDoc().GenesisTime = now.Add(5 * time.Second)
 	assert.NoError(t, err)
 

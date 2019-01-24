@@ -2,16 +2,23 @@ package privval
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto/randentropy"
+	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
+	"golang.org/x/crypto/scrypt"
 )
 
 // TODO: type ?
@@ -34,15 +41,204 @@ func voteToStep(vote *types.Vote) int8 {
 	}
 }
 
+const (
+	scryptR     = 8
+	scryptDKLen = 12
+
+	version = 1
+
+	keyHeaderKDF = "scrypt"
+)
+
+func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
+	// AES-128 is selected due to size of encryptKey.
+	aesBlock, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	stream := cipher.NewCTR(aesBlock, iv)
+	outText := make([]byte, len(inText))
+	stream.XORKeyStream(outText, inText)
+	return outText, err
+}
+
+// Keccak256 calculates and returns the Keccak256 hash of the input data.
+func Keccak256(data ...[]byte) []byte {
+	d := sha3.NewKeccak256()
+	for _, b := range data {
+		d.Write(b)
+	}
+	return d.Sum(nil)
+}
+
+type CryptoJSON struct {
+	Cipher       string           `json:"cipher"`
+	CipherText   string           `json:"ciphertext"`
+	CipherParams CipherparamsJSON `json:"cipherparams"`
+	KDF          string           `json:"kdf"`
+	KDFParams    KDFParams        `json:"kdfparams"`
+	MAC          string           `json:"mac"`
+}
+
+type KDFParams struct {
+	N     int    `json:"n"`
+	R     int    `json:"r"`
+	P     int    `json:"p"`
+	DKLen int    `json:"dklen"`
+	Salt  string `json:"salt"`
+}
+
+type CipherparamsJSON struct {
+	IV string `json:"iv"`
+}
+
+type EncryptedKey struct {
+	Crypto  CryptoJSON `json:"crypto"`
+	Version int        `json:"version"`
+}
+
+func EncryptKey(keyBytes []byte, auth string, scryptN, scryptP int) (EncryptedKey, error) {
+	authArray := []byte(auth)
+	salt := randentropy.GetEntropyCSPRNG(32)
+	derivedKey, err := scrypt.Key(authArray, salt, scryptN, scryptR, scryptP, scryptDKLen)
+	if err != nil {
+		return EncryptedKey{}, err
+	}
+	encryptKey := derivedKey[:16]
+
+	iv := randentropy.GetEntropyCSPRNG(aes.BlockSize) // 16
+	cipherText, err := aesCTRXOR(encryptKey, keyBytes, iv)
+	if err != nil {
+		return EncryptedKey{}, err
+	}
+	mac := Keccak256(derivedKey[16:32], cipherText)
+
+	scryptParamsJSON := KDFParams{scryptN, scryptR, scryptP, scryptDKLen, hex.EncodeToString(salt)}
+
+	cipherParamsJSON := CipherparamsJSON{
+		IV: hex.EncodeToString(iv),
+	}
+
+	cryptoStruct := CryptoJSON{
+		Cipher:       "aes-128-ctr",
+		CipherText:   hex.EncodeToString(cipherText),
+		CipherParams: cipherParamsJSON,
+		KDF:          keyHeaderKDF,
+		KDFParams:    scryptParamsJSON,
+		MAC:          hex.EncodeToString(mac),
+	}
+	encryptedKeyJSONV := EncryptedKey{
+		cryptoStruct,
+		version,
+	}
+	return encryptedKeyJSONV, nil
+}
+
+// DecryptKey decrypts a key from a json blob, returning the private key itself.
+func DecryptKey(keyjson []byte, auth string) ([]byte, error) {
+	// Parse the json into a simple map to fetch the key version
+	m := make(map[string]interface{})
+	if err := json.Unmarshal(keyjson, &m); err != nil {
+		return nil, err
+	}
+	// Depending on the version try to parse one way or another
+	var (
+		keyBytes []byte
+		err      error
+	)
+
+	k := new(EncryptedKey)
+	if err := json.Unmarshal(keyjson, k); err != nil {
+		return nil, err
+	}
+	keyBytes, _, err = decryptKeyV3(k, auth)
+
+	// Handle any decryption errors and return the key
+	if err != nil {
+		return nil, err
+	}
+
+	return keyBytes, nil
+}
+
+func decryptKeyV3(keyProtected *EncryptedKey, auth string) (keyBytes []byte, keyId []byte, err error) {
+	if keyProtected.Version != version {
+		return nil, nil, fmt.Errorf("Version not supported: %v", keyProtected.Version)
+	}
+
+	if keyProtected.Crypto.Cipher != "aes-128-ctr" {
+		return nil, nil, fmt.Errorf("Cipher not supported: %v", keyProtected.Crypto.Cipher)
+	}
+
+	mac, err := hex.DecodeString(keyProtected.Crypto.MAC)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	iv, err := hex.DecodeString(keyProtected.Crypto.CipherParams.IV)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cipherText, err := hex.DecodeString(keyProtected.Crypto.CipherText)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	derivedKey, err := getKDFKey(keyProtected.Crypto, auth)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	calculatedMAC := Keccak256(derivedKey[16:32], cipherText)
+	if !bytes.Equal(calculatedMAC, mac) {
+		return nil, nil, nil
+	}
+
+	plainText, err := aesCTRXOR(derivedKey[:16], cipherText, iv)
+	if err != nil {
+		return nil, nil, err
+	}
+	return plainText, keyId, err
+}
+
+func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
+	authArray := []byte(auth)
+	salt, err := hex.DecodeString(cryptoJSON.KDFParams.Salt)
+	if err != nil {
+		return nil, err
+	}
+	dkLen := ensureInt(cryptoJSON.KDFParams.DKLen)
+
+	if cryptoJSON.KDF == keyHeaderKDF {
+		n := ensureInt(cryptoJSON.KDFParams.N)
+		r := ensureInt(cryptoJSON.KDFParams.R)
+		p := ensureInt(cryptoJSON.KDFParams.P)
+		return scrypt.Key(authArray, salt, n, r, p, dkLen)
+
+	}
+
+	return nil, fmt.Errorf("Unsupported KDF: %s", cryptoJSON.KDF)
+}
+
+func ensureInt(x interface{}) int {
+	res, ok := x.(int)
+	if !ok {
+		res = int(x.(float64))
+	}
+	return res
+}
+
 //-------------------------------------------------------------------------------
 
 // FilePVKey stores the immutable part of PrivValidator.
 type FilePVKey struct {
 	Address types.Address  `json:"address"`
 	PubKey  crypto.PubKey  `json:"pub_key"`
-	PrivKey crypto.PrivKey `json:"priv_key"`
+	PrivKey crypto.PrivKey `json:"-"`
 
-	filePath string
+	EncryptedKey EncryptedKey `json:"encrypt_key"`
+	filePath     string
 }
 
 // Save persists the FilePVKey to its filePath.
@@ -141,14 +337,19 @@ type FilePV struct {
 
 // GenFilePV generates a new validator with randomly generated private key
 // and sets the filePaths, but does not call Save().
-func GenFilePV(keyFilePath, stateFilePath string) *FilePV {
+func GenFilePV(keyFilePath, stateFilePath string, password string) *FilePV {
 	privKey := ed25519.GenPrivKey()
+	privKeyBinary, _ := cdc.MarshalBinary(privKey)
+
+	encryptedKey, _ := EncryptKey(privKeyBinary, password, 8, 8)
 
 	return &FilePV{
 		Key: FilePVKey{
-			Address:  privKey.PubKey().Address(),
-			PubKey:   privKey.PubKey(),
-			PrivKey:  privKey,
+			Address:      privKey.PubKey().Address(),
+			PubKey:       privKey.PubKey(),
+			PrivKey:      privKey,
+			EncryptedKey: encryptedKey,
+
 			filePath: keyFilePath,
 		},
 		LastSignState: FilePVLastSignState{
@@ -161,18 +362,18 @@ func GenFilePV(keyFilePath, stateFilePath string) *FilePV {
 // LoadFilePV loads a FilePV from the filePaths.  The FilePV handles double
 // signing prevention by persisting data to the stateFilePath.  If either file path
 // does not exist, the program will exit.
-func LoadFilePV(keyFilePath, stateFilePath string) *FilePV {
-	return loadFilePV(keyFilePath, stateFilePath, true)
+func LoadFilePV(keyFilePath, stateFilePath string, password string) *FilePV {
+	return loadFilePV(keyFilePath, stateFilePath, true, password)
 }
 
 // LoadFilePVEmptyState loads a FilePV from the given keyFilePath, with an empty LastSignState.
 // If the keyFilePath does not exist, the program will exit.
-func LoadFilePVEmptyState(keyFilePath, stateFilePath string) *FilePV {
-	return loadFilePV(keyFilePath, stateFilePath, false)
+func LoadFilePVEmptyState(keyFilePath, stateFilePath string, password string) *FilePV {
+	return loadFilePV(keyFilePath, stateFilePath, false, password)
 }
 
 // If loadState is true, we load from the stateFilePath. Otherwise, we use an empty LastSignState.
-func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
+func loadFilePV(keyFilePath, stateFilePath string, loadState bool, password string) *FilePV {
 	keyJSONBytes, err := ioutil.ReadFile(keyFilePath)
 	if err != nil {
 		cmn.Exit(err.Error())
@@ -182,6 +383,25 @@ func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 	if err != nil {
 		cmn.Exit(fmt.Sprintf("Error reading PrivValidator key from %v: %v\n", keyFilePath, err))
 	}
+
+	encryptedKeyBytest, err := json.Marshal(pvKey.EncryptedKey)
+	if err != nil {
+		cmn.Exit(fmt.Sprintf("Error marshaling encrypted key struct\n"))
+	}
+
+	privKeyBinary, err := DecryptKey(encryptedKeyBytest, password)
+	if err != nil || len(privKeyBinary) == 0 {
+		panic("Error decrypting private key, please make sure password is right.")
+		cmn.Exit(fmt.Sprintf("Error decrypting private key, please make sure password is right.\n"))
+	}
+
+	var privKey crypto.PrivKey
+	err = cdc.UnmarshalBinary(privKeyBinary, &privKey)
+	if err != nil {
+		cmn.Exit(fmt.Sprintf("Error unmarshaling private key.\n"))
+	}
+
+	pvKey.PrivKey = privKey
 
 	// overwrite pubkey and address for convenience
 	pvKey.PubKey = pvKey.PrivKey.PubKey()
@@ -210,12 +430,13 @@ func loadFilePV(keyFilePath, stateFilePath string, loadState bool) *FilePV {
 
 // LoadOrGenFilePV loads a FilePV from the given filePaths
 // or else generates a new one and saves it to the filePaths.
-func LoadOrGenFilePV(keyFilePath, stateFilePath string) *FilePV {
+func LoadOrGenFilePV(keyFilePath, stateFilePath string, password string) *FilePV {
 	var pv *FilePV
 	if cmn.FileExists(keyFilePath) {
-		pv = LoadFilePV(keyFilePath, stateFilePath)
+		println(keyFilePath)
+		pv = LoadFilePV(keyFilePath, stateFilePath, password)
 	} else {
-		pv = GenFilePV(keyFilePath, stateFilePath)
+		pv = GenFilePV(keyFilePath, stateFilePath, password)
 		pv.Save()
 	}
 	return pv

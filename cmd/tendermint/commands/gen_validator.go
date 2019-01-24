@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-
 	"github.com/tendermint/tendermint/privval"
 )
 
@@ -17,7 +16,7 @@ var GenValidatorCmd = &cobra.Command{
 }
 
 func genValidator(cmd *cobra.Command, args []string) {
-	pv := privval.GenFilePV("", "")
+	pv := privval.GenFilePV("", "", "")
 	jsbz, err := cdc.MarshalJSON(pv)
 	if err != nil {
 		panic(err)

@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/tendermint/tendermint/privval"
 )
 
@@ -41,11 +40,11 @@ func TestLoadAndUpgrade(t *testing.T) {
 
 	oldPV, err := privval.LoadOldFilePV(oldFilePath)
 	assert.NoError(t, err)
-	newPV := oldPV.Upgrade(newKeyFile.Name(), newStateFile.Name())
+	newPV := oldPV.Upgrade(newKeyFile.Name(), newStateFile.Name(), "12345678")
 
 	assertEqualPV(t, oldPV, newPV)
 	assert.NoError(t, err)
-	upgradedPV := privval.LoadFilePV(newKeyFile.Name(), newStateFile.Name())
+	upgradedPV := privval.LoadFilePV(newKeyFile.Name(), newStateFile.Name(), "12345678")
 	assertEqualPV(t, oldPV, upgradedPV)
 	oldPV, err = privval.LoadOldFilePV(oldFilePath + ".bak")
 	require.NoError(t, err)

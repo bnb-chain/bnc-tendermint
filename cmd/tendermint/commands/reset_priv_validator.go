@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/privval"
@@ -54,12 +53,12 @@ func ResetAll(dbDir, addrBookFile, privValKeyFile, privValStateFile string, logg
 
 func resetFilePV(privValKeyFile, privValStateFile string, logger log.Logger) {
 	if _, err := os.Stat(privValKeyFile); err == nil {
-		pv := privval.LoadFilePVEmptyState(privValKeyFile, privValStateFile)
+		pv := privval.LoadFilePVEmptyState(privValKeyFile, privValStateFile, "")
 		pv.Reset()
 		logger.Info("Reset private validator file to genesis state", "keyFile", privValKeyFile,
 			"stateFile", privValStateFile)
 	} else {
-		pv := privval.GenFilePV(privValKeyFile, privValStateFile)
+		pv := privval.GenFilePV(privValKeyFile, privValStateFile, "")
 		pv.Save()
 		logger.Info("Generated private validator file", "file", "keyFile", privValKeyFile,
 			"stateFile", privValStateFile)
