@@ -6,7 +6,6 @@ import (
 	"time"
 
 	amino "github.com/tendermint/go-amino"
-	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/clist"
 	"github.com/tendermint/tendermint/libs/log"
 
@@ -18,9 +17,10 @@ import (
 const (
 	MempoolChannel = byte(0x30)
 
-	maxMsgSize                 = 1048576    // 1MB TODO make it configurable
-	peerCatchupSleepIntervalMS = 100        // If peer is behind, sleep this amount
-	MempoolPacketChannelSize   = 1024 * 200 // 200K messages can be queued
+	maxMsgSize                 = 1048576        // 1MB TODO make it configurable
+	maxTxSize                  = maxMsgSize - 8 // account for amino overhead of TxMessage
+	MempoolPacketChannelSize   = 1024 * 200     // 200K messages can be queued
+	peerCatchupSleepIntervalMS = 100            // If peer is behind, sleep this amount
 )
 
 type MempoolPacket struct {
@@ -123,11 +123,6 @@ func (memR *MempoolReactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte
 	default:
 		memR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
-}
-
-// BroadcastTx is an alias for Mempool.CheckTx. Broadcasting itself happens in peer routines.
-func (memR *MempoolReactor) BroadcastTx(tx types.Tx, cb func(*abci.Response)) error {
-	return memR.Mempool.CheckTx(tx, cb)
 }
 
 // PeerState describes the state of a peer.
