@@ -50,6 +50,8 @@ const (
 
 	keyHeaderKDF = "scrypt"
 
+	SaltBytes = 32
+
 	// StandardScryptN is the N parameter of Scrypt encryption algorithm, using 256MB
 	// memory and taking approximately 1s CPU time on a modern processor.
 	StandardScryptN = 1 << 18
@@ -108,7 +110,7 @@ type EncryptedKey struct {
 
 func EncryptKey(keyBytes []byte, auth string, scryptN, scryptP int) (EncryptedKey, error) {
 	authArray := []byte(auth)
-	salt := crypto.CRandBytes(32)
+	salt := crypto.CRandBytes(SaltBytes)
 	derivedKey, err := scrypt.Key(authArray, salt, scryptN, scryptR, scryptP, scryptDKLen)
 	if err != nil {
 		return EncryptedKey{}, err
