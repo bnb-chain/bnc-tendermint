@@ -343,16 +343,16 @@ func (cli *socketClient) EndBlockSync(req types.RequestEndBlock) (*types.Respons
 
 //----------------------------------------
 
-func (cli *socketClient) LatestSnapshot() (height int64, numKeys map[string]int64, err error) {
-	return 0, make(map[string]int64), nil
+func (cli *socketClient) LatestSnapshot() (height int64, numKeys int64, err error) {
+	return 0, 0, nil
 }
-func (cli *socketClient) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error) {
-	return make(map[string][][]byte), nil
+func (cli *socketClient) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
+	return make([][]byte, 0), nil
 }
-func (cli *socketClient) StartRecovery(height int64, numKeys map[string]int64) error {
+func (cli *socketClient) StartRecovery(height int64, numKeys int64) error {
 	return nil
 }
-func (cli *socketClient) WriteRecoveryChunk(storeName string, chunk [][]byte) error {
+func (cli *socketClient) WriteRecoveryChunk(chunk [][]byte) error {
 	return nil
 }
 func (cli *socketClient) EndRecovery(height int64) error {

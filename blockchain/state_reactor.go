@@ -2,11 +2,11 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/proxy"
 	"reflect"
+	"sync/atomic"
 	"time"
-
-	"github.com/tendermint/go-amino"
 
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
@@ -31,12 +31,17 @@ const (
 
 	// ask for best height every 10s
 	stateStatusUpdateIntervalSeconds = 10
-	// check if we should switch to blockchain reactor
-	switchToFastSyncIntervalSeconds = 1
+	// check if we should retry sync
+	retrySeconds = 30
+	// how long should we start to request state (we need collect enough peers and their height but shouldn't make their app state pruned)
+	startRequestStateSeconds = 10
 
-	// NOTE: keep up to date with bcBlockResponseMessage
-	bcStateResponseMessagePrefixSize   = 4
-	bcStateResponseMessageFieldKeySize = 1
+	// if peers are lagged or beyond peerStateHeightThreshold, the app state might already pruned, we skip it (not syncing from it).
+	peerStateHeightThreshold = 20
+
+	// NOTE: keep up to date with bcStateResponseMessage
+	bcStateResponseMessagePrefixSize   = 8
+	bcStateResponseMessageFieldKeySize = 2
 	maxStateMsgSize                    = types.MaxStateSizeBytes +
 		bcStateResponseMessagePrefixSize +
 		bcStateResponseMessageFieldKeySize
@@ -73,7 +78,6 @@ func NewStateReactor(state sm.State, stateDB dbm.DB, app proxy.AppConnState, fas
 	errorsCh := make(chan peerError, capacity) // so we don't block in #Receive#pool.AddBlock
 
 	pool := NewStatePool(
-		fastestSyncHeight,
 		requestsCh,
 		errorsCh,
 	)
@@ -130,15 +134,12 @@ func (_ *StateReactor) GetChannels() []*p2p.ChannelDescriptor {
 // AddPeer implements Reactor by sending our state to peer.
 func (bcSR *StateReactor) AddPeer(peer p2p.Peer) {
 	// TODO: revisit whether to keep
-	_, numKeys, _ := bcSR.app.LatestSnapshot()
-	keys := make([]keysPerStore, len(numKeys), len(numKeys))
-	for storeName, num := range numKeys {
-		keys = append(keys, keysPerStore{storeName, num})
-	}
-	msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight, keys})
-	if !peer.Send(BlockchainStateChannel, msgBytes) {
-		// doing nothing, will try later in `poolRoutine`
-	}
+	bcSR.Logger.Info("added a peer", "peer", peer.ID())
+	//_, numKeys, _ := bcSR.app.LatestSnapshot()
+	//msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight, numKeys})
+	//if !peer.Send(BlockchainStateChannel, msgBytes) {
+	//	// doing nothing, will try later in `poolRoutine`
+	//}
 	// peer is added to the pool once we receive the first
 	// bcStateStatusResponseMessage from the peer and call pool.SetPeerHeight
 }
@@ -155,28 +156,25 @@ func (bcSR *StateReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 	src p2p.Peer) (queued bool) {
 
-	state := sm.LoadStateForHeight(bcSR.stateDB, msg.Height)
-	if state == nil {
-		bcSR.Logger.Info("Peer asking for a state we don't have", "src", src, "height", msg.Height)
+	var state *sm.State
+	if msg.StartIndex == 0 {
+		if state = sm.LoadStateForHeight(bcSR.stateDB, msg.Height); state == nil {
+			bcSR.Logger.Info("Peer asking for a state we don't have", "src", src, "height", msg.Height)
 
-		msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height})
-		return src.TrySend(BlockchainStateChannel, msgBytes)
+			msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
+			return src.TrySend(BlockchainStateChannel, msgBytes)
+		}
 	}
 
-	appState, err := bcSR.app.ReadSnapshotChunk(msg.Height, 0, 0)
+	chunk, err := bcSR.app.ReadSnapshotChunk(msg.Height, msg.StartIndex, msg.EndIndex)
 	if err != nil {
 		bcSR.Logger.Info("Peer asking for an application state we don't have", "src", src, "height", msg.Height, "err", err)
 
-		msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height})
+		msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
 		return src.TrySend(BlockchainStateChannel, msgBytes)
 	}
 
-	serializedStores := make([]serializedStore, 0, len(appState))
-	for storeName, keyValues := range appState {
-		serializedStores = append(serializedStores, serializedStore{storeName, keyValues})
-	}
-	fmt.Printf("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
-	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, AppState: serializedStores})
+	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, StartIdxInc: msg.StartIndex, EndIdxExc: msg.EndIndex, KeyValues: chunk})
 	return src.TrySend(BlockchainStateChannel, msgBytes)
 
 }
@@ -201,21 +199,35 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		// Got a block.
 		//bcSR.pool.AddState(src.ID(), msg.State, len(msgBytes))
 		//bcSR.pool.PopRequest()
-
-		sm.SaveState(bcSR.stateDB, *msg.State)
-		for _, store := range msg.AppState {
-			err := bcSR.app.WriteRecoveryChunk(store.StoreName, store.KeyValues)
-			if err != nil {
-				bcSR.Logger.Error("Failed to recover application state", "store", store, "numOfKeys", len(store.KeyValues)/2)
-			}
+		if msg.StartIdxInc == 0 {
+			// first part should return state
+			bcSR.pool.state = msg.State
+			sm.SaveState(bcSR.stateDB, *msg.State)
 		}
-		bcSR.app.EndRecovery(msg.State.LastBlockHeight)
+		bcSR.pool.AddStateChunk(src.ID(), msg)
 
-		bcSR.Logger.Info("Time to switch to blockchain reactor!", "height", msg.State.LastBlockHeight+1)
-		bcSR.pool.Stop()
+		// received all chunks!
+		if bcSR.pool.isComplete() {
+			chunks := make([][]byte, bcSR.pool.numKeys * 2)
+			for _, kvs := range bcSR.pool.chunks {
+				for _, kv := range kvs {
+					chunks = append(chunks, kv)
+				}
+			}
+			err := bcSR.app.WriteRecoveryChunk(chunks)
+			if err != nil {
+				bcSR.Logger.Error("Failed to recover application state", "err", err)
+			}
 
-		bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(*BlockchainReactor)
-		bcR.SwitchToBlockchain(*msg.State)
+			bcSR.app.EndRecovery(msg.State.LastBlockHeight)
+
+			bcSR.Logger.Info("Time to switch to blockchain reactor!", "height", msg.State.LastBlockHeight+1)
+			bcSR.pool.Stop()
+
+			bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(*BlockchainReactor)
+			bcR.SwitchToBlockchain(*msg.State)
+		}
+
 	case *bcStateStatusRequestMessage:
 		// Send peer our state.
 		height, numKeys, err := bcSR.app.LatestSnapshot()
@@ -226,24 +238,19 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		if state.LastBlockHeight != height {
 			bcSR.Logger.Error("application and state height is inconsistent")
 		}
-		keys := make([]keysPerStore, len(numKeys), len(numKeys))
-		for storeName, num := range numKeys {
-			keys = append(keys, keysPerStore{storeName, num})
-		}
-		msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{state.LastBlockHeight, keys})
+		msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{state.LastBlockHeight, numKeys})
 		queued := src.TrySend(BlockchainStateChannel, msgBytes)
 		if !queued {
 			// sorry
 		}
 	case *bcStateStatusResponseMessage:
 		// Got a peer status. Unverified.
-		numKeys := make(map[string]int64)
-		for _, keysPerStore := range msg.Keys {
-			numKeys[keysPerStore.StoreName] = keysPerStore.NumKeys
+		if bcSR.pool.height == 0 {
+			bcSR.app.StartRecovery(msg.Height, msg.NumKeys)
+			bcSR.pool.height = msg.Height
+			bcSR.pool.numKeys = msg.NumKeys
 		}
-		bcSR.app.StartRecovery(msg.Height, numKeys)
 		bcSR.pool.SetPeerHeight(src.ID(), msg.Height)
-		bcSR.pool.makeRequester(msg.Height)
 	default:
 		bcSR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 	}
@@ -252,8 +259,9 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 // Handle messages from the poolReactor telling the reactor what to do.
 // NOTE: Don't sleep in the FOR_LOOP or otherwise slow it down!
 func (bcSR *StateReactor) poolRoutine() {
-
-	statusUpdateTicker := time.NewTicker(statusUpdateIntervalSeconds * time.Second)
+	bcSR.BroadcastStateStatusRequest()
+	retryTicker := time.NewTicker(retrySeconds * time.Second)
+	startRequestStateTicker := time.NewTicker(startRequestStateSeconds * time.Second)
 
 FOR_LOOP:
 	for {
@@ -263,7 +271,7 @@ FOR_LOOP:
 			if peer == nil {
 				continue FOR_LOOP // Peer has since been disconnected.
 			}
-			msgBytes := cdc.MustMarshalBinaryBare(&bcStateRequestMessage{request.Height})
+			msgBytes := cdc.MustMarshalBinaryBare(&bcStateRequestMessage{request.Height, request.StartIndex, request.EndIndex})
 			queued := peer.TrySend(BlockchainStateChannel, msgBytes)
 			if !queued {
 				// We couldn't make the request, send-queue full.
@@ -277,24 +285,16 @@ FOR_LOOP:
 				bcSR.Switch.StopPeerForError(peer, err)
 			}
 
-		case <-statusUpdateTicker.C:
-			// ask for status updates
-			go bcSR.BroadcastStateStatusRequest() // nolint: errcheck
+		case <-retryTicker.C:
+			bcSR.pool.reset()
+			bcSR.BroadcastStateStatusRequest()
 
-		//case <-switchToBlockTicker.C:
-		//	height, numPending, lenRequesters := bcSR.pool.GetStatus()
-		//	outbound, inbound, _ := bcSR.Switch.NumPeers()
-		//	bcSR.Logger.Debug("Block ticker", "numPending", numPending, "total", lenRequesters,
-		//		"outbound", outbound, "inbound", inbound)
-		//	if bcSR.pool.IsCaughtUp() {
-		//		bcSR.Logger.Info("Time to switch to consensus reactor!", "height", height)
-		//		bcSR.pool.Stop()
-		//
-		//		bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(*BlockchainReactor)
-		//		bcR.SwitchToBlockchain(state, blocksSynced)
-		//
-		//		break FOR_LOOP
-		//	}
+		case <- startRequestStateTicker.C:
+			if numPending := atomic.LoadInt32(&bcSR.pool.numPending); numPending == 0 {
+				bcSR.pool.sendRequest()
+			} else {
+				bcSR.Logger.Info("still waiting for peer response for application state", "numPending", numPending)
+			}
 
 		case <-bcSR.Quit():
 			break FOR_LOOP
@@ -303,10 +303,9 @@ FOR_LOOP:
 }
 
 // BroadcastStatusRequest broadcasts `StateStore` height.
-func (bcSR *StateReactor) BroadcastStateStatusRequest() error {
+func (bcSR *StateReactor) BroadcastStateStatusRequest() {
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusRequestMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight})
 	bcSR.Switch.Broadcast(BlockchainStateChannel, msgBytes)
-	return nil
 }
 
 //-----------------------------------------------------------------------------
@@ -336,6 +335,8 @@ func decodeStateMsg(bz []byte) (msg BlockchainStateMessage, err error) {
 
 type bcStateRequestMessage struct {
 	Height int64
+	StartIndex int64
+	EndIndex int64
 }
 
 func (m *bcStateRequestMessage) String() string {
@@ -344,6 +345,8 @@ func (m *bcStateRequestMessage) String() string {
 
 type bcNoStateResponseMessage struct {
 	Height int64
+	StartIndex int64
+	EndIndex int64
 }
 
 func (brm *bcNoStateResponseMessage) String() string {
@@ -352,14 +355,11 @@ func (brm *bcNoStateResponseMessage) String() string {
 
 //-------------------------------------
 
-type serializedStore struct {
-	StoreName string
-	KeyValues [][]byte
-}
-
 type bcStateResponseMessage struct {
 	State    *sm.State
-	AppState []serializedStore
+	StartIdxInc int64
+	EndIdxExc int64
+	KeyValues [][]byte	// key-values, len(KeyValues) == 2 * (EndIndex - StartIndex)
 }
 
 func (m *bcStateResponseMessage) String() string {
@@ -378,14 +378,9 @@ func (m *bcStateStatusRequestMessage) String() string {
 
 //-------------------------------------
 
-type keysPerStore struct {
-	StoreName string
-	NumKeys   int64
-}
-
 type bcStateStatusResponseMessage struct {
 	Height int64
-	Keys   []keysPerStore
+	NumKeys   int64
 }
 
 func (m *bcStateStatusResponseMessage) String() string {

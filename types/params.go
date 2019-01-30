@@ -14,7 +14,8 @@ const (
 	BlockPartSizeBytes = 1024 * 1024 // 1MB
 
 	// MaxStateSizeBytes is the maximum permitted size of the blocks.
-	MaxStateSizeBytes = 10485760 // 10MB
+	// TODO: reduce this by segmentation
+	MaxStateSizeBytes = 1048576000 // 1000MB
 )
 
 // ConsensusParams contains consensus critical parameters that determine the

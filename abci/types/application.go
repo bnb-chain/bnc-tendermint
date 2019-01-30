@@ -26,10 +26,10 @@ type Application interface {
 	Commit() ResponseCommit                          // Commit the state and return the application Merkle root hash
 
 	// State Connection
-	LatestSnapshot() (height int64, numKeys map[string]int64, err error) // query application state height and numOfKeys
-	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error)
-	StartRecovery(height int64, numKeys map[string]int64) error
-	WriteRecoveryChunk(storeName string, chunk [][]byte) error
+	LatestSnapshot() (height int64, numKeys int64, err error) // query application state height and numOfKeys
+	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error)
+	StartRecovery(height int64, numKeys int64) error
+	WriteRecoveryChunk(chunk [][]byte) error
 	EndRecovery(height int64) error
 }
 
@@ -85,19 +85,19 @@ func (BaseApplication) EndBlock(req RequestEndBlock) ResponseEndBlock {
 	return ResponseEndBlock{}
 }
 
-func (BaseApplication) LatestSnapshot() (height int64, numKeys map[string]int64, err error) {
-	return 0, make(map[string]int64), nil
+func (BaseApplication) LatestSnapshot() (height int64, numKeys int64, err error) {
+	return 0, 0, nil
 }
 
-func (BaseApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk map[string][][]byte, err error) {
-	return make(map[string][][]byte, 0), nil
+func (BaseApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
+	return make([][]byte, 0), nil
 }
 
-func (BaseApplication) StartRecovery(height int64, numKeys map[string]int64) error {
+func (BaseApplication) StartRecovery(height int64, numKeys int64) error {
 	return nil
 }
 
-func (BaseApplication) WriteRecoveryChunk(storeName string, chunk [][]byte) error {
+func (BaseApplication) WriteRecoveryChunk(chunk [][]byte) error {
 	return nil
 }
 
