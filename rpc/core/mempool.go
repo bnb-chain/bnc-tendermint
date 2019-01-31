@@ -51,7 +51,7 @@ import (
 // ### Query Parameters
 //
 // | Parameter | Type | Default | Required | Description     |
-// |-----------+------+---------+----------+-----------------|
+// |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	err := mempool.CheckTx(tx, nil)
@@ -96,7 +96,7 @@ func BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 // ### Query Parameters
 //
 // | Parameter | Type | Default | Required | Description     |
-// |-----------+------+---------+----------+-----------------|
+// |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 	resCh := make(chan *abci.Response, 1)
@@ -163,7 +163,7 @@ func BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 // ### Query Parameters
 //
 // | Parameter | Type | Default | Required | Description     |
-// |-----------+------+---------+----------+-----------------|
+// |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Subscribe to tx being committed in block.
@@ -267,7 +267,7 @@ func BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 // ### Query Parameters
 //
 // | Parameter | Type | Default | Required | Description                          |
-// |-----------+------+---------+----------+--------------------------------------|
+// |-----------|------|---------|----------|--------------------------------------|
 // | limit     | int  | 30      | false    | Maximum number of entries (max: 100) |
 // ```
 func UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {

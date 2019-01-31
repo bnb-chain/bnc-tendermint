@@ -86,7 +86,7 @@ import (
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description |
-// |-----------+--------+---------+----------+-------------|
+// |-----------|--------|---------|----------|-------------|
 // | query     | string | ""      | true     | Query       |
 //
 // <aside class="notice">WebSocket only</aside>
@@ -143,7 +143,7 @@ func Subscribe(wsCtx rpctypes.WSRPCContext, query string) (*ctypes.ResultSubscri
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description |
-// |-----------+--------+---------+----------+-------------|
+// |-----------|--------|---------|----------|-------------|
 // | query     | string | ""      | true     | Query       |
 //
 // <aside class="notice">WebSocket only</aside>

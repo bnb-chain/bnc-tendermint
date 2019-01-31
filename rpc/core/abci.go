@@ -47,7 +47,7 @@ import (
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                    |
-// |-----------+--------+---------+----------+------------------------------------------------|
+// |-----------|--------|---------|----------|------------------------------------------------|
 // | path      | string | false   | false    | Path to the data ("/a/b/c")                    |
 // | data      | []byte | false   | true     | Data                                           |
 // | height    | int64  | 0       | false    | Height (0 means latest)                        |

@@ -1,13 +1,13 @@
 /*
 # Introduction
 
-Tendermint supports the following RPC protocols:
+The following RPC protocols are supported:
 
 * URI over HTTP
 * JSONRPC over HTTP
 * JSONRPC over websockets
 
-Tendermint RPC is built using our own RPC library which contains its own set of documentation and tests.
+RPC is built using Tendermint's RPC library which contains its own set of documentation and tests.
 See it here: https://github.com/tendermint/tendermint/tree/master/rpc/lib
 
 ## Configuration

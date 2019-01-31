@@ -64,7 +64,7 @@ import (
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                               |
-// |-----------+--------+---------+----------+-----------------------------------------------------------|
+// |-----------|--------|---------|----------|-----------------------------------------------------------|
 // | hash      | []byte | nil     | true     | The transaction hash                                      |
 // | prove     | bool   | false   | false    | Include a proof of the transaction inclusion in the block |
 //
@@ -168,7 +168,7 @@ func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                               |
-// |-----------+--------+---------+----------+-----------------------------------------------------------|
+// |-----------|--------|---------|----------|-----------------------------------------------------------|
 // | query     | string | ""      | true     | Query                                                     |
 // | prove     | bool   | false   | false    | Include proofs of the transactions inclusion in the block |
 // | page      | int    | 1       | false    | Page number (1-based)                                     |
