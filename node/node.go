@@ -351,6 +351,22 @@ func NewNode(config *cfg.Config,
 	evidenceReactor := evidence.NewEvidenceReactor(evidencePool)
 	evidenceReactor.SetLogger(evidenceLogger)
 
+	fastestSyncHeight := config.FastestSyncHeight
+	if state.Validators.Size() == 1 {
+		addr, _ := state.Validators.GetByIndex(0)
+		if bytes.Equal(privValidator.GetAddress(), addr) {
+			fastestSyncHeight = -1
+		}
+	}
+	if state.LastBlockHeight > fastestSyncHeight {
+		// if we are already more advance than requested, we don't need fastest sync
+		// this will prevent fastest sync after restart node after first launch
+
+		fastestSyncHeight = -1
+	}
+	// TODO: revisit - seems doesn't need Copy state
+	stateReactor := bc.NewStateReactor(state, stateDB, proxyApp.State(), fastestSyncHeight)
+
 	blockExecLogger := logger.With("module", "state")
 	// make block executor for consensus and blockchain reactors to execute blocks
 	blockExec := sm.NewBlockExecutor(
@@ -364,7 +380,7 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Make BlockchainReactor
-	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && fastestSyncHeight == -1)
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
 
 	// Make ConsensusReactor
@@ -381,7 +397,7 @@ func NewNode(config *cfg.Config,
 	if privValidator != nil {
 		consensusState.SetPrivValidator(privValidator)
 	}
-	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync, cs.ReactorMetrics(csMetrics))
+	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || fastestSyncHeight != -1, cs.ReactorMetrics(csMetrics))
 	consensusReactor.SetLogger(consensusLogger)
 
 	// services which will be publishing and/or subscribing for messages (events)
@@ -467,6 +483,7 @@ func NewNode(config *cfg.Config,
 	)
 	sw.SetLogger(p2pLogger)
 	sw.AddReactor("MEMPOOL", mempoolReactor)
+	sw.AddReactor("STATE", stateReactor)
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
 	sw.AddReactor("EVIDENCE", evidenceReactor)
@@ -829,6 +846,7 @@ func makeNodeInfo(
 		Network:         chainID,
 		Version:         version.TMCoreSemVer,
 		Channels: []byte{
+			bc.BlockchainStateChannel,
 			bc.BlockchainChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
 			mempl.MempoolChannel,

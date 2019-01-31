@@ -149,10 +149,9 @@ func validatePage(page, perPage, totalCount int) int {
 }
 
 func validatePerPage(perPage int) int {
-	if perPage < 1 {
+	if perPage < 1 || perPage > maxPerPage {
+		logger.Error("Wrong perPage parameter", "perPage", perPage, "defaultPerPage", defaultPerPage)
 		return defaultPerPage
-	} else if perPage > maxPerPage {
-		return maxPerPage
 	}
 	return perPage
 }

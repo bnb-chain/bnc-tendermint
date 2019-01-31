@@ -219,6 +219,9 @@ blocktime_iota = "1s"
 # Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
 blocktime_iota = "0ms"
 
+# Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
+blocktime_iota = "0ms"
+
 ##### transactions indexer configuration options #####
 [tx_index]
 

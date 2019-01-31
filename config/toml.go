@@ -77,6 +77,8 @@ moniker = "{{ .BaseConfig.Moniker }}"
 # and verifying their commits
 fast_sync = {{ .BaseConfig.FastSync }}
 
+fastest_sync_height = {{ .BaseConfig.FastestSyncHeight }}
+
 # Database backend: leveldb | memdb | cleveldb
 db_backend = "{{ .BaseConfig.DBBackend }}"
 
@@ -265,6 +267,9 @@ create_empty_blocks_interval = "{{ .Consensus.CreateEmptyBlocksInterval }}"
 # Reactor sleep duration parameters
 peer_gossip_sleep_duration = "{{ .Consensus.PeerGossipSleepDuration }}"
 peer_query_maj23_sleep_duration = "{{ .Consensus.PeerQueryMaj23SleepDuration }}"
+
+# Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
+blocktime_iota = "{{ .Consensus.BlockTimeIota }}"
 
 # Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
 blocktime_iota = "{{ .Consensus.BlockTimeIota }}"
