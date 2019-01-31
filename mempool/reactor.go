@@ -29,12 +29,6 @@ type MempoolPacket struct {
 	msgBytes []byte
 }
 
-type MempoolPacket struct {
-	chID     byte
-	src      p2p.Peer
-	msgBytes []byte
-}
-
 // MempoolReactor handles mempool tx broadcasting amongst peers.
 type MempoolReactor struct {
 	p2p.BaseReactor
