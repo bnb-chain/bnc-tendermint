@@ -1,5 +1,5 @@
 /*
-# Introduction
+# Node RPC
 
 The following RPC protocols are supported:
 
@@ -14,7 +14,7 @@ See it here: https://github.com/tendermint/tendermint/tree/master/rpc/lib
 
 RPC can be configured by tuning parameters under `[rpc]` table in the `$TMHOME/config/config.toml` file or by using the `--rpc.X` command-line flags.
 
-Default rpc listen address is `tcp://0.0.0.0:26657`. To set another address,  set the `laddr` config parameter to desired value.
+Default rpc listen address is `tcp://0.0.0.0:27147`. To set another address,  set the `laddr` config parameter to desired value.
 CORS (Cross-Origin Resource Sharing) can be enabled by setting `cors_allowed_origins`, `cors_allowed_methods`, `cors_allowed_headers` config parameters.
 
 ## Arguments
@@ -24,7 +24,7 @@ Arguments which expect strings or byte arrays may be passed as quoted strings, l
 ## URI/HTTP
 
 ```bash
-curl 'localhost:26657/broadcast_tx_sync?tx="abc"'
+curl 'localhost:27147/broadcast_tx_sync?tx="abc"'
 ```
 
 > Response:
@@ -45,7 +45,7 @@ curl 'localhost:26657/broadcast_tx_sync?tx="abc"'
 
 ## JSONRPC/HTTP
 
-JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://localhost:26657/`).
+JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://localhost:27147/`).
 
 ```json
 {
@@ -58,7 +58,7 @@ JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://l
 
 ## JSONRPC/websockets
 
-JSONRPC requests can be made via websocket. The websocket endpoint is at `/websocket`, e.g. `localhost:26657/websocket`.  Asynchronous RPC functions like event `subscribe` and `unsubscribe` are only available via websockets.
+JSONRPC requests can be made via websocket. The websocket endpoint is at `/websocket`, e.g. `localhost:27147/websocket`.  Asynchronous RPC functions like event `subscribe` and `unsubscribe` are only available via websockets.
 
 
 ## More Examples
@@ -70,7 +70,7 @@ See the various bash tests using curl in `test/`, and examples using the `Go` AP
 An HTTP Get request to the root RPC endpoint shows a list of available endpoints.
 
 ```bash
-curl 'localhost:26657'
+curl 'localhost:27147'
 ```
 
 > Response:

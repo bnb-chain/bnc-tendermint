@@ -19,11 +19,11 @@ import (
 // Returns right away, with no response
 //
 // ```shell
-// curl 'localhost:26657/broadcast_tx_async?tx="123"'
+// curl 'localhost:27147/broadcast_tx_async?tx="123"'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -64,11 +64,11 @@ func BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 // Returns with the response from CheckTx.
 //
 // ```shell
-// curl 'localhost:26657/broadcast_tx_sync?tx="456"'
+// curl 'localhost:27147/broadcast_tx_sync?tx="456"'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -123,11 +123,11 @@ func BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
 // will contain a non-OK ABCI code.
 //
 // ```shell
-// curl 'localhost:26657/broadcast_tx_commit?tx="789"'
+// curl 'localhost:27147/broadcast_tx_commit?tx="789"'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -238,11 +238,11 @@ func BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 // Get unconfirmed transactions (maximum ?limit entries) including their number.
 //
 // ```shell
-// curl 'localhost:26657/unconfirmed_txs'
+// curl 'localhost:27147/unconfirmed_txs'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -281,11 +281,11 @@ func UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
 // Get number of unconfirmed transactions.
 //
 // ```shell
-// curl 'localhost:26657/num_unconfirmed_txs'
+// curl 'localhost:27147/num_unconfirmed_txs'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error

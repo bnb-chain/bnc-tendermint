@@ -10,11 +10,11 @@ import (
 // Query the application for some information.
 //
 // ```shell
-// curl 'localhost:26657/abci_query?path=""&data="abcd"&prove=false'
+// curl 'localhost:27147/abci_query?path=""&data="abcd"&prove=false'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -69,11 +69,11 @@ func ABCIQuery(path string, data cmn.HexBytes, height int64, prove bool) (*ctype
 // Get some info about the application.
 //
 // ```shell
-// curl 'localhost:26657/abci_info'
+// curl 'localhost:27147/abci_info'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error

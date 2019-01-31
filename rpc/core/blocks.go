@@ -13,11 +13,11 @@ import (
 // Block headers are returned in descending order (highest first).
 //
 // ```shell
-// curl 'localhost:26657/blockchain?minHeight=10&maxHeight=10'
+// curl 'localhost:27147/blockchain?minHeight=10&maxHeight=10'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -123,11 +123,11 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 // If no height is provided, it will fetch the latest block.
 //
 // ```shell
-// curl 'localhost:26657/block?height=10'
+// curl 'localhost:27147/block?height=10'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -240,11 +240,11 @@ func Block(heightPtr *int64) (*ctypes.ResultBlock, error) {
 // If no height is provided, it will fetch the commit for the latest block.
 //
 // ```shell
-// curl 'localhost:26657/commit?height=11'
+// curl 'localhost:27147/commit?height=11'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -339,11 +339,11 @@ func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 // Thus response.results[5] is the results of executing getBlock(h).Txs[5]
 //
 // ```shell
-// curl 'localhost:26657/block_results?height=10'
+// curl 'localhost:27147/block_results?height=10'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error

@@ -15,11 +15,11 @@ import (
 // hash, app hash, block height and time.
 //
 // ```shell
-// curl 'localhost:26657/status'
+// curl 'localhost:27147/status'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -49,7 +49,7 @@ import (
 //   		"moniker": "ubuntu-xenial",
 //   		"other": {
 //   			"tx_index": "on",
-//   			"rpc_addr": "tcp://0.0.0.0:26657"
+//   			"rpc_addr": "tcp://0.0.0.0:27147"
 //   		}
 //   	},
 //   	"sync_info": {
