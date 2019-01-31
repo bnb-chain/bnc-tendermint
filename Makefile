@@ -269,7 +269,7 @@ metalinter_all:
 DESTINATION = ./index.html.md
 
 rpc-docs:
-	cat rpc/core/slate_header.txt > $(DESTINATION)
+	cat rpc/core/docs_header.md > $(DESTINATION)
 	godoc2md -template rpc/core/doc_template.txt github.com/tendermint/tendermint/rpc/core | grep -v -e "pipe.go" -e "routes.go" -e "dev.go" | sed 's,/src/target,https://github.com/tendermint/tendermint/tree/master/rpc/core,' >> $(DESTINATION)
 
 check_dep:

@@ -1,5 +1,5 @@
 /*
-# Node RPC
+## Protocols
 
 The following RPC protocols are supported:
 
