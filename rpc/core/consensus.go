@@ -164,7 +164,7 @@ func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
 //     },
 //     "peers": [
 //       {
-//         "node_address": "30ad1854af22506383c3f0e57fb3c7f90984c5e8@172.16.63.221:26656",
+//         "node_address": "30ad1854af22506383c3f0e57fb3c7f90984c5e8@172.16.63.221:27146",
 //         "peer_state": {
 //           "round_state": {
 //             "height": "7185",

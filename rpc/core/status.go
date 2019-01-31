@@ -42,7 +42,7 @@ import (
 //   			"app": "0"
 //   		},
 //   		"id": "53729852020041b956e86685e24394e0bee4373f",
-//   		"listen_addr": "10.0.2.15:26656",
+//   		"listen_addr": "10.0.2.15:27146",
 //   		"network": "test-chain-Y1OHx6",
 //   		"version": "0.24.0-2ce1abc2",
 //   		"channels": "4020212223303800",

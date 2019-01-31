@@ -34,7 +34,7 @@ import (
 //		"n_peers": "0",
 // 		"peers": [],
 // 		"listeners": [
-// 			"Listener(@10.0.2.15:26656)"
+// 			"Listener(@10.0.2.15:27146)"
 // 		],
 // 		"listening": true
 // 	},
