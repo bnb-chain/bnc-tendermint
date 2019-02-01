@@ -8,11 +8,11 @@ import (
 // case of an error.
 //
 // ```shell
-// curl 'localhost:26657/health'
+// curl 'localhost:27147/health'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error

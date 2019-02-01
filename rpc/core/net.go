@@ -12,11 +12,11 @@ import (
 // Get network info.
 //
 // ```shell
-// curl 'localhost:26657/net_info'
+// curl 'localhost:27147/net_info'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -34,7 +34,7 @@ import (
 //		"n_peers": "0",
 // 		"peers": [],
 // 		"listeners": [
-// 			"Listener(@10.0.2.15:26656)"
+// 			"Listener(@10.0.2.15:27146)"
 // 		],
 // 		"listening": true
 // 	},
@@ -96,11 +96,11 @@ func UnsafeDialPeers(peers []string, persistent bool) (*ctypes.ResultDialPeers, 
 // Get genesis file.
 //
 // ```shell
-// curl 'localhost:26657/genesis'
+// curl 'localhost:27147/genesis'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error

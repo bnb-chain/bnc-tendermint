@@ -16,11 +16,11 @@ import (
 // place.
 //
 // ```shell
-// curl "localhost:26657/tx?hash=0x2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF"
+// curl "localhost:27147/tx?hash=0x2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF"
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -64,7 +64,7 @@ import (
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                               |
-// |-----------+--------+---------+----------+-----------------------------------------------------------|
+// |-----------|--------|---------|----------|-----------------------------------------------------------|
 // | hash      | []byte | nil     | true     | The transaction hash                                      |
 // | prove     | bool   | false   | false    | Include a proof of the transaction inclusion in the block |
 //
@@ -115,11 +115,11 @@ func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
 // list of transactions (maximum ?per_page entries) and the total count.
 //
 // ```shell
-// curl "localhost:26657/tx_search?query=\"account.owner='Ivan'\"&prove=true"
+// curl "localhost:27147/tx_search?query=\"account.owner='Ivan'\"&prove=true"
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -168,7 +168,7 @@ func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                               |
-// |-----------+--------+---------+----------+-----------------------------------------------------------|
+// |-----------|--------|---------|----------|-----------------------------------------------------------|
 // | query     | string | ""      | true     | Query                                                     |
 // | prove     | bool   | false   | false    | Include proofs of the transactions inclusion in the block |
 // | page      | int    | 1       | false    | Page number (1-based)                                     |

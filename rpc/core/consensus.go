@@ -11,11 +11,11 @@ import (
 // If no height is provided, it will fetch the current validator set.
 //
 // ```shell
-// curl 'localhost:26657/validators'
+// curl 'localhost:27147/validators'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -67,11 +67,11 @@ func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
 // UNSTABLE
 //
 // ```shell
-// curl 'localhost:26657/dump_consensus_state'
+// curl 'localhost:27147/dump_consensus_state'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -164,7 +164,7 @@ func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
 //     },
 //     "peers": [
 //       {
-//         "node_address": "30ad1854af22506383c3f0e57fb3c7f90984c5e8@172.16.63.221:26656",
+//         "node_address": "30ad1854af22506383c3f0e57fb3c7f90984c5e8@172.16.63.221:27146",
 //         "peer_state": {
 //           "round_state": {
 //             "height": "7185",
@@ -230,11 +230,11 @@ func DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 // UNSTABLE
 //
 // ```shell
-// curl 'localhost:26657/consensus_state'
+// curl 'localhost:27147/consensus_state'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -283,11 +283,11 @@ func ConsensusState() (*ctypes.ResultConsensusState, error) {
 // If no height is provided, it will fetch the current consensus params.
 //
 // ```shell
-// curl 'localhost:26657/consensus_params'
+// curl 'localhost:27147/consensus_params'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
