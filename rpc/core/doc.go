@@ -61,10 +61,6 @@ JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://l
 JSONRPC requests can be made via websocket. The websocket endpoint is at `/websocket`, e.g. `localhost:27147/websocket`.  Asynchronous RPC functions like event `subscribe` and `unsubscribe` are only available via websockets.
 
 
-## More Examples
-
-See the various bash tests using curl in `test/`, and examples using the `Go` API in `rpc/client/`.
-
 ## Get the list
 
 An HTTP Get request to the root RPC endpoint shows a list of available endpoints.
