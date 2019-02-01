@@ -143,9 +143,6 @@ func (pool *StatePool) RemovePeer(peerID p2p.ID) {
 
 // MUST BE REVISITED, WE MIGHT CAN RETRY
 func (pool *StatePool) removePeer(peerID p2p.ID) {
-	//if stateRequest, ok := pool.requests[peerID]; ok {
-	//	pool.requestsCh <- *stateRequest
-	//}
 	if _, ok := pool.requests[peerID]; ok {
 		delete(pool.requests, peerID)
 	}

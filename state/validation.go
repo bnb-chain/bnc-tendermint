@@ -57,10 +57,6 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block, withAppStat 
 
 	// Validate app info
 	if withAppStat && !bytes.Equal(block.AppHash, state.AppHash) {
-		stateHash := fmt.Sprintf("%X", state.AppHash)
-		blockHash := fmt.Sprintf("%X", block.AppHash)
-		fmt.Println(stateHash)
-		fmt.Println(blockHash)
 		return fmt.Errorf(
 			"Wrong Block.Header.AppHash.  Expected %X, got %v",
 			state.AppHash,

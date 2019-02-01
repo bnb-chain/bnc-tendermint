@@ -133,8 +133,9 @@ func (bcR *BlockchainReactor) SwitchToBlockchain(state sm.State) {
 
 	bcR.fastSync = true
 	bcR.pool.height = state.LastBlockHeight + 1
+	bcR.store.SetHeight(state.LastBlockHeight)
 	err := bcR.pool.Start()
-	fmt.Printf("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
+	bcR.Logger.Debug("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
 	if err != nil {
 		bcR.Logger.Error("Error starting blockchainReactor", "err", err)
 		return
@@ -352,7 +353,7 @@ FOR_LOOP:
 				// TODO: same thing for app - but we would need a way to
 				// get the hash without persisting the state
 				var err error
-				fmt.Printf("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
+				bcR.Logger.Debug("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
 				state, err = bcR.blockExec.ApplyBlock(state, firstID, first)
 				if err != nil {
 					// TODO This is bad, are we zombie?

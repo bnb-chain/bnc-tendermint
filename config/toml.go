@@ -77,7 +77,11 @@ moniker = "{{ .BaseConfig.Moniker }}"
 # and verifying their commits
 fast_sync = {{ .BaseConfig.FastSync }}
 
-fastest_sync_height = {{ .BaseConfig.FastestSyncHeight }}
+
+# If this node is many days behind the tip of the chain, StateSync
+# allows them to catchup quickly by downloading app state (without historical blocks)
+# in parallel and start syncing block afterwards
+state_sync = {{ .BaseConfig.StateSync }}
 
 # Database backend: leveldb | memdb | cleveldb
 db_backend = "{{ .BaseConfig.DBBackend }}"

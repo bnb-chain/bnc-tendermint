@@ -20,17 +20,9 @@ import (
 */
 
 const (
-	// BlockchainStateChannel is a channel for state and status updates (`StateStore` height)
-	BlockchainStateChannel = byte(0x35)
+	// StateChannel is a channel for state and status updates (`StateStore` height)
+	StateChannel = byte(0x35)
 
-	tryStateSyncIntervalMS = 10
-
-	// stop syncing when last block's time is
-	// within this much of the system time.
-	// stopSyncingDurationMinutes = 10
-
-	// ask for best height every 10s
-	stateStatusUpdateIntervalSeconds = 10
 	// check if we should retry sync
 	retrySeconds = 30
 	// how long should we start to request state (we need collect enough peers and their height but shouldn't make their app state pruned)
@@ -40,6 +32,7 @@ const (
 	peerStateHeightThreshold = 20
 
 	// NOTE: keep up to date with bcStateResponseMessage
+	// TODO: REVIEW before final merge
 	bcStateResponseMessagePrefixSize   = 8
 	bcStateResponseMessageFieldKeySize = 2
 	maxStateMsgSize                    = types.MaxStateSizeBytes +
@@ -54,17 +47,17 @@ type StateReactor struct {
 	// immutable
 	initialState sm.State
 
-	stateDB           dbm.DB
-	app               proxy.AppConnState
-	pool              *StatePool
-	fastestSyncHeight int64 // positive for enable this reactor
+	stateDB   dbm.DB
+	app       proxy.AppConnState
+	pool      *StatePool
+	stateSync bool // positive for enable this reactor
 
 	requestsCh <-chan StateRequest
 	errorsCh   <-chan peerError
 }
 
 // NewBlockchainReactor returns new reactor instance.
-func NewStateReactor(state sm.State, stateDB dbm.DB, app proxy.AppConnState, fastestSyncHeight int64) *StateReactor {
+func NewStateReactor(state sm.State, stateDB dbm.DB, app proxy.AppConnState, stateSync bool) *StateReactor {
 
 	// TODO: revisit doesn't need
 	//if state.LastBlockHeight != store.Height() {
@@ -83,13 +76,13 @@ func NewStateReactor(state sm.State, stateDB dbm.DB, app proxy.AppConnState, fas
 	)
 
 	bcSR := &StateReactor{
-		initialState:      state,
-		stateDB:           stateDB,
-		app:               app,
-		pool:              pool,
-		fastestSyncHeight: fastestSyncHeight,
-		requestsCh:        requestsCh,
-		errorsCh:          errorsCh,
+		initialState: state,
+		stateDB:      stateDB,
+		app:          app,
+		pool:         pool,
+		stateSync:    stateSync,
+		requestsCh:   requestsCh,
+		errorsCh:     errorsCh,
 	}
 	bcSR.BaseReactor = *p2p.NewBaseReactor("BlockchainStateReactor", bcSR)
 	return bcSR
@@ -103,7 +96,7 @@ func (bcSR *StateReactor) SetLogger(l log.Logger) {
 
 // OnStart implements cmn.Service.
 func (bcSR *StateReactor) OnStart() error {
-	if bcSR.fastestSyncHeight > 0 {
+	if bcSR.stateSync {
 		err := bcSR.pool.Start()
 		if err != nil {
 			return err
@@ -122,7 +115,7 @@ func (bcSR *StateReactor) OnStop() {
 func (_ *StateReactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
-			ID:                  BlockchainStateChannel,
+			ID:                  StateChannel,
 			Priority:            10,
 			SendQueueCapacity:   1000,
 			RecvBufferCapacity:  50 * 4096,
@@ -137,7 +130,7 @@ func (bcSR *StateReactor) AddPeer(peer p2p.Peer) {
 	bcSR.Logger.Info("added a peer", "peer", peer.ID())
 	//_, numKeys, _ := bcSR.app.LatestSnapshot()
 	//msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight, numKeys})
-	//if !peer.Send(BlockchainStateChannel, msgBytes) {
+	//if !peer.Send(StateChannel, msgBytes) {
 	//	// doing nothing, will try later in `poolRoutine`
 	//}
 	// peer is added to the pool once we receive the first
@@ -162,7 +155,7 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 			bcSR.Logger.Info("Peer asking for a state we don't have", "src", src, "height", msg.Height)
 
 			msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
-			return src.TrySend(BlockchainStateChannel, msgBytes)
+			return src.TrySend(StateChannel, msgBytes)
 		}
 	}
 
@@ -171,11 +164,11 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 		bcSR.Logger.Info("Peer asking for an application state we don't have", "src", src, "height", msg.Height, "err", err)
 
 		msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
-		return src.TrySend(BlockchainStateChannel, msgBytes)
+		return src.TrySend(StateChannel, msgBytes)
 	}
 
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, StartIdxInc: msg.StartIndex, EndIdxExc: msg.EndIndex, Chunks: chunk})
-	return src.TrySend(BlockchainStateChannel, msgBytes)
+	return src.TrySend(StateChannel, msgBytes)
 
 }
 
@@ -208,7 +201,7 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 		// received all chunks!
 		if bcSR.pool.isComplete() {
-			chunksToWrite := make([][]byte, bcSR.pool.totalKeys)
+			chunksToWrite := make([][]byte, 0, bcSR.pool.totalKeys)
 			for startIdx := int64(0); startIdx < bcSR.pool.totalKeys; startIdx += bcSR.pool.step {
 				if chunks, ok := bcSR.pool.chunks[startIdx]; ok {
 					for _, chunk := range chunks {
@@ -243,7 +236,7 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			bcSR.Logger.Error("application and state height is inconsistent")
 		}
 		msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{state.LastBlockHeight, numKeys})
-		queued := src.TrySend(BlockchainStateChannel, msgBytes)
+		queued := src.TrySend(StateChannel, msgBytes)
 		if !queued {
 			// sorry
 		}
@@ -281,7 +274,7 @@ FOR_LOOP:
 				continue FOR_LOOP // Peer has since been disconnected.
 			}
 			msgBytes := cdc.MustMarshalBinaryBare(&bcStateRequestMessage{request.Height, request.StartIndex, request.EndIndex})
-			queued := peer.TrySend(BlockchainStateChannel, msgBytes)
+			queued := peer.TrySend(StateChannel, msgBytes)
 			if !queued {
 				// We couldn't make the request, send-queue full.
 				// The pool handles timeouts, just let it go.
@@ -314,7 +307,7 @@ FOR_LOOP:
 // BroadcastStatusRequest broadcasts `StateStore` height.
 func (bcSR *StateReactor) BroadcastStateStatusRequest() {
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusRequestMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight})
-	bcSR.Switch.Broadcast(BlockchainStateChannel, msgBytes)
+	bcSR.Switch.Broadcast(StateChannel, msgBytes)
 }
 
 //-----------------------------------------------------------------------------

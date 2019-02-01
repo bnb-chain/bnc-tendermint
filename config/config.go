@@ -153,7 +153,10 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSync bool `mapstructure:"fast_sync"`
 
-	FastestSyncHeight int64 `mapstructure:"fastest_sync_height"`
+	// If this node is many days behind the tip of the chain, StateSync
+	// allows them to catchup quickly by downloading app state (without historical blocks)
+	// in parallel and start syncing block afterwards
+	StateSync bool `mapstructure:"state_sync"`
 
 	// Database backend: leveldb | memdb | cleveldb
 	DBBackend string `mapstructure:"db_backend"`
@@ -211,7 +214,7 @@ func DefaultBaseConfig() BaseConfig {
 		LogFormat:          LogFormatPlain,
 		ProfListenAddress:  "",
 		FastSync:           true,
-		FastestSyncHeight: -1,
+		StateSync:          false,
 		FilterPeers:        false,
 		DBBackend:          "leveldb",
 		DBPath:             "data",
