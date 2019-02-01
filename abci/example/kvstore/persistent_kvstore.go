@@ -114,15 +114,15 @@ func (app *PersistentKVStoreApplication) EndBlock(req types.RequestEndBlock) typ
 	return types.ResponseEndBlock{ValidatorUpdates: app.ValUpdates}
 }
 
-func (app *PersistentKVStoreApplication) LatestSnapshot() (height int64, numKeys int64, err error) {
-	return 0, 0, nil
+func (app *PersistentKVStoreApplication) LatestSnapshot() (height int64, numKeys []int64, err error) {
+	return 0, make([]int64, 0), nil
 }
 
 func (app *PersistentKVStoreApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
 	return make([][]byte, 0), nil
 }
 
-func (app *PersistentKVStoreApplication) StartRecovery(height int64, numKeys int64) error {
+func (app *PersistentKVStoreApplication) StartRecovery(height int64, numKeys []int64) error {
 	return nil
 }
 

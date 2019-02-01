@@ -214,12 +214,6 @@ peer_gossip_sleep_duration = "100ms"
 peer_query_maj23_sleep_duration = "2s"
 
 # Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
-blocktime_iota = "1s"
-
-# Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
-blocktime_iota = "0ms"
-
-# Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
 blocktime_iota = "0ms"
 
 ##### transactions indexer configuration options #####

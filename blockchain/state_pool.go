@@ -40,7 +40,8 @@ type StatePool struct {
 	mtx sync.Mutex
 	// block requests
 	height    int64 // the height in first state status response we received
-	numKeys int64	// numKeys we are expected
+	numKeys []int64	// numKeys we are expected
+	totalKeys int64
 	numKeysReceived int64	// numKeys we have received, no need to be atomic, guarded by pool.mtx
 	step int64
 	state *sm.State
@@ -107,9 +108,7 @@ func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage)
 
 	pool.Logger.Info("peer sent us a start index we didn't expect", "peer", peerID, "startIndex", msg.StartIdxInc)
 
-	for i := msg.StartIdxInc; i < msg.EndIdxExc; i++ {
-		pool.chunks[i] = msg.KeyValues[i * 2:i * 2 + 1]
-	}
+	pool.chunks[msg.StartIdxInc] = msg.Chunks
 
 	atomic.AddInt32(&pool.numPending, -1)
 	atomic.AddInt64(&pool.numKeysReceived, msg.EndIdxExc - msg.StartIdxInc)
@@ -189,12 +188,12 @@ func (pool *StatePool) sendRequest() {
 		pool.Logger.Info("No peers available", "height", pool.height)
 	}
 
-	pool.step = int64(math.Ceil(float64(pool.numKeys) / float64(len(peers))))
+	pool.step = int64(math.Ceil(float64(pool.totalKeys) / float64(len(peers))))
 	for idx, peer := range peers {
 		// Send request and wait.
 		endIndex := (int64(idx) + 1) * pool.step
-		if endIndex > pool.numKeys {
-			endIndex = pool.numKeys
+		if endIndex > pool.totalKeys {
+			endIndex = pool.totalKeys
 		}
 		pool.requestsCh <- StateRequest{pool.height, peer.id, int64(idx) * pool.step, endIndex}
 		atomic.AddInt32(&pool.numPending, 1)
@@ -211,7 +210,7 @@ func (pool *StatePool) sendError(err error, peerID p2p.ID) {
 func (pool *StatePool) isComplete() bool {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
-	return atomic.LoadInt32(&pool.numPending) == 0 && pool.numKeysReceived == pool.numKeys
+	return atomic.LoadInt32(&pool.numPending) == 0 && pool.numKeysReceived == pool.totalKeys
 }
 
 func (pool *StatePool) reset() {
@@ -227,7 +226,8 @@ func (pool *StatePool) reset() {
 		// Deliberately do nothing here, pool should has been stopped
 	} else {
 		pool.height = 0
-		pool.numKeys = 0
+		pool.numKeys = make([]int64, 0)
+		pool.totalKeys = 0
 		pool.numKeysReceived = 0
 		atomic.StoreInt32(&pool.numPending, 0)
 		pool.chunks = make(map[int64][][]byte)

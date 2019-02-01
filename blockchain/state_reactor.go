@@ -174,7 +174,7 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 		return src.TrySend(BlockchainStateChannel, msgBytes)
 	}
 
-	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, StartIdxInc: msg.StartIndex, EndIdxExc: msg.EndIndex, KeyValues: chunk})
+	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, StartIdxInc: msg.StartIndex, EndIdxExc: msg.EndIndex, Chunks: chunk})
 	return src.TrySend(BlockchainStateChannel, msgBytes)
 
 }
@@ -208,13 +208,17 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 		// received all chunks!
 		if bcSR.pool.isComplete() {
-			chunks := make([][]byte, bcSR.pool.numKeys * 2)
-			for _, kvs := range bcSR.pool.chunks {
-				for _, kv := range kvs {
-					chunks = append(chunks, kv)
+			chunksToWrite := make([][]byte, bcSR.pool.totalKeys)
+			for startIdx := int64(0); startIdx < bcSR.pool.totalKeys; startIdx += bcSR.pool.step {
+				if chunks, ok := bcSR.pool.chunks[startIdx]; ok {
+					for _, chunk := range chunks {
+						chunksToWrite = append(chunksToWrite, chunk)
+					}
+				} else {
+					bcSR.Logger.Error("failed to locate state sync chunk", "startIdx", startIdx)
 				}
 			}
-			err := bcSR.app.WriteRecoveryChunk(chunks)
+			err := bcSR.app.WriteRecoveryChunk(chunksToWrite)
 			if err != nil {
 				bcSR.Logger.Error("Failed to recover application state", "err", err)
 			}
@@ -244,11 +248,16 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			// sorry
 		}
 	case *bcStateStatusResponseMessage:
-		// Got a peer status. Unverified.
+		// if pool is not initialized yet (this is first state status response), we init it
 		if bcSR.pool.height == 0 {
+			// TODO: make this a init method and make it thread safe
 			bcSR.app.StartRecovery(msg.Height, msg.NumKeys)
 			bcSR.pool.height = msg.Height
 			bcSR.pool.numKeys = msg.NumKeys
+			bcSR.pool.totalKeys = 0
+			for _, numKey := range bcSR.pool.numKeys {
+				bcSR.pool.totalKeys += numKey
+			}
 		}
 		bcSR.pool.SetPeerHeight(src.ID(), msg.Height)
 	default:
@@ -356,10 +365,10 @@ func (brm *bcNoStateResponseMessage) String() string {
 //-------------------------------------
 
 type bcStateResponseMessage struct {
-	State    *sm.State
+	State       *sm.State
 	StartIdxInc int64
-	EndIdxExc int64
-	KeyValues [][]byte	// key-values, len(KeyValues) == 2 * (EndIndex - StartIndex)
+	EndIdxExc   int64
+	Chunks      [][]byte // len(Chunks) == (EndIndex - StartIndex)
 }
 
 func (m *bcStateResponseMessage) String() string {
@@ -380,7 +389,7 @@ func (m *bcStateStatusRequestMessage) String() string {
 
 type bcStateStatusResponseMessage struct {
 	Height int64
-	NumKeys   int64
+	NumKeys   []int64
 }
 
 func (m *bcStateStatusResponseMessage) String() string {

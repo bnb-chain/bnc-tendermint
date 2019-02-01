@@ -35,9 +35,9 @@ type AppConnState interface {
 	SetResponseCallback(abcicli.Callback)
 	Error() error
 
-	LatestSnapshot() (height int64, numKeys int64, err error)
+	LatestSnapshot() (height int64, numKeys []int64, err error)
 	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error)
-	StartRecovery(height int64, numKeys int64) error
+	StartRecovery(height int64, numKeys []int64) error
 	WriteRecoveryChunk(chunk [][]byte) error
 	EndRecovery(height int64) error
 }
@@ -73,7 +73,7 @@ func (app *appConnState) Error() error {
 	return app.appConn.Error()
 }
 
-func (app *appConnState) LatestSnapshot() (height int64, numKeys int64, err error) {
+func (app *appConnState) LatestSnapshot() (height int64, numKeys []int64, err error) {
 	return app.appConn.LatestSnapshot()
 }
 
@@ -81,7 +81,7 @@ func (app *appConnState) ReadSnapshotChunk(height int64, startIndex, endIndex in
 	return app.appConn.ReadSnapshotChunk(height, startIndex, endIndex)
 }
 
-func (app *appConnState) StartRecovery(height int64, numKeys int64) error {
+func (app *appConnState) StartRecovery(height int64, numKeys []int64) error {
 	return app.appConn.StartRecovery(height, numKeys)
 }
 
