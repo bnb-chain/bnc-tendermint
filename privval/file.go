@@ -11,14 +11,13 @@ import (
 	"io/ioutil"
 	"time"
 
-	"golang.org/x/crypto/scrypt"
-
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
+	"golang.org/x/crypto/scrypt"
 )
 
 // TODO: type ?
@@ -368,6 +367,20 @@ func GenFilePV(keyFilePath, stateFilePath string, password string) *FilePV {
 			filePath: stateFilePath,
 		},
 	}
+}
+
+func LoadPubkey(keyFilePath string) (crypto.PubKey, error) {
+	keyJSONBytes, err := ioutil.ReadFile(keyFilePath)
+	if err != nil {
+		cmn.Exit(err.Error())
+	}
+	pvKey := FilePVKey{}
+	err = cdc.UnmarshalJSON(keyJSONBytes, &pvKey)
+	if err != nil {
+		return nil, nil
+	}
+
+	return pvKey.PubKey, nil
 }
 
 // LoadFilePV loads a FilePV from the filePaths.  The FilePV handles double
