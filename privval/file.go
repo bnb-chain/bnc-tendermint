@@ -43,7 +43,7 @@ func voteToStep(vote *types.Vote) int8 {
 
 const (
 	scryptR     = 8
-	scryptDKLen = 12
+	scryptDKLen = 32
 
 	version = 1
 
