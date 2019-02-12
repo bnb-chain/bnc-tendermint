@@ -347,11 +347,46 @@ type FilePV struct {
 
 // GenFilePV generates a new validator with randomly generated private key
 // and sets the filePaths, but does not call Save().
-func GenFilePV(keyFilePath, stateFilePath string, password string) *FilePV {
+func GenFilePV(keyFilePath, stateFilePath, password string) *FilePV {
 	privKey := ed25519.GenPrivKey()
-	privKeyBinary, _ := cdc.MarshalBinaryLengthPrefixed(privKey)
+	privKeyBinary, err := cdc.MarshalBinaryLengthPrefixed(privKey)
+	if err != nil {
+		panic(fmt.Sprintf("Error marshaling private key.\n"))
+	}
 
-	encryptedKey, _ := EncryptKey(privKeyBinary, password, StandardScryptN, StandardScryptP)
+	encryptedKey, err := EncryptKey(privKeyBinary, password, StandardScryptN, StandardScryptP)
+	if err != nil {
+		panic(fmt.Sprintf("Error encrypt private key.\n"))
+	}
+
+	return &FilePV{
+		Key: FilePVKey{
+			Address:      privKey.PubKey().Address(),
+			PubKey:       privKey.PubKey(),
+			PrivKey:      privKey,
+			EncryptedKey: encryptedKey,
+
+			filePath: keyFilePath,
+		},
+		LastSignState: FilePVLastSignState{
+			Step:     stepNone,
+			filePath: stateFilePath,
+		},
+	}
+}
+
+// GenFilePVWithPrivateKey generates a new validator with given private key
+// and sets the filePaths, but does not call Save().
+func GenFilePVWithPrivateKey(privKey crypto.PrivKey, keyFilePath, stateFilePath, password string) *FilePV {
+	privKeyBinary, err := cdc.MarshalBinaryLengthPrefixed(privKey)
+	if err != nil {
+		panic(fmt.Sprintf("Error marshaling private key.\n"))
+	}
+
+	encryptedKey, err := EncryptKey(privKeyBinary, password, StandardScryptN, StandardScryptP)
+	if err != nil {
+		panic(fmt.Sprintf("Error encrypt private key.\n"))
+	}
 
 	return &FilePV{
 		Key: FilePVKey{
