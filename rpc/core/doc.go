@@ -45,7 +45,7 @@ curl 'localhost:27147/broadcast_tx_sync?tx="abc"'
 
 ## JSONRPC/HTTP
 
-JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. `http://localhost:27147/`).
+JSONRPC requests can be POST'd to the root RPC endpoint via HTTP (e.g. http://localhost:27147/).
 
 ```json
 {
