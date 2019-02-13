@@ -133,7 +133,7 @@ func (bcR *BlockchainReactor) SwitchToBlockchain(state *sm.State) {
 		bcR.initialState = *state
 		bcR.pool.height = state.LastBlockHeight + 1
 		bcR.store.SetHeight(state.LastBlockHeight)
-		bcR.Logger.Debug("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
+		bcR.Logger.Debug("SwitchToBlockchain", "lastheight", state.LastBlockHeight, "apphash", state.AppHash)
 	}
 
 	bcR.fastSync = true

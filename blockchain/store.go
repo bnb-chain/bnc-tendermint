@@ -148,7 +148,7 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	}
 	height := block.Height
 	if g, w := height, bs.Height()+1; g != w {
-	cmn.PanicSanity(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g))
+		cmn.PanicSanity(fmt.Sprintf("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
 	if !blockParts.IsComplete() {
 		cmn.PanicSanity(fmt.Sprintf("BlockStore can only save complete block part sets"))
