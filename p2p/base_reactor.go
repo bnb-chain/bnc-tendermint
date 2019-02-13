@@ -17,6 +17,9 @@ type Reactor interface {
 	// AddPeer is called by the switch when a new peer is added.
 	AddPeer(peer Peer)
 
+	// InitAddPeer is called by switch before peer is started.
+	InitAddPeer(peer Peer) Peer
+
 	// RemovePeer is called by the switch when the peer is stopped (due to error
 	// or other reason).
 	RemovePeer(peer Peer, reason interface{})
@@ -51,3 +54,4 @@ func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor        { return nil 
 func (*BaseReactor) AddPeer(peer Peer)                             {}
 func (*BaseReactor) RemovePeer(peer Peer, reason interface{})      {}
 func (*BaseReactor) Receive(chID byte, peer Peer, msgBytes []byte) {}
+func (*BaseReactor) InitAddPeer(peer Peer) Peer                    { return peer }
