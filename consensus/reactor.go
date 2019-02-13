@@ -161,9 +161,11 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 		return
 	}
 
-	// Create peerState for peer
-	peerState := NewPeerState(peer).SetLogger(conR.Logger)
-	peer.Set(types.PeerStateKey, peerState)
+	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
+	if !ok {
+		// should not happen
+		panic(fmt.Sprintf("Peer %v has no state", peer))
+	}
 
 	// Begin routines for this peer.
 	go conR.gossipDataRoutine(peer, peerState)
@@ -175,6 +177,13 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 	if !conR.FastSync() {
 		conR.sendNewRoundStepMessage(peer)
 	}
+}
+
+func (conR *ConsensusReactor) InitAddPeer(peer p2p.Peer) p2p.Peer {
+	// Create peerState for peer
+	peerState := NewPeerState(peer).SetLogger(conR.Logger)
+	peer.Set(types.PeerStateKey, peerState)
+	return peer
 }
 
 // RemovePeer implements Reactor
@@ -438,9 +447,9 @@ func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
 
 func makeRoundStepMessage(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage) {
 	nrsMsg = &NewRoundStepMessage{
-		Height: rs.Height,
-		Round:  rs.Round,
-		Step:   rs.Step,
+		Height:                rs.Height,
+		Round:                 rs.Round,
+		Step:                  rs.Step,
 		SecondsSinceStartTime: int(time.Since(rs.StartTime).Seconds()),
 		LastCommitRound:       rs.LastCommit.Round(),
 	}

@@ -256,7 +256,7 @@ func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int
 		}
 	} else {
 		pool.Logger.Info("invalid peer", "peer", peerID, "blockHeight", block.Height)
-		pool.sendError(errors.New("invalid peer"), peerID)
+		//pool.sendError(errors.New("invalid peer"), peerID)
 	}
 }
 

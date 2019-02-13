@@ -216,7 +216,7 @@ func (r *PEXReactor) Receive(chID byte, src Peer, msgBytes []byte) {
 
 		// If we're a seed and this is an inbound peer,
 		// respond once and disconnect.
-		if r.config.SeedMode && !src.IsOutbound() {
+		if r.config.SeedMode && !r.Switch.IsPersistent(src) {
 			id := string(src.ID())
 			v := r.lastReceivedRequests.Get(id)
 			if v != nil {
@@ -228,6 +228,7 @@ func (r *PEXReactor) Receive(chID byte, src Peer, msgBytes []byte) {
 
 			// Send addrs and disconnect
 			r.SendAddrs(src, r.book.GetSelectionWithBias(biasToSelectNewPeers))
+
 			go func() {
 				// In a go-routine so it doesn't block .Receive.
 				src.FlushStop()
@@ -666,7 +667,7 @@ func (r *PEXReactor) attemptDisconnects() {
 		if peer.Status().Duration < defaultSeedDisconnectWaitPeriod {
 			continue
 		}
-		if peer.IsPersistent() {
+		if r.Switch.IsPersistent(peer) {
 			continue
 		}
 		r.Switch.StopPeerGracefully(peer)

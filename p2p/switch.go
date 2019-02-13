@@ -187,6 +187,20 @@ func (sw *Switch) SetNodeKey(nodeKey *NodeKey) {
 	sw.nodeKey = nodeKey
 }
 
+func (sw *Switch) IsPersistent(peer Peer) bool {
+	if sw.config.PersistentPeers == "" {
+		return false
+	}
+	peers := cmn.SplitAndTrim(sw.config.PersistentPeers, ",", " ")
+	netAddrs, _ := NewNetAddressStrings(peers)
+	for _, addr := range netAddrs {
+		if addr.ID == peer.ID() {
+			return true
+		}
+	}
+	return false
+}
+
 //---------------------------------------------------------------------
 // Service start/stop
 
@@ -283,7 +297,7 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
 	sw.stopAndRemovePeer(peer, reason)
 
-	if peer.IsPersistent() {
+	if sw.IsPersistent(peer) {
 		// FIXME: persistent peers can't be inbound right now.
 		// self-reported address for inbound persistent peers
 		addr := peer.NodeInfo().NetAddress()
@@ -645,19 +659,20 @@ func (sw *Switch) addPeer(p Peer) error {
 	// Handle the shut down case where the switch has stopped but we're
 	// concurrently trying to add a peer.
 	if sw.IsRunning() {
-		// All good. Start peer
+
+		// Add the peer to .peers.
+		// We add peer first, if start peer failed, need remove it.
+		// It should not err since we already checked peers.Has().
+		if err := sw.peers.Add(p); err != nil {
+			return err
+		}
+		// All good. Start peer, startInitPeer should not panic
 		if err := sw.startInitPeer(p); err != nil {
+			sw.peers.Remove(p)
 			return err
 		}
 	} else {
 		sw.Logger.Error("Won't start a peer - switch is not running", "peer", p)
-	}
-
-	// Add the peer to .peers.
-	// We start it first so that a peer in the list is safe to Stop.
-	// It should not err since we already checked peers.Has().
-	if err := sw.peers.Add(p); err != nil {
-		return err
 	}
 
 	sw.Logger.Info("Added peer", "peer", p)
@@ -667,6 +682,10 @@ func (sw *Switch) addPeer(p Peer) error {
 }
 
 func (sw *Switch) startInitPeer(p Peer) error {
+	for _, reactor := range sw.reactors {
+		p = reactor.InitAddPeer(p)
+	}
+
 	err := p.Start() // spawn send/recv routines
 	if err != nil {
 		// Should never happen

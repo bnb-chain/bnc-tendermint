@@ -273,7 +273,7 @@ func TestSwitchPeerFilterTimeout(t *testing.T) {
 
 func TestSwitchPeerFilterDuplicate(t *testing.T) {
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
-
+	sw.Start()
 	// simulate remote peer
 	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
 	rp.Start()
@@ -287,7 +287,6 @@ func TestSwitchPeerFilterDuplicate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if err := sw.addPeer(p); err != nil {
 		t.Fatal(err)
 	}
@@ -405,8 +404,10 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
 	rp.Start()
 	defer rp.Stop()
+	addr := *rp.Addr()
+	sw.config.PersistentPeers = addr.String()
 
-	p, err := sw.transport.Dial(*rp.Addr(), peerConfig{
+	p, err := sw.transport.Dial(addr, peerConfig{
 		chDescs:      sw.chDescs,
 		onPeerError:  sw.StopPeerForError,
 		persistent:   true,
@@ -447,6 +448,7 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	// simulate first time dial failure
 	conf := config.DefaultP2PConfig()
 	conf.TestDialFail = true
+	sw.config.PersistentPeers = fmt.Sprintf("%s,%s", sw.config.PersistentPeers, rp.Addr().String())
 	err = sw.addOutboundPeerWithConfig(rp.Addr(), conf, true)
 	require.NotNil(err)
 
