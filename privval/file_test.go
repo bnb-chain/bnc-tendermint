@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
@@ -110,46 +112,43 @@ func TestUnmarshalValidatorState(t *testing.T) {
 	assert.JSONEq(serialized, string(out))
 }
 
-//func TestUnmarshalValidatorKey(t *testing.T) {
-//	assert, require := assert.New(t), require.New(t)
-//
-//	// create some fixed values
-//	privKey := ed25519.GenPrivKey()
-//	pubKey := privKey.PubKey()
-//	addr := pubKey.Address()
-//	pubArray := [32]byte(pubKey.(ed25519.PubKeyEd25519))
-//	pubBytes := pubArray[:]
-//	privArray := [64]byte(privKey)
-//	privBytes := privArray[:]
-//	pubB64 := base64.StdEncoding.EncodeToString(pubBytes)
-//	privB64 := base64.StdEncoding.EncodeToString(privBytes)
-//
-//	serialized := fmt.Sprintf(`{
-//  "address": "%s",
-//  "pub_key": {
-//    "type": "tendermint/PubKeyEd25519",
-//    "value": "%s"
-//  },
-//  "priv_key": {
-//    "type": "tendermint/PrivKeyEd25519",
-//    "value": "%s"
-//  }
-//}`, addr, pubB64, privB64)
-//
-//	val := FilePVKey{}
-//	err := cdc.UnmarshalJSON([]byte(serialized), &val)
-//	require.Nil(err, "%+v", err)
-//
-//	// make sure the values match
-//	assert.EqualValues(addr, val.Address)
-//	assert.EqualValues(pubKey, val.PubKey)
-//	assert.EqualValues(privKey, val.PrivKey)
-//
-//	// export it and make sure it is the same
-//	out, err := cdc.MarshalJSON(val)
-//	require.Nil(err, "%+v", err)
-//	assert.JSONEq(serialized, string(out))
-//}
+func TestUnmarshalValidatorKey(t *testing.T) {
+	assert, require := assert.New(t), require.New(t)
+
+	password := "12345678"
+	// create some fixed values
+	privKey := ed25519.GenPrivKey()
+
+	pv := GenFilePVWithPrivateKey(privKey, "", "", password)
+	pvJsonBytes, err := cdc.MarshalJSONIndent(pv.Key, "", "  ")
+	require.Nil(err, "%+v", err)
+
+	newPV := FilePVKey{}
+	err = cdc.UnmarshalJSON([]byte(pvJsonBytes), &newPV)
+	require.Nil(err, "%+v", err)
+
+	encryptedKeyBytes, err := json.Marshal(newPV.EncryptedKey)
+	require.Nil(err, "%+v", err)
+
+	privKeyBinary, err := DecryptKey(encryptedKeyBytes, password)
+	require.Nil(err, "%+v", err)
+
+	var newPrivKey crypto.PrivKey
+	err = cdc.UnmarshalBinaryLengthPrefixed(privKeyBinary, &newPrivKey)
+	require.Nil(err, "%+v", err)
+
+	newPV.PrivKey = newPrivKey
+	newPV.PubKey = newPV.PrivKey.PubKey()
+	newPV.Address = newPV.PubKey.Address()
+
+	// make sure the private key match
+	assert.EqualValues(newPrivKey, privKey)
+
+	// export it and make sure it is the same
+	out, err := cdc.MarshalJSONIndent(newPV, "", "")
+	require.Nil(err, "%+v", err)
+	assert.JSONEq(string(pvJsonBytes), string(out))
+}
 
 func TestSignVote(t *testing.T) {
 	assert := assert.New(t)

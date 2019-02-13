@@ -372,8 +372,8 @@ var testGenesis = `{
   "validators": [
     {
       "pub_key": {
-		"type": "tendermint/PubKeyEd25519",
-        "value": "sqGbx33JKgkks7no48WvI1t5T2i85ZPTSXW8xIz/tJQ="
+        "type": "tendermint/PubKeyEd25519",
+        "value": "2CbTSD0nwdVb5ALk/XqpyytUzRezbtWqkbwgWabubOo="
       },
       "power": "10",
       "name": ""
@@ -383,27 +383,27 @@ var testGenesis = `{
 }`
 
 var testPrivValidatorKey = `{
-  "address": "638F1B772CB3CC4AF1242B6456B2B9A1C54EE4DD",
+  "address": "14D072609EAAC15E160AF6C99379AA11E0944689",
   "pub_key": {
     "type": "tendermint/PubKeyEd25519",
-    "value": "sqGbx33JKgkks7no48WvI1t5T2i85ZPTSXW8xIz/tJQ="
+    "value": "2CbTSD0nwdVb5ALk/XqpyytUzRezbtWqkbwgWabubOo="
   },
   "encrypt_key": {
     "crypto": {
       "cipher": "aes-128-ctr",
-      "ciphertext": "40b0a7d8e87ab8704294a405ac115a08458cfa05cdb0172d00b297044360e965c20c45c3410c50b6feeeb13deafd05c5311b9afa465ad3aba2f9f5b1d64de1cd6adb80dd54cc",
+      "ciphertext": "e60df761eb871c924aa6bb3b1d99a524d81f50b852fc734ac58421cb50e263f1f03dbcb1d9d56404d6bcfdbfdf23319f413e0d68d0224bcecc63d243e5cf9232cc6882e888b2",
       "cipherparams": {
-        "iv": "70dad547ee27d3dca4f50f97fc61e60f"
+        "iv": "d1f8d8a9c335249ddc2086bfe2031409"
       },
       "kdf": "scrypt",
       "kdfparams": {
         "n": "262144",
         "r": "8",
         "p": "1",
-        "dklen": "12",
-        "salt": "0f237208400adac8d42898b2627dfa5e725a15116c0d2021774fc1eb83467611"
+        "dklen": "32",
+        "salt": "957945e7d979a860ea72c8cbc8a33163616ee825cb5daa0aa68d7b683b442e4e"
       },
-      "mac": "8b0fec979c98c7052e9b2da09de960ed49b7874d63466452ed57d9c4bfb6d0e0"
+      "mac": "f0f6411755e278d60f124939d07ed443aba3e75147927b224efab92403185386"
     },
     "version": "1"
   }

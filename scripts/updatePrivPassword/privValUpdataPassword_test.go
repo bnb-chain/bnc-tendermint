@@ -11,27 +11,27 @@ import (
 )
 
 const oldPrivKeyContent = `{
-  "address": "8AFFFD29813C688A5BD8AD57B4AC1889471C3949",
+  "address": "14D072609EAAC15E160AF6C99379AA11E0944689",
   "pub_key": {
     "type": "tendermint/PubKeyEd25519",
-    "value": "oQ7OJbgsQIi3T1p92pZOy1YqhRqCbCBROYmERVfumUI="
+    "value": "2CbTSD0nwdVb5ALk/XqpyytUzRezbtWqkbwgWabubOo="
   },
   "encrypt_key": {
     "crypto": {
       "cipher": "aes-128-ctr",
-      "ciphertext": "221fcd44c8039a3139a6cba8e39ada768de839fb3e8765125449e3e782d9632230b5319c574bb98c7a694478d9e364315bab43cb1c6b53cf0f20375df59f0fa55fc84883c1de",
+      "ciphertext": "e60df761eb871c924aa6bb3b1d99a524d81f50b852fc734ac58421cb50e263f1f03dbcb1d9d56404d6bcfdbfdf23319f413e0d68d0224bcecc63d243e5cf9232cc6882e888b2",
       "cipherparams": {
-        "iv": "728a1d28f849f0ec97acc08583f0c261"
+        "iv": "d1f8d8a9c335249ddc2086bfe2031409"
       },
       "kdf": "scrypt",
       "kdfparams": {
         "n": "262144",
         "r": "8",
         "p": "1",
-        "dklen": "12",
-        "salt": "2dbc1cac6df1b9b25280f99e3758b7c4c98f24208fd0e2223939ab4b665890a9"
+        "dklen": "32",
+        "salt": "957945e7d979a860ea72c8cbc8a33163616ee825cb5daa0aa68d7b683b442e4e"
       },
-      "mac": "77f4c97da93f3f3ee3a88bc431ae3cc9beda387f0c65bf23ed321aecb2052c74"
+      "mac": "f0f6411755e278d60f124939d07ed443aba3e75147927b224efab92403185386"
     },
     "version": "1"
   }

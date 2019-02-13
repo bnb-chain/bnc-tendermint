@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"time"
 
@@ -109,7 +111,12 @@ type EncryptedKey struct {
 
 func EncryptKey(keyBytes []byte, auth string, scryptN, scryptP int) (EncryptedKey, error) {
 	authArray := []byte(auth)
-	salt := crypto.CRandBytes(SaltBytes)
+
+	salt := make([]byte, SaltBytes)
+	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
+		panic("reading from crypto/rand failed: " + err.Error())
+	}
+
 	derivedKey, err := scrypt.Key(authArray, salt, scryptN, scryptR, scryptP, scryptDKLen)
 	if err != nil {
 		return EncryptedKey{}, err
@@ -412,7 +419,7 @@ func LoadPubkey(keyFilePath string) (crypto.PubKey, error) {
 	pvKey := FilePVKey{}
 	err = cdc.UnmarshalJSON(keyJSONBytes, &pvKey)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	return pvKey.PubKey, nil
