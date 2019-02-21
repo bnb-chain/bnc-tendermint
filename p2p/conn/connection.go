@@ -212,6 +212,12 @@ func (c *MConnection) OnStart() error {
 // the connection.
 // NOTE: it is not safe to call this method more than once.
 func (c *MConnection) FlushStop() {
+	select {
+	case <-c.quitSendRoutine:
+		// already quit via OnStop
+		return
+	default:
+	}
 	c.BaseService.OnStop()
 	c.flushTimer.Stop()
 	c.pingTimer.Stop()
