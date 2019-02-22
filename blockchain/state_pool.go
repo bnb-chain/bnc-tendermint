@@ -106,7 +106,7 @@ func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage)
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	pool.Logger.Info("peer sent us a start index we didn't expect", "peer", peerID, "startIndex", msg.StartIdxInc)
+	pool.Logger.Info("peer sent us a start index", "peer", peerID, "startIndex", msg.StartIdxInc)
 
 	pool.chunks[msg.StartIdxInc] = msg.Chunks
 
