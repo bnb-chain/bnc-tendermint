@@ -1,9 +1,12 @@
 package blockchain
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/proxy"
+	"io"
 	"reflect"
 	"sync/atomic"
 	"time"
@@ -157,7 +160,7 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 			bcSR.Logger.Info("Peer asking for a state we don't have", "src", src, "height", msg.Height)
 
 			msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
-			return src.TrySend(StateChannel, msgBytes)
+			return src.TrySend(StateChannel, bcSR.compress(msgBytes))
 		}
 	}
 
@@ -166,17 +169,17 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 		bcSR.Logger.Info("Peer asking for an application state we don't have", "src", src, "height", msg.Height, "err", err)
 
 		msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
-		return src.TrySend(StateChannel, msgBytes)
+		return src.TrySend(StateChannel, bcSR.compress(msgBytes))
 	}
 
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, StartIdxInc: msg.StartIndex, EndIdxExc: msg.EndIndex, Chunks: chunk})
-	return src.TrySend(StateChannel, msgBytes)
+	return src.TrySend(StateChannel, bcSR.compress(msgBytes))
 
 }
 
 // Receive implements Reactor by handling 4 types of messages (look below).
 func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
-	msg, err := decodeStateMsg(msgBytes)
+	msg, err := bcSR.decodeStateMsg(msgBytes)
 	if err != nil {
 		bcSR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
 		bcSR.Switch.StopPeerForError(src, err)
@@ -238,7 +241,7 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			bcSR.Logger.Error("application and state height is inconsistent")
 		}
 		msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{height, numKeys})
-		queued := src.TrySend(StateChannel, msgBytes)
+		queued := src.TrySend(StateChannel, bcSR.compress(msgBytes))
 		if !queued {
 			// sorry
 		}
@@ -282,7 +285,7 @@ FOR_LOOP:
 				continue FOR_LOOP // Peer has since been disconnected.
 			}
 			msgBytes := cdc.MustMarshalBinaryBare(&bcStateRequestMessage{request.Height, request.StartIndex, request.EndIndex})
-			queued := peer.TrySend(StateChannel, msgBytes)
+			queued := peer.TrySend(StateChannel, bcSR.compress(msgBytes))
 			if !queued {
 				// We couldn't make the request, send-queue full.
 				// The pool handles timeouts, just let it go.
@@ -319,7 +322,7 @@ FOR_LOOP:
 // BroadcastStatusRequest broadcasts `StateStore` height.
 func (bcSR *StateReactor) BroadcastStateStatusRequest() {
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusRequestMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight})
-	bcSR.Switch.Broadcast(StateChannel, msgBytes)
+	bcSR.Switch.Broadcast(StateChannel, bcSR.compress(msgBytes))
 }
 
 //-----------------------------------------------------------------------------
@@ -337,12 +340,18 @@ func RegisterBlockchainStateMessages(cdc *amino.Codec) {
 	cdc.RegisterConcrete(&bcStateStatusRequestMessage{}, "tendermint/blockchain/StateStatusRequest", nil)
 }
 
-func decodeStateMsg(bz []byte) (msg BlockchainStateMessage, err error) {
-	if len(bz) > maxMsgSize {
-		return msg, fmt.Errorf("State msg exceeds max size (%d > %d)", len(bz), maxMsgSize)
+func (bcSR *StateReactor) decodeStateMsg(bz []byte) (msg BlockchainStateMessage, err error) {
+	if len(bz) > maxStateMsgSize {
+		return msg, fmt.Errorf("State msg exceeds max size (%d > %d)", len(bz), maxStateMsgSize)
 	}
-	err = cdc.UnmarshalBinaryBare(bz, &msg)
-	return
+
+	if decompressedBz, decompressErr := bcSR.decompress(bz); decompressErr == nil {
+		err = cdc.UnmarshalBinaryBare(decompressedBz, &msg)
+		return msg, err
+	} else {
+		return nil, decompressErr
+	}
+
 }
 
 //-------------------------------------
@@ -399,4 +408,41 @@ type bcStateStatusResponseMessage struct {
 
 func (m *bcStateStatusResponseMessage) String() string {
 	return fmt.Sprintf("[bcStateStatusResponseMessage %v]", m.Height)
+}
+
+func (bcSR *StateReactor) compress(toBeCompressed []byte) []byte {
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+
+	_, err := zw.Write(toBeCompressed)
+	if err != nil {
+		bcSR.Logger.Error("failed to compress", "err", err)
+	}
+
+	if err := zw.Close(); err != nil {
+		bcSR.Logger.Error("failed to close compress buffer", "err", err)
+	}
+
+	return buf.Bytes()
+}
+
+func (bcSR *StateReactor) decompress(toBeDecompressed []byte) ([]byte, error) {
+	buf := bytes.NewBuffer(toBeDecompressed)
+	var resBuf bytes.Buffer
+	zr, err := gzip.NewReader(buf)
+	if err != nil {
+		bcSR.Logger.Error("failed to create decompress reader", "err", err)
+		return nil, err
+	}
+
+	if _, err := io.Copy(&resBuf, zr); err != nil {
+		bcSR.Logger.Error("failed to decompress", "err", err)
+		return nil, err
+	}
+
+	if err := zr.Close(); err != nil {
+		bcSR.Logger.Error("failed to close decompressor", "err", err)
+		return nil, err
+	}
+	return resBuf.Bytes(), nil
 }

@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"sync"
 	"sync/atomic"
@@ -11,9 +10,9 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	flow "github.com/tendermint/tendermint/libs/flowrate"
 	"github.com/tendermint/tendermint/libs/log"
-
 	"github.com/tendermint/tendermint/p2p"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/types"
 )
 
 /*
@@ -77,30 +76,6 @@ func (pool *StatePool) OnStart() error {
 }
 
 func (pool *StatePool) OnStop() {}
-
-func (pool *StatePool) removeTimedoutPeers() {
-	pool.mtx.Lock()
-	defer pool.mtx.Unlock()
-
-	for _, peer := range pool.peers {
-		if !peer.didTimeout && peer.numPending > 0 {
-			curRate := peer.recvMonitor.Status().CurRate
-			// curRate can be 0 on start
-			if curRate != 0 && curRate < minRecvRate {
-				err := errors.New("peer is not sending us data fast enough")
-				pool.sendError(err, peer.id)
-				pool.Logger.Error("SendTimeout", "peer", peer.id,
-					"reason", err,
-					"curRate", fmt.Sprintf("%d KB/s", curRate/1024),
-					"minRate", fmt.Sprintf("%d KB/s", minRecvRate/1024))
-				peer.didTimeout = true
-			}
-		}
-		if peer.didTimeout {
-			pool.removePeer(peer.id)
-		}
-	}
-}
 
 func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage) {
 	pool.mtx.Lock()
@@ -265,7 +240,7 @@ func (peer *spPeer) setLogger(l log.Logger) {
 }
 
 func (peer *spPeer) resetMonitor() {
-	peer.recvMonitor = flow.New(time.Second, time.Second*40)
+	peer.recvMonitor = flow.New(time.Second, time.Second * types.MonitorWindowInSeconds)
 	initialValue := float64(minRecvRate) * math.E
 	peer.recvMonitor.SetREMA(initialValue)
 }
