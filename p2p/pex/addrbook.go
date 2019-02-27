@@ -369,6 +369,10 @@ func (a *addrBook) GetSelection() []*p2p.NetAddress {
 	return allAddr[:numAddresses]
 }
 
+func percentageOfNum(p, n int) int {
+	return int(math.Round((float64(p) / float64(100)) * float64(n)))
+}
+
 // GetSelectionWithBias implements AddrBook.
 // It randomly selects some addresses (old & new). Suitable for peer-exchange protocols.
 // Must never return a nil address.
@@ -407,12 +411,26 @@ func (a *addrBook) GetSelectionWithBias(biasTowardsNewAddrs int) []*p2p.NetAddre
 	var oldIndex int
 	newBucketToAddrsMap := make(map[int]map[string]struct{})
 	var newIndex int
+	// initialize counters used to count old and new added addresses.
+	// len(oldBucketToAddrsMap) cannot be used as multiple addresses can endup in the same bucket.
+	var oldAddressesAdded int
+	var newAddressesAdded int
 
+	// number of new addresses that, if possible, should be in the beginning of the selection
+	numRequiredNewAdd := percentageOfNum(biasTowardsNewAddrs, numAddresses)
 	selectionIndex := 0
 ADDRS_LOOP:
 	for selectionIndex < numAddresses {
-		pickFromOldBucket := int((float64(selectionIndex)/float64(numAddresses))*100) >= biasTowardsNewAddrs
-		pickFromOldBucket = (pickFromOldBucket && a.nOld > 0) || a.nNew == 0
+		// biasedTowardsOldAddrs indicates if the selection can switch to old addresses
+		biasedTowardsOldAddrs := selectionIndex >= numRequiredNewAdd
+		// An old addresses is selected if:
+		// - the bias is for old and old addressees are still available or,
+		// - there are no new addresses or all new addresses have been selected.
+		// numAddresses <= a.nOld + a.nNew therefore it is guaranteed that there are enough
+		// addresses to fill the selection
+		pickFromOldBucket :=
+			(biasedTowardsOldAddrs && oldAddressesAdded < a.nOld) ||
+				a.nNew == 0 || newAddressesAdded >= a.nNew
 		bucket := make(map[string]*knownAddress)
 
 		// loop until we pick a random non-empty bucket
@@ -450,6 +468,7 @@ ADDRS_LOOP:
 				oldBucketToAddrsMap[oldIndex] = make(map[string]struct{})
 			}
 			oldBucketToAddrsMap[oldIndex][selectedAddr.String()] = struct{}{}
+			oldAddressesAdded++
 		} else {
 			if addrsMap, ok := newBucketToAddrsMap[newIndex]; ok {
 				if _, ok = addrsMap[selectedAddr.String()]; ok {
@@ -459,6 +478,7 @@ ADDRS_LOOP:
 				newBucketToAddrsMap[newIndex] = make(map[string]struct{})
 			}
 			newBucketToAddrsMap[newIndex][selectedAddr.String()] = struct{}{}
+			newAddressesAdded++
 		}
 
 		selection[selectionIndex] = selectedAddr
@@ -681,8 +701,8 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 
 	ka := a.addrLookup[addr.ID]
 	if ka != nil {
-		// If its already old and the addr is the same, ignore it.
-		if ka.isOld() && ka.Addr.Equals(addr) {
+		// If its already old, ignore it.
+		if ka.isOld(){
 			return nil
 		}
 		// Already in max new buckets.
