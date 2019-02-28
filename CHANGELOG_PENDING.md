@@ -1,6 +1,6 @@
-## v0.30.0
+## v0.31.0
 
-*TBD*
+**
 
 Special thanks to external contributors on this release:
 
