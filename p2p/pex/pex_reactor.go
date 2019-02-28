@@ -113,6 +113,13 @@ func NewPEXReactor(b AddrBook, config *PEXReactorConfig) *PEXReactor {
 	return r
 }
 
+func (r *PEXReactor) InitAddPeer(peer Peer) Peer {
+	id := string(peer.ID())
+	r.requestsSent.Delete(id)
+	r.lastReceivedRequests.Delete(id)
+	return peer
+}
+
 // OnStart implements BaseService
 func (r *PEXReactor) OnStart() error {
 	err := r.book.Start()
