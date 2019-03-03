@@ -18,10 +18,6 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-/*
-	XXX: This file is copied from blockchain/reactor.go
-*/
-
 const (
 	// StateChannel is a channel for state and status updates (`StateStore` height)
 	StateChannel = byte(0x35)
@@ -47,9 +43,6 @@ const (
 type StateReactor struct {
 	p2p.BaseReactor
 
-	// immutable
-	initialState sm.State
-
 	stateDB   dbm.DB
 	app       proxy.AppConnState
 	pool      *StatePool
@@ -61,14 +54,7 @@ type StateReactor struct {
 }
 
 // NewBlockchainReactor returns new reactor instance.
-func NewStateReactor(state sm.State, stateDB dbm.DB, app proxy.AppConnState, stateSync bool) *StateReactor {
-
-	// TODO: revisit doesn't need
-	//if state.LastBlockHeight != store.Height() {
-	//	panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
-	//		store.Height()))
-	//}
-
+func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, stateSync bool) *StateReactor {
 	requestsCh := make(chan StateRequest, maxTotalRequesters)
 
 	const capacity = 1000                      // must be bigger than peers count
@@ -80,7 +66,6 @@ func NewStateReactor(state sm.State, stateDB dbm.DB, app proxy.AppConnState, sta
 	)
 
 	bcSR := &StateReactor{
-		initialState: state,
 		stateDB:      stateDB,
 		app:          app,
 		pool:         pool,
@@ -131,15 +116,9 @@ func (_ *StateReactor) GetChannels() []*p2p.ChannelDescriptor {
 
 // AddPeer implements Reactor by sending our state to peer.
 func (bcSR *StateReactor) AddPeer(peer p2p.Peer) {
-	// TODO: revisit whether to keep
+	// deliberately do nothing when add peer, because LatestSnapshot operation is too expensive
+	// only response when receive bcStateStatusRequestMessage
 	bcSR.Logger.Info("added a peer", "peer", peer.ID())
-	//_, numKeys, _ := bcSR.app.LatestSnapshot()
-	//msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight, numKeys})
-	//if !peer.Send(StateChannel, msgBytes) {
-	//	// doing nothing, will try later in `poolRoutine`
-	//}
-	// peer is added to the pool once we receive the first
-	// bcStateStatusResponseMessage from the peer and call pool.SetPeerHeight
 }
 
 // RemovePeer implements Reactor by removing peer from the pool.
@@ -160,7 +139,11 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 			bcSR.Logger.Info("Peer asking for a state we don't have", "src", src, "height", msg.Height)
 
 			msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
-			return src.TrySend(StateChannel, bcSR.compress(msgBytes))
+			if msg, err := bcSR.compress(msgBytes); err == nil {
+				return src.TrySend(StateChannel, msg)
+			} else {
+				bcSR.Logger.Error("failed to compress bcNoStateResponseMessage", "err", err)
+			}
 		}
 	}
 
@@ -169,15 +152,23 @@ func (bcSR *StateReactor) respondToPeer(msg *bcStateRequestMessage,
 		bcSR.Logger.Info("Peer asking for an application state we don't have", "src", src, "height", msg.Height, "err", err)
 
 		msgBytes := cdc.MustMarshalBinaryBare(&bcNoStateResponseMessage{Height: msg.Height, StartIndex: msg.StartIndex, EndIndex: msg.EndIndex})
-		return src.TrySend(StateChannel, bcSR.compress(msgBytes))
+		if msg, err := bcSR.compress(msgBytes); err == nil {
+			return src.TrySend(StateChannel, msg)
+		} else {
+			bcSR.Logger.Error("failed to compressed bcNoStateResponseMessage", "err", err)
+		}
 	}
 
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateResponseMessage{State: state, StartIdxInc: msg.StartIndex, EndIdxExc: msg.EndIndex, Chunks: chunk})
-	return src.TrySend(StateChannel, bcSR.compress(msgBytes))
-
+	if msg, err := bcSR.compress(msgBytes); err == nil {
+		return src.TrySend(StateChannel, msg)
+	} else {
+		bcSR.Logger.Error("failed to compress bcStateResponseMessage", "err", err)
+		return false
+	}
 }
 
-// Receive implements Reactor by handling 4 types of messages (look below).
+// Receive implements Reactor by handling 4 types of messages (see below).
 func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := bcSR.decodeStateMsg(msgBytes)
 	if err != nil {
@@ -194,9 +185,6 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			// Unfortunately not queued since the queue is full.
 		}
 	case *bcStateResponseMessage:
-		// Got a block.
-		//bcSR.pool.AddState(src.ID(), msg.State, len(msgBytes))
-		//bcSR.pool.PopRequest()
 		if msg.StartIdxInc == 0 {
 			// first part should return state
 			bcSR.pool.state = msg.State
@@ -241,10 +229,15 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 			bcSR.Logger.Error("application and state height is inconsistent")
 		}
 		msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusResponseMessage{height, numKeys})
-		queued := src.TrySend(StateChannel, bcSR.compress(msgBytes))
-		if !queued {
-			// sorry
+		if msg, err := bcSR.compress(msgBytes); err == nil {
+			queued := src.TrySend(StateChannel, msg)
+			if !queued {
+				bcSR.Logger.Error("failed to queue bcStateStatusResponseMessage")
+			}
+		} else {
+			bcSR.Logger.Error("failed to compress bcStateStatusResponseMessage", "err", err)
 		}
+
 	case *bcStateStatusResponseMessage:
 		if msg.Height == 0 {
 			bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(*BlockchainReactor)
@@ -253,14 +246,8 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		} else {
 			// if pool is not initialized yet (this is first state status response), we init it
 			if bcSR.pool.height == 0 {
-				// TODO: make this a init method and make it thread safe
 				bcSR.app.StartRecovery(msg.Height, msg.NumKeys)
-				bcSR.pool.height = msg.Height
-				bcSR.pool.numKeys = msg.NumKeys
-				bcSR.pool.totalKeys = 0
-				for _, numKey := range bcSR.pool.numKeys {
-					bcSR.pool.totalKeys += numKey
-				}
+				bcSR.pool.init(msg)
 			}
 			bcSR.pool.SetPeerHeight(src.ID(), msg.Height)
 		}
@@ -285,13 +272,16 @@ FOR_LOOP:
 				continue FOR_LOOP // Peer has since been disconnected.
 			}
 			msgBytes := cdc.MustMarshalBinaryBare(&bcStateRequestMessage{request.Height, request.StartIndex, request.EndIndex})
-			queued := peer.TrySend(StateChannel, bcSR.compress(msgBytes))
-			if !queued {
-				// We couldn't make the request, send-queue full.
-				// The pool handles timeouts, just let it go.
-				continue FOR_LOOP
+			if msg, err := bcSR.compress(msgBytes); err == nil {
+				queued := peer.TrySend(StateChannel, msg)
+				if !queued {
+					// We couldn't make the request, send-queue full.
+					// The pool handles timeouts, just let it go.
+					continue FOR_LOOP
+				}
+			} else {
+				bcSR.Logger.Error("failed to compress bcStateRequestMessage", "err", err)
 			}
-
 		case err := <-bcSR.errorsCh:
 			peer := bcSR.Switch.Peers().Get(err.peerID)
 			if peer != nil {
@@ -322,7 +312,11 @@ FOR_LOOP:
 // BroadcastStatusRequest broadcasts `StateStore` height.
 func (bcSR *StateReactor) BroadcastStateStatusRequest() {
 	msgBytes := cdc.MustMarshalBinaryBare(&bcStateStatusRequestMessage{sm.LoadState(bcSR.stateDB).LastBlockHeight})
-	bcSR.Switch.Broadcast(StateChannel, bcSR.compress(msgBytes))
+	if msg, err := bcSR.compress(msgBytes); err == nil {
+		bcSR.Switch.Broadcast(StateChannel, msg)
+	} else {
+		bcSR.Logger.Error("failed to compress bcStateStatusRequestMessage", "err", err)
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -403,27 +397,32 @@ func (m *bcStateStatusRequestMessage) String() string {
 
 type bcStateStatusResponseMessage struct {
 	Height int64
-	NumKeys   []int64
+	NumKeys   []int64	// numKeys we are expected, in app defined sub store order
 }
 
 func (m *bcStateStatusResponseMessage) String() string {
 	return fmt.Sprintf("[bcStateStatusResponseMessage %v]", m.Height)
 }
 
-func (bcSR *StateReactor) compress(toBeCompressed []byte) []byte {
+func (bcSR *StateReactor) compress(toBeCompressed []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
 
 	_, err := zw.Write(toBeCompressed)
 	if err != nil {
 		bcSR.Logger.Error("failed to compress", "err", err)
+		return nil, err
 	}
 
+	// deliberately not put in defer to save a flush call
 	if err := zw.Close(); err != nil {
 		bcSR.Logger.Error("failed to close compress buffer", "err", err)
+		return nil, err
 	}
 
-	return buf.Bytes()
+	ret := buf.Bytes()
+	bcSR.Logger.Debug("compressed state reactor message", "from", len(toBeCompressed), "to", len(ret))
+	return ret, nil
 }
 
 func (bcSR *StateReactor) decompress(toBeDecompressed []byte) ([]byte, error) {
@@ -440,6 +439,7 @@ func (bcSR *StateReactor) decompress(toBeDecompressed []byte) ([]byte, error) {
 		return nil, err
 	}
 
+	// deliberately not put in defer to save a flush call
 	if err := zr.Close(); err != nil {
 		bcSR.Logger.Error("failed to close decompressor", "err", err)
 		return nil, err

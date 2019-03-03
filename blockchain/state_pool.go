@@ -16,36 +16,27 @@ import (
 )
 
 /*
-	XXX: This file is copied from blockchain/pool.go
+	State pool is used to hold state chunks this peer requested from peers.
+	Peer will request connected peers' syncable state height on state reactor start,
+	After a certain timeout, this node will request state keys evenly from different peers that has same
+	syncable state.
+
+	On received all expected chunk, recover state related ABCI will be called to save received chunks into state and
+	application db. Then state reactor will switch to block reactor to fast sync.
 */
 
-/*
-	Peers self report their heights when we join the block pool.
-	Starting from our latest pool.height, we request blocks
-	in sequence from peers that reported higher heights than ours.
-	Every so often we ask peers what height they're on so we can keep going.
-
-	Requests are continuously made for blocks of higher heights until
-	the limit is reached. If most of the requests have no available peers, and we
-	are not at peer limits, we can probably switch to consensus reactor
-*/
-
-
-// TODO: revisit for potential mutlithread issue
 type StatePool struct {
 	cmn.BaseService
-	startTime time.Time
 
 	mtx sync.Mutex
-	// block requests
 	height    int64 // the height in first state status response we received
-	numKeys []int64	// numKeys we are expected
-	totalKeys int64
+	numKeys []int64	// numKeys we are expected, in app defined sub store order
+	totalKeys int64	// sum of numKeys
 	numKeysReceived int64	// numKeys we have received, no need to be atomic, guarded by pool.mtx
-	step int64
-	state *sm.State
-	chunks map[int64][][]byte	// startIdx -> [key, value] map, TODO: sync.Map
-	requests map[p2p.ID]*StateRequest	// TODO: sync.Map
+	step int64		// how many keys this node should request from peers
+	state *sm.State	// tendermint state
+	chunks map[int64][][]byte	// startIdx -> [key, value] map
+	requests map[p2p.ID]*StateRequest
 
 	// peers
 	peers         map[p2p.ID]*spPeer
@@ -71,7 +62,6 @@ func NewStatePool(requestsCh chan<- StateRequest, errorsCh chan<- peerError) *St
 }
 
 func (pool *StatePool) OnStart() error {
-	pool.startTime = time.Now()
 	return nil
 }
 
@@ -182,7 +172,21 @@ func (pool *StatePool) sendError(err error, peerID p2p.ID) {
 func (pool *StatePool) isComplete() bool {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
+
+	pool.Logger.Info("Completeness check", "numPending", pool.numPending, "numKeysReceived", pool.numKeysReceived)
 	return atomic.LoadInt32(&pool.numPending) == 0 && pool.numKeysReceived == pool.totalKeys
+}
+
+func (pool *StatePool) init(msg *bcStateStatusResponseMessage) {
+	pool.mtx.Lock()
+	defer pool.mtx.Unlock()
+
+	pool.height = msg.Height
+	pool.numKeys = msg.NumKeys
+	pool.totalKeys = 0
+	for _, numKey := range pool.numKeys {
+		pool.totalKeys += numKey
+	}
 }
 
 func (pool *StatePool) reset() {

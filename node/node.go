@@ -359,8 +359,7 @@ func NewNode(config *cfg.Config,
 		}
 	}
 
-	// TODO: revisit - seems doesn't need Copy state
-	stateReactor := bc.NewStateReactor(state, stateDB, proxyApp.State(), stateSync)
+	stateReactor := bc.NewStateReactor(stateDB, proxyApp.State(), stateSync)
 	stateReactor.SetLogger(logger.With("module", "state"))
 
 	blockExecLogger := logger.With("module", "exec")
