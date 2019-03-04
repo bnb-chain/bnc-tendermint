@@ -12,7 +12,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	"github.com/tendermint/tendermint/rpc/client"
-	"github.com/tendermint/tendermint/rpc/test"
+	rpctest "github.com/tendermint/tendermint/rpc/test"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -42,9 +42,9 @@ func TestCorsEnabled(t *testing.T) {
 	req.Header.Set("Origin", origin)
 	c := &http.Client{}
 	resp, err := c.Do(req)
+	require.Nil(t, err, "%+v", err)
 	defer resp.Body.Close()
 
-	require.Nil(t, err, "%+v", err)
 	assert.Equal(t, resp.Header.Get("Access-Control-Allow-Origin"), origin)
 }
 
