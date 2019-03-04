@@ -68,6 +68,24 @@ func LoadState(db dbm.DB) State {
 	return loadState(db, stateKey)
 }
 
+func LoadStateForHeight(db dbm.DB, height int64) *State {
+	var state State
+	buf := db.Get(calcStateKey(height))
+	if len(buf) == 0 {
+		return nil
+	}
+
+	err := cdc.UnmarshalBinaryBare(buf, &state)
+	if err != nil {
+		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
+		cmn.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
+                %v\n`, err))
+	}
+	// TODO: ensure that buf is completely read.
+
+	return &state
+}
+
 func loadState(db dbm.DB, key []byte) (state State) {
 	buf := db.Get(key)
 	if len(buf) == 0 {
@@ -105,7 +123,7 @@ func saveState(db dbm.DB, state State, key []byte) {
 	// Save next consensus params.
 	saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.SetSync(calcStateKey(state.LastBlockHeight), state.Bytes())
-	db.SetSync(key, state.Bytes())
+	db.SetSync(stateKey, state.Bytes())
 }
 
 //------------------------------------------------------------------------
