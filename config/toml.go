@@ -78,6 +78,9 @@ moniker = "{{ .BaseConfig.Moniker }}"
 fast_sync = {{ .BaseConfig.FastSync }}
 
 
+# As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
+state_sync_reactor = {{ .BaseConfig.StateSyncReactor }}
+
 # If this node is many days behind the tip of the chain, StateSync
 # allows them to catchup quickly by downloading app state (without historical blocks)
 # in parallel and start syncing block afterwards

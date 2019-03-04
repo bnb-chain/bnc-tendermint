@@ -7,10 +7,13 @@ import (
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/proxy"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"sync/atomic"
 	"time"
 
+	cfg "github.com/tendermint/tendermint/config"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
@@ -37,6 +40,11 @@ const (
 	maxStateMsgSize                    = types.MaxStateSizeBytes +
 		bcStateResponseMessagePrefixSize +
 		bcStateResponseMessageFieldKeySize
+
+	// Currently we only allow user state sync at first time when they connecting to network
+	// otherwise there will be "holes" on their blockstore which might cause other new peers retry block sync
+	// This will be improved afterwards (release with mainnet)
+	lockFileName = "STATESYNC.LOCK"
 )
 
 // BlockchainReactor handles long-term catchup syncing.
@@ -45,6 +53,7 @@ type StateReactor struct {
 
 	stateDB   dbm.DB
 	app       proxy.AppConnState
+	config    *cfg.Config
 	pool      *StatePool
 	stateSync bool // positive for enable this reactor
 
@@ -53,8 +62,8 @@ type StateReactor struct {
 	quitCh chan struct{}
 }
 
-// NewBlockchainReactor returns new reactor instance.
-func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, stateSync bool) *StateReactor {
+// NewStateReactor returns new reactor instance.
+func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config) *StateReactor {
 	requestsCh := make(chan StateRequest, maxTotalRequesters)
 
 	const capacity = 1000                      // must be bigger than peers count
@@ -68,13 +77,22 @@ func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, stateSync bool) *St
 	bcSR := &StateReactor{
 		stateDB:      stateDB,
 		app:          app,
+		config: 	  config,
 		pool:         pool,
-		stateSync:    stateSync,
+		stateSync:    config.StateSync,
 		requestsCh:   requestsCh,
 		errorsCh:     errorsCh,
 		quitCh: 	  make(chan struct{}),
 	}
 	bcSR.BaseReactor = *p2p.NewBaseReactor("BlockchainStateReactor", bcSR)
+
+	lockFilePath := filepath.Join(config.DBDir(), lockFileName)
+	if _, err := os.Stat(lockFilePath); !os.IsNotExist(err) {
+		// if we already state sycned, we modify the config so that fast sync and consensus reactor is not impacted
+		// setting here is to make sure there is an error log for user when state reactor started (logger is not initialized here)
+		config.StateSync = false
+	}
+
 	return bcSR
 }
 
@@ -87,11 +105,21 @@ func (bcSR *StateReactor) SetLogger(l log.Logger) {
 // OnStart implements cmn.Service.
 func (bcSR *StateReactor) OnStart() error {
 	if bcSR.stateSync {
-		err := bcSR.pool.Start()
-		if err != nil {
+		// we only allow state sync on node fist start, see comment of `lockFileName`
+		lockFilePath := filepath.Join(bcSR.config.DBDir(), lockFileName)
+		if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+			if _, err := os.Create(lockFilePath); err != nil {
+				bcSR.Logger.Error("failed to create state sync lock file", "err", err)
+				return err
+			}
+			if err := bcSR.pool.Start(); err != nil {
+				return err
+			}
+			go bcSR.poolRoutine()
+		} else {
+			bcSR.Logger.Error("This node might has state synced, will fast sync! Please consider unsafe_reset_all if it is lag behind too much", "err", err)
 			return err
 		}
-		go bcSR.poolRoutine()
 	}
 	return nil
 }

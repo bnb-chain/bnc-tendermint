@@ -36,7 +36,11 @@ type StatePool struct {
 	step int64		// how many keys this node should request from peers
 	state *sm.State	// tendermint state
 	chunks map[int64][][]byte	// startIdx -> [key, value] map
-	requests map[p2p.ID]*StateRequest
+	requests map[p2p.ID]*StateRequest	// requests is used to verify whether we received out-of-date chunk.
+										// i.e. in first round we request 3 peers but 1 of which is slow caused us timeout
+										// in second round, we request 5 peers (each with less expected chunks) as we discover more peers
+										// but in this 2nd round, the 1st round missing chunk comes back
+										// we need discard it if that's not the chunk we are expecting from that peer
 
 	// peers
 	peers         map[p2p.ID]*spPeer
@@ -73,15 +77,22 @@ func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage)
 
 	pool.Logger.Info("peer sent us a start index", "peer", peerID, "startIndex", msg.StartIdxInc)
 
-	pool.chunks[msg.StartIdxInc] = msg.Chunks
 
-	atomic.AddInt32(&pool.numPending, -1)
-	atomic.AddInt64(&pool.numKeysReceived, msg.EndIdxExc - msg.StartIdxInc)
-	peer := pool.peers[peerID]
-	if peer != nil {
-		peer.decrPending()
+	if request, ok := pool.requests[peerID]; ok && request.StartIndex == msg.StartIdxInc && request.EndIndex == msg.EndIdxExc {
+		pool.chunks[msg.StartIdxInc] = msg.Chunks
+
+		atomic.AddInt32(&pool.numPending, -1)
+		atomic.AddInt64(&pool.numKeysReceived, msg.EndIdxExc - msg.StartIdxInc)
+		peer := pool.peers[peerID]
+		if peer != nil {
+			peer.decrPending()
+		}
+		delete(pool.requests, peerID)
+	} else if ok {
+		pool.Logger.Error("peer send us an unexpected index", "peer", peerID, "expected", request.StartIndex)
+	} else {
+		pool.Logger.Error("peer send us an unexpected index", "peer", peerID)
 	}
-	delete(pool.requests, peerID)
 }
 
 // Sets the peer's alleged blockchain height.
@@ -106,11 +117,9 @@ func (pool *StatePool) RemovePeer(peerID p2p.ID) {
 	pool.removePeer(peerID)
 }
 
-// MUST BE REVISITED, WE MIGHT CAN RETRY
+// TODO: enhance, we might can retry
 func (pool *StatePool) removePeer(peerID p2p.ID) {
-	if _, ok := pool.requests[peerID]; ok {
-		delete(pool.requests, peerID)
-	}
+	delete(pool.requests, peerID)
 	delete(pool.peers, peerID)
 }
 
@@ -140,6 +149,7 @@ func (pool *StatePool) pickAvailablePeers() (peers []*spPeer) {
 }
 
 func (pool *StatePool) sendRequest() {
+
 	if !pool.IsRunning() {
 		pool.Logger.Error("send request on a stopped pool")
 		return
@@ -151,13 +161,19 @@ func (pool *StatePool) sendRequest() {
 	}
 
 	pool.step = int64(math.Ceil(float64(pool.totalKeys) / float64(len(peers))))
+
+	pool.mtx.Lock()
+	defer pool.mtx.Unlock()
+
 	for idx, peer := range peers {
 		// Send request and wait.
 		endIndex := (int64(idx) + 1) * pool.step
 		if endIndex > pool.totalKeys {
 			endIndex = pool.totalKeys
 		}
-		pool.requestsCh <- StateRequest{pool.height, peer.id, int64(idx) * pool.step, endIndex}
+		stateReq := StateRequest{pool.height, peer.id, int64(idx) * pool.step, endIndex}
+		pool.requestsCh <- stateReq
+		pool.requests[peer.id] = &stateReq
 		atomic.AddInt32(&pool.numPending, 1)
 	}
 }
@@ -174,12 +190,13 @@ func (pool *StatePool) isComplete() bool {
 	defer pool.mtx.Unlock()
 
 	pool.Logger.Info("Completeness check", "numPending", pool.numPending, "numKeysReceived", pool.numKeysReceived)
-	return atomic.LoadInt32(&pool.numPending) == 0 && pool.numKeysReceived == pool.totalKeys
+	return pool.numKeysReceived == pool.totalKeys
 }
 
 func (pool *StatePool) init(msg *bcStateStatusResponseMessage) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
+
 
 	pool.height = msg.Height
 	pool.numKeys = msg.NumKeys
@@ -187,6 +204,8 @@ func (pool *StatePool) init(msg *bcStateStatusResponseMessage) {
 	for _, numKey := range pool.numKeys {
 		pool.totalKeys += numKey
 	}
+
+	pool.Logger.Info("init state pool", "height", msg.Height, "totalKeys", pool.totalKeys)
 }
 
 func (pool *StatePool) reset() {
