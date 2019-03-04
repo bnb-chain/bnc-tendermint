@@ -705,7 +705,7 @@ func (a *addrBook) addAddress(addr, src *p2p.NetAddress) error {
 	ka := a.addrLookup[addr.ID]
 	if ka != nil {
 		// If its already old and the addr is the same, ignore it.
-		if ka.isOld() && ka.Addr.Equals(addr) {
+		if ka.isOld() {
 			return nil
 		}
 		// Already in max new buckets.
