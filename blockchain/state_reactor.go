@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/proxy"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,10 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/tendermint/go-amino"
 	cfg "github.com/tendermint/tendermint/config"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )

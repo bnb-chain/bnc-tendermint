@@ -43,18 +43,29 @@ func (pvs PrivValidatorsByAddress) Swap(i, j int) {
 // MockPV implements PrivValidator without any safety or persistence.
 // Only use it for testing.
 type MockPV struct {
-	address Address
-	pubKey  crypto.PubKey
-	privKey crypto.PrivKey
+	address              Address
+	pubKey               crypto.PubKey
+	privKey              crypto.PrivKey
+	breakProposalSigning bool
+	breakVoteSigning     bool
 }
 
 func NewMockPV() *MockPV {
 	privKey := ed25519.GenPrivKey()
+	return NewMockPVWithParams(privKey, false, false)
+}
+
+// NewMockPVWithParams allows one to create a MockPV instance, but with finer
+// grained control over the operation of the mock validator. This is useful for
+// mocking test failures.
+func NewMockPVWithParams(privKey crypto.PrivKey, breakProposalSigning, breakVoteSigning bool) *MockPV {
 	pubKey := privKey.PubKey()
 	return &MockPV{
-		address: pubKey.Address(),
-		pubKey:  pubKey,
-		privKey: privKey,
+		address:              pubKey.Address(),
+		pubKey:               pubKey,
+		privKey:              privKey,
+		breakProposalSigning: breakProposalSigning,
+		breakVoteSigning:     breakVoteSigning,
 	}
 }
 
@@ -69,7 +80,11 @@ func (pv *MockPV) GetPubKey() crypto.PubKey {
 
 // Implements PrivValidator.
 func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
-	signBytes := vote.SignBytes(chainID)
+	useChainID := chainID
+	if pv.breakVoteSigning {
+		useChainID = "incorrect-chain-id"
+	}
+	signBytes := vote.SignBytes(useChainID)
 	sig, err := pv.privKey.Sign(signBytes)
 	if err != nil {
 		return err
@@ -80,7 +95,11 @@ func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
 
 // Implements PrivValidator.
 func (pv *MockPV) SignProposal(chainID string, proposal *Proposal) error {
-	signBytes := proposal.SignBytes(chainID)
+	useChainID := chainID
+	if pv.breakProposalSigning {
+		useChainID = "incorrect-chain-id"
+	}
+	signBytes := proposal.SignBytes(useChainID)
 	sig, err := pv.privKey.Sign(signBytes)
 	if err != nil {
 		return err

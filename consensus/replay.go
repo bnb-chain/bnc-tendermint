@@ -6,6 +6,7 @@ import (
 	"hash/crc32"
 	"io"
 	"reflect"
+
 	//"strconv"
 	//"strings"
 	"time"
@@ -143,8 +144,8 @@ func (cs *ConsensusState) catchupReplay(csHeight int64) error {
 		if err == io.EOF {
 			break
 		} else if IsDataCorruptionError(err) {
-			cs.Logger.Debug("data has been corrupted in last height of consensus WAL", "err", err, "height", csHeight)
-			panic(fmt.Sprintf("data has been corrupted (%v) in last height %d of consensus WAL", err, csHeight))
+			cs.Logger.Error("data has been corrupted in last height of consensus WAL", "err", err, "height", csHeight)
+			return err
 		} else if err != nil {
 			return err
 		}
@@ -335,7 +336,7 @@ func (h *Handshaker) ReplayBlocks(
 
 	} else if storeBlockHeight < appBlockHeight {
 		// the app should never be ahead of the store (but this is under app's control)
-		return appHash, sm.ErrAppBlockHeightTooHigh{storeBlockHeight, appBlockHeight}
+		return appHash, sm.ErrAppBlockHeightTooHigh{CoreHeight: storeBlockHeight, AppHeight: appBlockHeight}
 
 	} else if storeBlockHeight < stateBlockHeight {
 		// the state should never be ahead of the store (this is under tendermint's control)
