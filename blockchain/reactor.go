@@ -286,7 +286,7 @@ FOR_LOOP:
 			// numPending=0 total=0 outbound=1 inbound=0 height=6601 blocksSynced=0 poolHeight=6601 poolstarttime=2019-02-22T09:02:07.881888662Z poolMaxPeerHeight=6437 poolHeight=6601
 			// we need make sure blockstore has a block because when switch to consensus, it will verify the commit between block and state
 			// refer to `cs.blockStore.LoadSeenCommit(state.LastBlockHeight)`
-			if bcR.pool.IsCaughtUp() && (height == 1 || blocksSynced > 0) {
+			if bcR.pool.IsCaughtUp() && (height == bcR.pool.initHeight || blocksSynced > 0) {
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
 
