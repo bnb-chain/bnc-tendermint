@@ -239,7 +239,7 @@ func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int
 
 	requester := pool.requesters[block.Height]
 	if requester == nil {
-		pool.Logger.Info("peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
+		pool.Logger.Error("Stopping peer for error peer sent us a block we didn't expect", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
 		diff := pool.height - block.Height
 		if diff < 0 {
 			diff *= -1
@@ -254,10 +254,13 @@ func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int
 		atomic.AddInt32(&pool.numPending, -1)
 		peer := pool.peers[peerID]
 		if peer != nil {
+			pool.Logger.Error("Stopping peer for error peer do decrPending", "peer", peerID, "curHeight", pool.height, "blockHeight", block.Height)
+
 			peer.decrPending(blockSize)
 		}
 	} else {
-		pool.Logger.Info("invalid peer", "peer", peerID, "blockHeight", block.Height)
+		pool.Logger.Error(fmt.Sprintf("Stopping peer for error peer invalid peer peer %s, blockHeight %d  requestheight %d originid %s", peerID, block.Height, requester.height, requester.peerID))
+		fmt.Printf("%v Stopping peer for error peer invalid peer peer %s, blockHeight %d  requestheight %d originid %s\n", time.Now(), peerID, block.Height, requester.height, requester.peerID)
 		//pool.sendError(errors.New("invalid peer"), peerID)
 	}
 }
@@ -291,13 +294,16 @@ func (pool *BlockPool) SetPeerHeight(peerID p2p.ID, height int64) {
 func (pool *BlockPool) RemovePeer(peerID p2p.ID) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
-
 	pool.removePeer(peerID)
+
 }
 
 func (pool *BlockPool) removePeer(peerID p2p.ID) {
 	for _, requester := range pool.requesters {
 		if requester.getPeerID() == peerID {
+			if requester.block==nil{
+				fmt.Printf("%v remove peer peerid %s, height %d \n",time.Now(),peerID, requester.height)
+			}
 			requester.redo(peerID)
 		}
 	}
@@ -358,7 +364,7 @@ func (pool *BlockPool) sendRequest(height int64, peerID p2p.ID) {
 	if !pool.IsRunning() {
 		return
 	}
-	pool.requestsCh <- BlockRequest{height, peerID}
+	pool.requestsCh <- BlockRequest{time.Now(),height, peerID}
 }
 
 func (pool *BlockPool) sendError(err error, peerID p2p.ID) {
@@ -418,7 +424,7 @@ func (peer *bpPeer) setLogger(l log.Logger) {
 }
 
 func (peer *bpPeer) resetMonitor() {
-	peer.recvMonitor = flow.New(time.Second, time.Second * types.MonitorWindowInSeconds)
+	peer.recvMonitor = flow.New(time.Second, time.Second*types.MonitorWindowInSeconds)
 	initialValue := float64(minRecvRate) * math.E
 	peer.recvMonitor.SetREMA(initialValue)
 }
@@ -442,8 +448,13 @@ func (peer *bpPeer) incrPending() {
 func (peer *bpPeer) decrPending(recvSize int) {
 	peer.numPending--
 	if peer.numPending == 0 {
+		peer.logger.Error("Stopping peer for error do stop timer ", "peer", peer.id, "pend", peer.numPending)
+		fmt.Printf("%v Stopping peer for error do stop timer %s  , %n\n", time.Now(), peer.id, peer.numPending)
 		peer.timeout.Stop()
 	} else {
+		peer.logger.Error("Stopping peer for error do update timer ", "peer", peer.id, "pend", peer.numPending)
+
+		fmt.Printf("%v Stopping peer for error do update timer%s  , %n\n", time.Now(), peer.id, peer.numPending)
 		peer.recvMonitor.Update(recvSize)
 		peer.resetTimeout()
 	}
@@ -569,6 +580,7 @@ OUTER_LOOP:
 		bpr.mtx.Unlock()
 
 		// Send request and wait.
+		fmt.Printf("%v increPending  peerid %s, height %d\n", time.Now(), bpr.peerID, bpr.height)
 		bpr.pool.sendRequest(bpr.height, peer.id)
 	WAIT_LOOP:
 		for {
@@ -597,6 +609,7 @@ OUTER_LOOP:
 //-------------------------------------
 
 type BlockRequest struct {
+	Time   time.Time
 	Height int64
 	PeerID p2p.ID
 }

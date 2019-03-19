@@ -499,11 +499,11 @@ func (c *MConnection) sendPacketMsg() bool {
 			leastChannel = channel
 		}
 	}
-
 	// Nothing to send?
 	if leastChannel == nil {
 		return true
 	}
+	fmt.Printf("%v send channel %v , remote %s, \n", time.Now(), leastChannel.desc.ID, c.conn.RemoteAddr())
 	// c.Logger.Info("Found a msgPacket to send")
 
 	// Make & send a PacketMsg from this channel
@@ -528,7 +528,8 @@ func (c *MConnection) recvRoutine() {
 FOR_LOOP:
 	for {
 		// Block until .recvMonitor says we can read.
-		c.recvMonitor.Limit(c._maxPacketMsgSize, atomic.LoadInt64(&c.config.RecvRate), true)
+
+		//c.recvMonitor.Limit(c._maxPacketMsgSize, atomic.LoadInt64(&c.config.RecvRate), true)
 
 		// Peek into bufConnReader for debugging
 		/*
@@ -600,8 +601,12 @@ FOR_LOOP:
 				// stopping block producing (tested via )
 
 				// this copy is due to the underlying memory is shared, and causes problem for async call
+				fmt.Printf("%v receive, remote %s, \n", time.Now(), c.conn.RemoteAddr())
 				msgCopy := make([]byte, len(msgBytes))
 				copy(msgCopy, msgBytes)
+				if pkt.ChannelID == byte(0x40) {
+					fmt.Printf("%v do receive blockchain PacketMsg connection %v \n", time.Now(), c.conn.RemoteAddr())
+				}
 				c.onReceive(pkt.ChannelID, msgCopy)
 			}
 		default:
@@ -750,6 +755,7 @@ func (ch *Channel) trySendBytes(bytes []byte) bool {
 		atomic.AddInt32(&ch.sendQueueSize, 1)
 		return true
 	default:
+		fmt.Printf("err try send len of send queue %s is %d\n", ch.desc.ID, len(ch.sendQueue))
 		return false
 	}
 }
@@ -800,6 +806,7 @@ func (ch *Channel) nextPacketMsg() PacketMsg {
 // Not goroutine-safe
 func (ch *Channel) writePacketMsgTo(w io.Writer) (n int64, err error) {
 	var packet = ch.nextPacketMsg()
+	fmt.Printf("%v real send package %X , removete addr %v",time.Now(),packet.Bytes,ch.conn.conn.RemoteAddr())
 	n, err = cdc.MarshalBinaryLengthPrefixedWriter(w, packet)
 	atomic.AddInt64(&ch.recentlySent, n)
 	return
@@ -823,6 +830,7 @@ func (ch *Channel) recvPacketMsg(packet PacketMsg) ([]byte, error) {
 		//   suggests this could be a memory leak, but we might as well keep the memory for the channel until it closes,
 		//	at which point the recving slice stops being used and should be garbage collected
 		ch.recving = ch.recving[:0] // make([]byte, 0, ch.desc.RecvBufferCapacity)
+		fmt.Printf("%v real receive package %X , remote %v",time.Now(),packet.Bytes, ch.conn.conn.RemoteAddr())
 		return msgBytes, nil
 	}
 	return nil, nil

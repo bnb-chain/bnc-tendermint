@@ -181,6 +181,7 @@ func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage,
 
 	block := bcR.store.LoadBlock(msg.Height)
 	if block != nil {
+		fmt.Printf("%v try send block to peer %s, height %d\n", time.Now(), src.ID(), msg.Height)
 		msgBytes := cdc.MustMarshalBinaryBare(&bcBlockResponseMessage{Block: block})
 		return src.TrySend(BlockchainChannel, msgBytes)
 	}
@@ -188,6 +189,7 @@ func (bcR *BlockchainReactor) respondToPeer(msg *bcBlockRequestMessage,
 	bcR.Logger.Info("Peer asking for a block we don't have", "src", src, "height", msg.Height)
 
 	msgBytes := cdc.MustMarshalBinaryBare(&bcNoBlockResponseMessage{Height: msg.Height})
+	fmt.Printf("%v try send block to peer %s, height %d\n", time.Now(), src.ID(), msg.Height)
 	return src.TrySend(BlockchainChannel, msgBytes)
 }
 
@@ -210,10 +212,12 @@ func (bcR *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 
 	switch msg := msg.(type) {
 	case *bcBlockRequestMessage:
+		fmt.Printf("%v receive send bcBlockRequestMessage from peer %s, height %d\n", time.Now(), src.ID(), msg.Height)
 		if queued := bcR.respondToPeer(msg, src); !queued {
 			// Unfortunately not queued since the queue is full.
 		}
 	case *bcBlockResponseMessage:
+		bcR.Logger.Error("Stopping peer for error Receiver block", "peer", src.ID(), "height", msg.Block.Height)
 		bcR.pool.AddBlock(src.ID(), msg.Block, len(msgBytes))
 	case *bcStatusRequestMessage:
 		// Send peer our state.
@@ -252,15 +256,20 @@ FOR_LOOP:
 	for {
 		select {
 		case request := <-bcR.requestsCh:
+			fmt.Printf("%v , generate time %v request form channel peer id %s height %d \n", time.Now(), request.Time, request.PeerID, request.Height)
 			peer := bcR.Switch.Peers().Get(request.PeerID)
 			if peer == nil {
+				fmt.Printf("%v request can't find peer %s height %d \n", time.Now(), request.PeerID, request.Height)
+				fmt.Printf("switch peerset %v\n", bcR.Switch.Peers())
 				continue FOR_LOOP // Peer has since been disconnected.
 			}
 			msgBytes := cdc.MustMarshalBinaryBare(&bcBlockRequestMessage{request.Height})
+			fmt.Printf("%v contend: %X, peer %s height %d \n", time.Now(), msgBytes, peer.ID(), request.Height)
 			queued := peer.TrySend(BlockchainChannel, msgBytes)
 			if !queued {
 				// We couldn't make the request, send-queue full.
 				// The pool handles timeouts, just let it go.
+				fmt.Printf("Send bcBlockRequestMessage error %v peer id %v , height %d\n", peer.ID(), request.Height)
 				continue FOR_LOOP
 			}
 
