@@ -337,6 +337,14 @@ type RPCConfig struct {
 	// Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
 	// 1024 - 40 - 10 - 50 = 924 = ~900
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
+
+	// The name of cert file that used to serve RPC based on Tls.
+	// NOTE: useful when tls_key_file is present
+	TlsCertFile string `mapstructure:"tls_cert_file"`
+
+	// The name of private key file that used to serve RPC based on Tls.
+	// NOTE: useful when tls_cert_file is present
+	TlsKeyFile string `mapstructure:"tls_key_file"`
 }
 
 // DefaultRPCConfig returns a default configuration for the RPC server
@@ -351,6 +359,8 @@ func DefaultRPCConfig() *RPCConfig {
 
 		Unsafe:             false,
 		MaxOpenConnections: 900,
+		TlsCertFile:        "",
+		TlsKeyFile:         "",
 	}
 }
 
@@ -378,6 +388,18 @@ func (cfg *RPCConfig) ValidateBasic() error {
 // IsCorsEnabled returns true if cross-origin resource sharing is enabled.
 func (cfg *RPCConfig) IsCorsEnabled() bool {
 	return len(cfg.CORSAllowedOrigins) != 0
+}
+
+func (cfg RPCConfig) KeyFile() string {
+	return rootify(filepath.Join(defaultConfigDir,cfg.TlsKeyFile), cfg.RootDir)
+}
+
+func (cfg RPCConfig) CertFile() string {
+	return rootify(filepath.Join(defaultConfigDir,cfg.TlsCertFile), cfg.RootDir)
+}
+
+func (cfg RPCConfig) IsTlsEnabled() bool {
+	return cfg.TlsCertFile != "" && cfg.TlsKeyFile != ""
 }
 
 //-----------------------------------------------------------------------------

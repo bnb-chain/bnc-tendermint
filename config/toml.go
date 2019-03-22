@@ -177,6 +177,14 @@ unsafe = {{ .RPC.Unsafe }}
 # 1024 - 40 - 10 - 50 = 924 = ~900
 max_open_connections = {{ .RPC.MaxOpenConnections }}
 
+# The name of cert file that used to serve RPC based on Tls.
+# NOTE: useful when tls_key_file is present
+tls_cert_file = "{{ .RPC.TlsCertFile }}"
+
+# The name of private key file that used to serve RPC based on Tls.
+# NOTE: useful when tls_cert_file is present
+tls_key_file = "{{ .RPC.TlsKeyFile }}"
+
 ##### peer to peer configuration options #####
 [p2p]
 

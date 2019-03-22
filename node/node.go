@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
 	bc "github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
@@ -34,7 +34,7 @@ import (
 	rpccore "github.com/tendermint/tendermint/rpc/core"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
-	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
+	"github.com/tendermint/tendermint/rpc/lib/server"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
@@ -716,12 +716,22 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 			})
 			rootHandler = corsMiddleware.Handler(mux)
 		}
+		if n.config.RPC.IsTlsEnabled(){
+			go rpcserver.StartHTTPAndTLSServer(
+				listener,
+				rootHandler,
+				n.config.RPC.CertFile(),
+				n.config.RPC.KeyFile(),
+				rpcLogger,
+				)
+		}else{
+			go rpcserver.StartHTTPServer(
+				listener,
+				rootHandler,
+				rpcLogger,
+			)
+		}
 
-		go rpcserver.StartHTTPServer(
-			listener,
-			rootHandler,
-			rpcLogger,
-		)
 		listeners[i] = listener
 	}
 
