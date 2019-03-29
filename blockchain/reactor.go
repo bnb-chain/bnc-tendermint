@@ -248,22 +248,30 @@ func (bcR *BlockchainReactor) poolRoutine() {
 
 	didProcessCh := make(chan struct{}, 1)
 
+	go func() {
+		for {
+			select {
+			case <-bcR.Quit():
+				return
+			case <-bcR.pool.Quit():
+				return
+			case request := <-bcR.requestsCh:
+				peer := bcR.Switch.Peers().Get(request.PeerID)
+				if peer == nil {
+					continue
+				}
+				msgBytes := cdc.MustMarshalBinaryBare(&bcBlockRequestMessage{request.Height})
+				queued := peer.TrySend(BlockchainChannel, msgBytes)
+				if !queued {
+					bcR.Logger.Debug("Send queue is full, drop block request", "peer", peer.ID(), "height", request.Height)
+				}
+			}
+		}
+	}()
+
 FOR_LOOP:
 	for {
 		select {
-		case request := <-bcR.requestsCh:
-			peer := bcR.Switch.Peers().Get(request.PeerID)
-			if peer == nil {
-				continue FOR_LOOP // Peer has since been disconnected.
-			}
-			msgBytes := cdc.MustMarshalBinaryBare(&bcBlockRequestMessage{request.Height})
-			queued := peer.TrySend(BlockchainChannel, msgBytes)
-			if !queued {
-				// We couldn't make the request, send-queue full.
-				// The pool handles timeouts, just let it go.
-				continue FOR_LOOP
-			}
-
 		case err := <-bcR.errorsCh:
 			peer := bcR.Switch.Peers().Get(err.peerID)
 			if peer != nil {
@@ -289,7 +297,6 @@ FOR_LOOP:
 			if bcR.pool.IsCaughtUp() && (height == bcR.pool.initHeight || blocksSynced > 0) {
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
-
 				conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
 				if ok {
 					conR.SwitchToConsensus(state, blocksSynced)

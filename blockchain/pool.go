@@ -103,7 +103,6 @@ func (pool *BlockPool) OnStart() error {
 
 func (pool *BlockPool) OnStop() {}
 
-// Run spawns requesters as needed.
 func (pool *BlockPool) makeRequestersRoutine() {
 	for {
 		if !pool.IsRunning() {
