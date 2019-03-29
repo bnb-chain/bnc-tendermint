@@ -1,8 +1,10 @@
 package blockchain
 
 import (
-	"errors"
+	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,11 +38,12 @@ type StatePool struct {
 	step int64		// how many keys this node should request from peers
 	state *sm.State	// tendermint state
 	chunks map[int64][][]byte	// startIdx -> [key, value] map
-	requests map[p2p.ID]*StateRequest	// requests is used to verify whether we received out-of-date chunk.
-										// i.e. in first round we request 3 peers but 1 of which is slow caused us timeout
-										// in second round, we request 5 peers (each with less expected chunks) as we discover more peers
-										// but in this 2nd round, the 1st round missing chunk comes back
-										// we need discard it if that's not the chunk we are expecting from that peer
+	requests map[string]*StateRequest	// requests is used to verify whether we received out-of-date chunk.
+	// the key is peerid_startIdx as we might request multiple times for a peer
+	// i.e. in first round we request 3 peers but 1 of which is slow caused us timeout
+	// in second round, we request 5 peers (each with less expected chunks) as we discover more peers
+	// but in this 2nd round, the 1st round missing chunk comes back
+	// we need discard it if that's not the chunk we are expecting from that peer
 
 	// peers
 	peers         map[p2p.ID]*spPeer
@@ -56,7 +59,7 @@ func NewStatePool(requestsCh chan<- StateRequest, errorsCh chan<- peerError) *St
 	sp := &StatePool{
 		peers: make(map[p2p.ID]*spPeer),
 		chunks: make(map[int64][][]byte),
-		requests: make(map[p2p.ID]*StateRequest),
+		requests: make(map[string]*StateRequest),
 
 		requestsCh: requestsCh,
 		errorsCh:   errorsCh,
@@ -75,10 +78,10 @@ func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage)
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	pool.Logger.Info("peer sent us a start index", "peer", peerID, "startIndex", msg.StartIdxInc)
+	pool.Logger.Info("peer sent us a start index", "peer", peerID, "startIndex", msg.StartIdxInc, "endIndex", msg.EndIdxExc)
 
-
-	if request, ok := pool.requests[peerID]; ok && request.StartIndex == msg.StartIdxInc && request.EndIndex == msg.EndIdxExc {
+	requestKey := requestKey(peerID, msg.StartIdxInc)
+	if request, ok := pool.requests[requestKey]; ok && request.StartIndex == msg.StartIdxInc && request.EndIndex == msg.EndIdxExc {
 		pool.chunks[msg.StartIdxInc] = msg.Chunks
 
 		atomic.AddInt32(&pool.numPending, -1)
@@ -87,9 +90,9 @@ func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage)
 		if peer != nil {
 			peer.decrPending()
 		}
-		delete(pool.requests, peerID)
+		delete(pool.requests, requestKey)
 	} else if ok {
-		pool.Logger.Error("peer send us an unexpected index", "peer", peerID, "expected", request.StartIndex)
+		pool.Logger.Error("peer send us an unexpected index", "peer", peerID, "expectedStart", request.StartIndex, "expectedEnd", request.EndIndex)
 	} else {
 		pool.Logger.Error("peer send us an unexpected index", "peer", peerID)
 	}
@@ -119,7 +122,11 @@ func (pool *StatePool) RemovePeer(peerID p2p.ID) {
 
 // TODO: enhance, we might can retry
 func (pool *StatePool) removePeer(peerID p2p.ID) {
-	delete(pool.requests, peerID)
+	for requestKey, _ := range pool.requests {
+		if strings.HasPrefix(requestKey, string(peerID)) {
+			delete(pool.requests, requestKey)
+		}
+	}
 	delete(pool.peers, peerID)
 }
 
@@ -139,7 +146,8 @@ func (pool *StatePool) pickAvailablePeers() (peers []*spPeer) {
 		if peer.numPending >= 1 {
 			continue
 		}
-		if math.Abs(float64(peer.height) - float64(pool.height)) > peerStateHeightThreshold {
+		if peer.height != pool.height {
+			pool.Logger.Info("peer height is not equals to pool height, skip sync from it", "peer", peer.id, "peerH", peer.height, "poolH", pool.height)
 			continue
 		}
 		peer.incrPending()
@@ -165,16 +173,22 @@ func (pool *StatePool) sendRequest() {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	for idx, peer := range peers {
+	for peerIdx, peer := range peers {
 		// Send request and wait.
-		endIndex := (int64(idx) + 1) * pool.step
-		if endIndex > pool.totalKeys {
-			endIndex = pool.totalKeys
+		endIndexForThisPeer := (int64(peerIdx) + 1) * pool.step
+		if endIndexForThisPeer > pool.totalKeys {
+			endIndexForThisPeer = pool.totalKeys
 		}
-		stateReq := StateRequest{pool.height, peer.id, int64(idx) * pool.step, endIndex}
-		pool.requestsCh <- stateReq
-		pool.requests[peer.id] = &stateReq
-		atomic.AddInt32(&pool.numPending, 1)
+		for startIdx := int64(peerIdx) * pool.step; startIdx < endIndexForThisPeer; startIdx += keysPerRequest {
+			endIndex := startIdx + keysPerRequest
+			if endIndex > endIndexForThisPeer {
+				endIndex = endIndexForThisPeer
+			}
+			stateReq := StateRequest{pool.height, peer.id, startIdx, endIndex}
+			pool.requests[requestKey(peer.id, startIdx)] = &stateReq
+			pool.requestsCh <- stateReq
+			atomic.AddInt32(&pool.numPending, 1)
+		}
 	}
 }
 
@@ -198,6 +212,10 @@ func (pool *StatePool) init(msg *bcStateStatusResponseMessage) {
 	defer pool.mtx.Unlock()
 
 
+	// pool has already inited by a state status message
+	if pool.height != 0 {
+		return
+	}
 	pool.height = msg.Height
 	pool.numKeys = msg.NumKeys
 	pool.totalKeys = 0
@@ -210,7 +228,7 @@ func (pool *StatePool) init(msg *bcStateStatusResponseMessage) {
 
 func (pool *StatePool) reset() {
 	pool.mtx.Lock()
-	pool.mtx.Unlock()
+	defer pool.mtx.Unlock()
 
 	if pool.isComplete() {
 		// we might already complete, possible routine:
@@ -228,8 +246,15 @@ func (pool *StatePool) reset() {
 		pool.chunks = make(map[int64][][]byte)
 		pool.step = 0
 		pool.state = nil
-		pool.requests = make(map[p2p.ID]*StateRequest)
+		pool.requests = make(map[string]*StateRequest)
 	}
+}
+
+func (pool *StatePool) getHeight() int64 {
+	pool.mtx.Lock()
+	defer pool.mtx.Unlock()
+
+	return pool.height
 }
 
 //-------------------------------------
@@ -241,7 +266,6 @@ type spPeer struct {
 
 	height     int64
 	numPending int32
-	timeout    *time.Timer
 	didTimeout bool
 
 	logger log.Logger
@@ -268,39 +292,19 @@ func (peer *spPeer) resetMonitor() {
 	peer.recvMonitor.SetREMA(initialValue)
 }
 
-func (peer *spPeer) resetTimeout() {
-	if peer.timeout == nil {
-		peer.timeout = time.AfterFunc(peerTimeout, peer.onTimeout)
-	} else {
-		peer.timeout.Reset(peerTimeout)
-	}
-}
-
 func (peer *spPeer) incrPending() {
 	if peer.numPending == 0 {
 		peer.resetMonitor()
-		peer.resetTimeout()
 	}
 	peer.numPending++
 }
 
 func (peer *spPeer) decrPending() {
 	peer.numPending--
-	if peer.numPending == 0 {
-		peer.timeout.Stop()
-	} else {
-		peer.resetTimeout()
-	}
 }
 
-func (peer *spPeer) onTimeout() {
-	peer.pool.mtx.Lock()
-	defer peer.pool.mtx.Unlock()
-
-	err := errors.New("peer did not send us anything")
-	peer.pool.sendError(err, peer.id)
-	peer.logger.Error("SendTimeout", "reason", err, "timeout", peerTimeout)
-	peer.didTimeout = true
+func requestKey(peerId p2p.ID, startIdx int64) string {
+	return fmt.Sprintf("%s_%s", peerId, strconv.FormatInt(startIdx, 10))
 }
 
 type StateRequest struct {
