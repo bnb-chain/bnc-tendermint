@@ -74,7 +74,9 @@ func makeHTTPClient(remoteAddr string) (string, *http.Client) {
 	protocol, address, dialer := makeHTTPDialer(remoteAddr)
 	return protocol + "://" + address, &http.Client{
 		Transport: &http.Transport{
-			Dial: dialer,
+			// Set to true to prevent GZIP-bomb DoS attacks
+			DisableCompression: true,
+			Dial:               dialer,
 		},
 	}
 }
@@ -187,7 +189,7 @@ func unmarshalResponseBytes(cdc *amino.Codec, responseBytes []byte, result inter
 	response := &types.RPCResponse{}
 	err = json.Unmarshal(responseBytes, response)
 	if err != nil {
-		return nil, errors.Errorf("Error unmarshalling rpc response: %v", err)
+		return nil, errors.Errorf("Error unmarshalling rpc response %s, error %v", string(responseBytes), err)
 	}
 	if response.Error != nil {
 		return nil, errors.Errorf("Response error: %v", response.Error)
@@ -195,7 +197,7 @@ func unmarshalResponseBytes(cdc *amino.Codec, responseBytes []byte, result inter
 	// Unmarshal the RawMessage into the result.
 	err = cdc.UnmarshalJSON(response.Result, result)
 	if err != nil {
-		return nil, errors.Errorf("Error unmarshalling rpc response result: %v", err)
+		return nil, errors.Errorf("Error unmarshalling rpc response result %s, error %v", string(response.Result), err)
 	}
 	return result, nil
 }
