@@ -35,11 +35,8 @@ type AppConnState interface {
 	SetResponseCallback(abcicli.Callback)
 	Error() error
 
-	LatestSnapshot() (height int64, numKeys []int64, err error)
-	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error)
-	StartRecovery(height int64, numKeys []int64) error
-	WriteRecoveryChunk(chunk [][]byte) error
-	EndRecovery(height int64) error
+	StartRecovery(manifest *types.Manifest) error
+	WriteRecoveryChunk(hash types.SHA256Sum, chunk *types.AppStateChunk, isComplete bool) error
 }
 
 type AppConnQuery interface {
@@ -73,24 +70,12 @@ func (app *appConnState) Error() error {
 	return app.appConn.Error()
 }
 
-func (app *appConnState) LatestSnapshot() (height int64, numKeys []int64, err error) {
-	return app.appConn.LatestSnapshot()
+func (app *appConnState) StartRecovery(manifest *types.Manifest) error {
+	return app.appConn.StartRecovery(manifest)
 }
 
-func (app *appConnState) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
-	return app.appConn.ReadSnapshotChunk(height, startIndex, endIndex)
-}
-
-func (app *appConnState) StartRecovery(height int64, numKeys []int64) error {
-	return app.appConn.StartRecovery(height, numKeys)
-}
-
-func (app *appConnState) WriteRecoveryChunk(chunk [][]byte) error {
-	return app.appConn.WriteRecoveryChunk(chunk)
-}
-
-func (app *appConnState) EndRecovery(height int64) error {
-	return app.appConn.EndRecovery(height)
+func (app *appConnState) WriteRecoveryChunk(hash types.SHA256Sum, chunk *types.AppStateChunk, isComplete bool) error {
+	return app.appConn.WriteRecoveryChunk(hash, chunk, isComplete)
 }
 
 //-----------------------------------------------------------------------------------------
