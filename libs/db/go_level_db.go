@@ -7,6 +7,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -28,7 +29,11 @@ type GoLevelDB struct {
 }
 
 func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
-	return NewGoLevelDBWithOpts(name, dir, nil)
+	var defaultOptions = &opt.Options{OpenFilesCacheCapacity: 1024,
+		BlockCacheCapacity: 2 * opt.GiB,
+		WriteBuffer:        768 / 4 * opt.MiB, // Two of these are used internally
+		Filter:             filter.NewBloomFilter(10)}
+	return NewGoLevelDBWithOpts(name, dir, defaultOptions)
 }
 
 func NewGoLevelDBWithOpts(name string, dir string, o *opt.Options) (*GoLevelDB, error) {
