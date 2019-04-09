@@ -217,11 +217,20 @@ flush_throttle_timeout = "{{ .P2P.FlushThrottleTimeout }}"
 # Maximum size of a message packet payload, in bytes
 max_packet_msg_payload_size = {{ .P2P.MaxPacketMsgPayloadSize }}
 
+# Maximum num of keys a state sync request ask for
+keys_per_request = {{ .P2P.KeysPerRequest }}
+
 # Rate at which packets can be sent, in bytes/second
 send_rate = {{ .P2P.SendRate }}
 
 # Rate at which packets can be received, in bytes/second
 recv_rate = {{ .P2P.RecvRate }}
+
+# Interval to send pings
+ping_interval = "{{ .P2P.PingInterval }}"
+
+# Maximum wait time for pongs
+pong_timeout = "{{ .P2P.PongTimeout }}"
 
 # Set true to enable the peer-exchange reactor
 pex = {{ .P2P.PexReactor }}

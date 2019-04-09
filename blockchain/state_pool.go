@@ -29,6 +29,7 @@ import (
 
 type StatePool struct {
 	cmn.BaseService
+	keysPerRequest int64
 
 	mtx sync.Mutex
 	height    int64 // the height in first state status response we received
@@ -55,8 +56,9 @@ type StatePool struct {
 	errorsCh   chan<- peerError
 }
 
-func NewStatePool(requestsCh chan<- StateRequest, errorsCh chan<- peerError) *StatePool {
+func NewStatePool(requestsCh chan<- StateRequest, errorsCh chan<- peerError, keysPerRequest int64) *StatePool {
 	sp := &StatePool{
+		keysPerRequest: keysPerRequest,
 		peers: make(map[p2p.ID]*spPeer),
 		chunks: make(map[int64][][]byte),
 		requests: make(map[string]*StateRequest),
@@ -179,8 +181,8 @@ func (pool *StatePool) sendRequest() {
 		if endIndexForThisPeer > pool.totalKeys {
 			endIndexForThisPeer = pool.totalKeys
 		}
-		for startIdx := int64(peerIdx) * pool.step; startIdx < endIndexForThisPeer; startIdx += keysPerRequest {
-			endIndex := startIdx + keysPerRequest
+		for startIdx := int64(peerIdx) * pool.step; startIdx < endIndexForThisPeer; startIdx += pool.keysPerRequest {
+			endIndex := startIdx + pool.keysPerRequest
 			if endIndex > endIndexForThisPeer {
 				endIndex = endIndexForThisPeer
 			}
