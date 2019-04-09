@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	registerDBCreator(MemDBBackend, func(name string, dir string) (DB, error) {
+	registerDBCreator(MemDBBackend, func(name string, dir string, opt interface{}) (DB, error) {
 		return NewMemDB(), nil
 	}, false)
 }
