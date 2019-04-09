@@ -422,11 +422,20 @@ type P2PConfig struct {
 	// Maximum size of a message packet payload, in bytes
 	MaxPacketMsgPayloadSize int `mapstructure:"max_packet_msg_payload_size"`
 
+	// Maximum num of keys a state sync request ask for
+	KeysPerRequest int `mapstructure:"keys_per_request"`
+
 	// Rate at which packets can be sent, in bytes/second
 	SendRate int64 `mapstructure:"send_rate"`
 
 	// Rate at which packets can be received, in bytes/second
 	RecvRate int64 `mapstructure:"recv_rate"`
+
+	// Interval to send pings
+	PingInterval time.Duration `mapstructure:"ping_interval"`
+
+	// Maximum wait time for pongs
+	PongTimeout time.Duration `mapstructure:"pong_timeout"`
 
 	// Set true to enable the peer-exchange reactor
 	PexReactor bool `mapstructure:"pex"`
@@ -468,8 +477,11 @@ func DefaultP2PConfig() *P2PConfig {
 		MaxNumOutboundPeers:     10,
 		FlushThrottleTimeout:    10 * time.Millisecond,
 		MaxPacketMsgPayloadSize: 1024 * 1024,      // 1 MB
+		KeysPerRequest:		     2500,			   // would be around 250K for account node
 		SendRate:                50 * 1024 * 1024, // 50 MB/s
 		RecvRate:                50 * 1024 * 1024, // 50 MB/s
+		PingInterval:  			 60 * time.Second,
+		PongTimeout:			 45 * time.Second,
 		PexReactor:              true,
 		SeedMode:                false,
 		AllowDuplicateIP:        false,

@@ -36,7 +36,6 @@ const (
 	// TODO: REVIEW before final merge
 	bcStateResponseMessagePrefixSize   = 8
 	bcStateResponseMessageFieldKeySize = 2
-	keysPerRequest                     = 5000 // response should be around 500KB per request
 	maxStateMsgSize                    = types.MaxStateSizeBytes +
 		bcStateResponseMessagePrefixSize +
 		bcStateResponseMessageFieldKeySize
@@ -73,6 +72,7 @@ func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config)
 	pool := NewStatePool(
 		requestsCh,
 		errorsCh,
+		int64(config.P2P.KeysPerRequest),
 	)
 
 	bcSR := &StateReactor{
@@ -228,7 +228,7 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 				bcSR.quitCh <- struct{}{}
 
 				chunksToWrite := make([][]byte, 0, bcSR.pool.totalKeys)
-				for startIdx := int64(0); startIdx < bcSR.pool.totalKeys; startIdx += keysPerRequest {
+				for startIdx := int64(0); startIdx < bcSR.pool.totalKeys; startIdx += bcSR.pool.keysPerRequest {
 					if chunks, ok := bcSR.pool.chunks[startIdx]; ok {
 						for _, chunk := range chunks {
 							chunksToWrite = append(chunksToWrite, chunk)
