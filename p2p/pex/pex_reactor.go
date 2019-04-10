@@ -245,7 +245,8 @@ func (r *PEXReactor) Receive(chID byte, src Peer, msgBytes []byte) {
 		} else {
 			// Check we're not receiving requests too frequently.
 			if err := r.receiveRequest(src); err != nil {
-				r.Switch.StopPeerForError(src, err)
+				// If the peer send pexrequest too quick, just ignore it. No need to stop the peer
+				r.Logger.Error(err.Error())
 				return
 			}
 			r.SendAddrs(src, r.book.GetSelection())
