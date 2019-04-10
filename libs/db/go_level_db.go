@@ -7,16 +7,19 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
-	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 func init() {
-	dbCreator := func(name string, dir string) (DB, error) {
-		return NewGoLevelDB(name, dir)
+	dbCreator := func(name string, dir string, opt interface{}) (DB, error) {
+		if o, ok := opt.(*optPkg.Options); ok {
+			return NewGoLevelDBWithOpts(name, dir, o)
+		} else {
+			return NewGoLevelDB(name, dir)
+		}
 	}
 	registerDBCreator(LevelDBBackend, dbCreator, false)
 	registerDBCreator(GoLevelDBBackend, dbCreator, false)
@@ -29,14 +32,10 @@ type GoLevelDB struct {
 }
 
 func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
-	var defaultOptions = &opt.Options{OpenFilesCacheCapacity: 1024,
-		BlockCacheCapacity: 2 * opt.GiB,
-		WriteBuffer:        768 / 4 * opt.MiB, // Two of these are used internally
-		Filter:             filter.NewBloomFilter(10)}
-	return NewGoLevelDBWithOpts(name, dir, defaultOptions)
+	return NewGoLevelDBWithOpts(name, dir, nil)
 }
 
-func NewGoLevelDBWithOpts(name string, dir string, o *opt.Options) (*GoLevelDB, error) {
+func NewGoLevelDBWithOpts(name string, dir string, o *optPkg.Options) (*GoLevelDB, error) {
 	dbPath := filepath.Join(dir, name+".db")
 	db, err := leveldb.OpenFile(dbPath, o)
 	if err != nil {
@@ -80,7 +79,7 @@ func (db *GoLevelDB) Set(key []byte, value []byte) {
 func (db *GoLevelDB) SetSync(key []byte, value []byte) {
 	key = nonNilBytes(key)
 	value = nonNilBytes(value)
-	err := db.db.Put(key, value, &opt.WriteOptions{Sync: true})
+	err := db.db.Put(key, value, &optPkg.WriteOptions{Sync: true})
 	if err != nil {
 		cmn.PanicCrisis(err)
 	}
@@ -98,7 +97,7 @@ func (db *GoLevelDB) Delete(key []byte) {
 // Implements DB.
 func (db *GoLevelDB) DeleteSync(key []byte) {
 	key = nonNilBytes(key)
-	err := db.db.Delete(key, &opt.WriteOptions{Sync: true})
+	err := db.db.Delete(key, &optPkg.WriteOptions{Sync: true})
 	if err != nil {
 		cmn.PanicCrisis(err)
 	}
@@ -175,7 +174,7 @@ func (mBatch *goLevelDBBatch) Delete(key []byte) {
 
 // Implements Batch.
 func (mBatch *goLevelDBBatch) Write() {
-	err := mBatch.db.db.Write(mBatch.batch, &opt.WriteOptions{Sync: false})
+	err := mBatch.db.db.Write(mBatch.batch, &optPkg.WriteOptions{Sync: false})
 	if err != nil {
 		panic(err)
 	}
@@ -183,7 +182,7 @@ func (mBatch *goLevelDBBatch) Write() {
 
 // Implements Batch.
 func (mBatch *goLevelDBBatch) WriteSync() {
-	err := mBatch.db.db.Write(mBatch.batch, &opt.WriteOptions{Sync: true})
+	err := mBatch.db.db.Write(mBatch.batch, &optPkg.WriteOptions{Sync: true})
 	if err != nil {
 		panic(err)
 	}

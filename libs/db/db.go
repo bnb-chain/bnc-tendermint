@@ -18,7 +18,7 @@ const (
 	FSDBBackend      DBBackendType = "fsdb" // using the filesystem naively
 )
 
-type dbCreator func(name string, dir string) (DB, error)
+type dbCreator func(name string, dir string, opt interface{}) (DB, error)
 
 var backends = map[DBBackendType]dbCreator{}
 
@@ -35,6 +35,15 @@ func registerDBCreator(backend DBBackendType, creator dbCreator, force bool) {
 //   - backend is unknown (not registered)
 //   - creator function, provided during registration, returns error
 func NewDB(name string, backend DBBackendType, dir string) DB {
+	return NewDBWithOpt(name, backend, dir, nil)
+}
+
+
+// NewDB creates a new database of type backend with the given name.
+// NOTE: function panics if:
+//   - backend is unknown (not registered)
+//   - creator function, provided during registration, returns error
+func NewDBWithOpt(name string, backend DBBackendType, dir string, opt interface{}) DB {
 	dbCreator, ok := backends[backend]
 	if !ok {
 		keys := make([]string, len(backends))
@@ -46,7 +55,7 @@ func NewDB(name string, backend DBBackendType, dir string) DB {
 		panic(fmt.Sprintf("Unknown db_backend %s, expected either %s", backend, strings.Join(keys, " or ")))
 	}
 
-	db, err := dbCreator(name, dir)
+	db, err := dbCreator(name, dir, opt)
 	if err != nil {
 		panic(fmt.Sprintf("Error initializing DB: %v", err))
 	}

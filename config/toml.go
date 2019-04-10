@@ -251,6 +251,22 @@ allow_duplicate_ip = {{ .P2P.AllowDuplicateIP }}
 handshake_timeout = "{{ .P2P.HandshakeTimeout }}"
 dial_timeout = "{{ .P2P.DialTimeout }}"
 
+##### dbcache configuration options #####
+[dbcache]
+# OpenFilesCacheCapacity defines the capacity of the open files caching.
+open_files_cache_capacity = {{ .DBCache.OpenFilesCacheCapacity }}
+
+# BlockCacheCapacity defines the capacity of the 'sorted table' block caching.
+block_cache_capacity = {{ .DBCache.BlockCacheCapacity }}
+
+# WriteBuffer defines maximum size of a 'memdb' before flushed to 'sorted table'.
+write_buffer = {{ .DBCache.WriteBuffer }}
+
+# Filter defines an 'effective filter' to use. An 'effective filter'
+# if defined will be used to generate per-table filter block.
+# Greater than 0 would creates a new initialized bloom filter for given bitsPerKey.
+bits_per_key = {{ .DBCache.BitsPerKey }}
+
 ##### mempool configuration options #####
 [mempool]
 
