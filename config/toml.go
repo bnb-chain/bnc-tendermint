@@ -334,6 +334,16 @@ index_tags = "{{ .TxIndex.IndexTags }}"
 # indexed).
 index_all_tags = {{ .TxIndex.IndexAllTags }}
 
+##### block indexer configuration options #####
+[block_index]
+
+# What indexer to use for blocks
+#
+# Options:
+#   1) "null"
+#   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
+indexer = "{{ .BlockIndex.Indexer }}"
+
 ##### instrumentation configuration options #####
 [instrumentation]
 
