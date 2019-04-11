@@ -168,6 +168,7 @@ type Node struct {
 	proxyApp         proxy.AppConns         // connection to the application
 	rpcListeners     []net.Listener         // rpc servers
 	txIndexer        txindex.TxIndexer
+	blockIndexer     blockindex.BlockIndexer
 	indexerService   *txindex.IndexerService
 	prometheusSrv    *http.Server
 }
@@ -576,6 +577,7 @@ func NewNode(config *cfg.Config,
 		evidencePool:     evidencePool,
 		proxyApp:         proxyApp,
 		txIndexer:        txIndexer,
+		blockIndexer:     blockIndexer,
 		indexerService:   txIndexerService,
 		eventBus:         eventBus,
 	}
@@ -699,6 +701,7 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetAddrBook(n.addrBook)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetTxIndexer(n.txIndexer)
+	rpccore.SetBlockIndexer(n.blockIndexer)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetEventBus(n.eventBus)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))

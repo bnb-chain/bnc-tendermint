@@ -135,7 +135,8 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 //   // handle error
 // }
 // defer client.Stop()
-// info, err := client.Block(10)
+// info, err := client.Block(10,nil)
+// info2, err := client.Block(nil,"F70588DAB36BDA5A953D548A16F7D48C6C2DFD78")
 // ```
 //
 // > The above command returns JSON structured like this:
@@ -226,9 +227,9 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 //   "jsonrpc": "2.0"
 // }
 // ```
-func Block(heightPtr *int64) (*ctypes.ResultBlock, error) {
+func Block(heightPtr *int64, hash []byte) (*ctypes.ResultBlock, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr)
+	height, err := getHeight(storeHeight, heightPtr, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -315,7 +316,7 @@ func Block(heightPtr *int64) (*ctypes.ResultBlock, error) {
 // ```
 func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr)
+	height, err := getHeight(storeHeight, heightPtr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +375,7 @@ func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 // ```
 func BlockResults(heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr)
+	height, err := getHeight(storeHeight, heightPtr, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +393,7 @@ func BlockResults(heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	return res, nil
 }
 
-func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
+func getHeight(currentHeight int64, heightPtr *int64, hash []byte) (int64, error) {
 	if heightPtr != nil {
 		height := *heightPtr
 		if height <= 0 {
@@ -402,6 +403,12 @@ func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
 			return 0, fmt.Errorf("Height must be less than or equal to the current blockchain height")
 		}
 		return height, nil
+	} else if hash != nil {
+		header, err := blockIndexer.Get(hash)
+		if err != nil {
+			return 0, fmt.Errorf("get block from hash indexer failed, err: %v", err)
+		}
+		return header.Height, nil
 	}
 	return currentHeight, nil
 }
