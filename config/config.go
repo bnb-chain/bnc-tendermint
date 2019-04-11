@@ -69,6 +69,7 @@ type Config struct {
 	Mempool         *MempoolConfig         `mapstructure:"mempool"`
 	Consensus       *ConsensusConfig       `mapstructure:"consensus"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
+	BlockIndex      *BlockIndexConfig      `mapstructure:"block_index"`
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
 }
 
@@ -82,6 +83,7 @@ func DefaultConfig() *Config {
 		Mempool:         DefaultMempoolConfig(),
 		Consensus:       DefaultConsensusConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
+		BlockIndex:      DefaultBlockIndexConfig(),
 		Instrumentation: DefaultInstrumentationConfig(),
 	}
 }
@@ -96,6 +98,7 @@ func TestConfig() *Config {
 		Mempool:         TestMempoolConfig(),
 		Consensus:       TestConsensusConfig(),
 		TxIndex:         TestTxIndexConfig(),
+		BlockIndex:      TestBlockIndexConfig(),
 		Instrumentation: TestInstrumentationConfig(),
 	}
 }
@@ -871,6 +874,18 @@ type TxIndexConfig struct {
 	IndexAllTags bool `mapstructure:"index_all_tags"`
 }
 
+//-----------------------------------------------------------------------------
+// BlockIndexConfig
+// TxIndexConfig defines the configuration for the block indexer
+type BlockIndexConfig struct {
+	// What indexer to use for block
+	//
+	// Options:
+	//   1) "null"
+	//   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
+	Indexer string `mapstructure:"indexer"`
+}
+
 // DefaultTxIndexConfig returns a default configuration for the transaction indexer.
 func DefaultTxIndexConfig() *TxIndexConfig {
 	return &TxIndexConfig{
@@ -883,6 +898,16 @@ func DefaultTxIndexConfig() *TxIndexConfig {
 // TestTxIndexConfig returns a default configuration for the transaction indexer.
 func TestTxIndexConfig() *TxIndexConfig {
 	return DefaultTxIndexConfig()
+}
+
+// DefaultBlockIndexConfig returns a default configuration for the block indexer.
+func DefaultBlockIndexConfig() *BlockIndexConfig {
+	return &BlockIndexConfig{Indexer: "kv"}
+}
+
+// DefaultBlockIndexConfig returns a default configuration for the block indexer.
+func TestBlockIndexConfig() *BlockIndexConfig {
+	return DefaultBlockIndexConfig()
 }
 
 //-----------------------------------------------------------------------------

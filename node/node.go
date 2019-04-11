@@ -36,6 +36,9 @@ import (
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/blockindex"
+	bkv "github.com/tendermint/tendermint/state/blockindex/kv"
+	nullblk "github.com/tendermint/tendermint/state/blockindex/null"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
 	"github.com/tendermint/tendermint/state/txindex/null"
@@ -248,10 +251,30 @@ func NewNode(config *cfg.Config,
 		txIndexer = &null.TxIndex{}
 	}
 
-	indexerService := txindex.NewIndexerService(txIndexer, eventBus)
-	indexerService.SetLogger(logger.With("module", "txindex"))
+	txIndexerService := txindex.NewIndexerService(txIndexer, eventBus)
+	txIndexerService.SetLogger(logger.With("module", "txindex"))
 
-	err = indexerService.Start()
+	err = txIndexerService.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	// Block indexing
+	var blockIndexer blockindex.BlockIndexer
+	switch config.BlockIndex.Indexer {
+	case "kv":
+		store, err := dbProvider(&DBContext{"block_index", config})
+		if err != nil {
+			return nil, err
+		}
+		blockIndexer = bkv.NewBlockIndex(store)
+	default:
+		blockIndexer = &nullblk.BlockIndex{}
+	}
+	blockIndexerService := blockindex.NewIndexerService(blockIndexer, eventBus)
+	blockIndexerService.SetLogger(logger.With("module", "blockindex"))
+
+	err = blockIndexerService.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +576,7 @@ func NewNode(config *cfg.Config,
 		evidencePool:     evidencePool,
 		proxyApp:         proxyApp,
 		txIndexer:        txIndexer,
-		indexerService:   indexerService,
+		indexerService:   txIndexerService,
 		eventBus:         eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
