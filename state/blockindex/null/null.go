@@ -13,8 +13,8 @@ var _ blockindex.BlockIndexer = (*BlockIndex)(nil)
 type BlockIndex struct{}
 
 // Get on a BlockIndex is disabled and panics when invoked.
-func (bki *BlockIndex) Get(hash []byte) (*types.Header, error) {
-	return nil, errors.New(`Indexing is disabled (set 'block_index = "kv"' in config)`)
+func (bki *BlockIndex) Get(hash []byte) (int64, error) {
+	return 0, errors.New(`Indexing is disabled (set 'block_index = "kv"' in config)`)
 }
 
 // Index is a noop and always returns nil.

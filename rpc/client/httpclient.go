@@ -183,9 +183,9 @@ func (c *HTTP) Genesis() (*ctypes.ResultGenesis, error) {
 	return result, nil
 }
 
-func (c *HTTP) Block(height *int64, hash []byte) (*ctypes.ResultBlock, error) {
+func (c *HTTP) Block(height *int64, blockHash []byte) (*ctypes.ResultBlock, error) {
 	result := new(ctypes.ResultBlock)
-	_, err := c.rpc.Call("block", map[string]interface{}{"height": height, "hash": hash}, result)
+	_, err := c.rpc.Call("block", map[string]interface{}{"height": height, "blockhash": blockHash}, result)
 	if err != nil {
 		return nil, errors.Wrap(err, "Block")
 	}

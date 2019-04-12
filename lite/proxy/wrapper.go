@@ -91,8 +91,8 @@ func (w Wrapper) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlock
 }
 
 // Block returns an entire block and verifies all signatures
-func (w Wrapper) Block(height *int64, hash []byte) (*ctypes.ResultBlock, error) {
-	resBlock, err := w.Client.Block(height, hash)
+func (w Wrapper) Block(height *int64, blockHash []byte) (*ctypes.ResultBlock, error) {
+	resBlock, err := w.Client.Block(height, blockHash)
 	if err != nil {
 		return nil, err
 	}

@@ -876,7 +876,7 @@ type TxIndexConfig struct {
 
 //-----------------------------------------------------------------------------
 // BlockIndexConfig
-// TxIndexConfig defines the configuration for the block indexer
+// BlockIndexConfig defines the configuration for the block indexer
 type BlockIndexConfig struct {
 	// What indexer to use for block
 	//
@@ -902,7 +902,7 @@ func TestTxIndexConfig() *TxIndexConfig {
 
 // DefaultBlockIndexConfig returns a default configuration for the block indexer.
 func DefaultBlockIndexConfig() *BlockIndexConfig {
-	return &BlockIndexConfig{Indexer: "kv"}
+	return &BlockIndexConfig{Indexer: "null"}
 }
 
 // DefaultBlockIndexConfig returns a default configuration for the block indexer.

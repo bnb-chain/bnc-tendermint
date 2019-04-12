@@ -229,7 +229,7 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 // ```
 func Block(heightPtr *int64, hash []byte) (*ctypes.ResultBlock, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr, hash)
+	height, err := getHeightViaHash(storeHeight, heightPtr, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func Block(heightPtr *int64, hash []byte) (*ctypes.ResultBlock, error) {
 // ```
 func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr, nil)
+	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +375,7 @@ func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 // ```
 func BlockResults(heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr, nil)
+	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +393,7 @@ func BlockResults(heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	return res, nil
 }
 
-func getHeight(currentHeight int64, heightPtr *int64, hash []byte) (int64, error) {
+func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
 	if heightPtr != nil {
 		height := *heightPtr
 		if height <= 0 {
@@ -403,12 +403,36 @@ func getHeight(currentHeight int64, heightPtr *int64, hash []byte) (int64, error
 			return 0, fmt.Errorf("Height must be less than or equal to the current blockchain height")
 		}
 		return height, nil
-	} else if hash != nil {
-		header, err := blockIndexer.Get(hash)
+	}
+	return currentHeight, nil
+}
+
+func getHeightViaHash(currentHeight int64, heightPtr *int64, hash []byte) (int64, error) {
+	if heightPtr == nil && hash == nil {
+		return currentHeight, nil
+	}
+	var height int64
+	if heightPtr != nil {
+		height = *heightPtr
+		if height <= 0 {
+			return 0, fmt.Errorf("Height must be greater than 0")
+		}
+		if height > currentHeight {
+			return 0, fmt.Errorf("Height must be less than or equal to the current blockchain height")
+		}
+	}
+	if hash != nil {
+		blockHeight, err := blockIndexer.Get(hash)
 		if err != nil {
 			return 0, fmt.Errorf("get block from hash indexer failed, err: %v", err)
 		}
-		return header.Height, nil
+		if blockHeight == 0 {
+			return 0, fmt.Errorf("the specified block hash do not exist")
+		}
+		if heightPtr != nil && blockHeight != *heightPtr {
+			return 0, fmt.Errorf("the specified height do not match the block hash")
+		}
+		height = blockHeight
 	}
-	return currentHeight, nil
+	return height, nil
 }

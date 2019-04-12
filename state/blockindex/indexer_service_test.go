@@ -1,26 +1,26 @@
 package blockindex_test
 
 import (
-	"encoding/hex"
-	"github.com/tendermint/tendermint/state/blockindex"
-	kv2 "github.com/tendermint/tendermint/state/blockindex/kv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ethereum/go-ethereum/swarm/testutil"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/state/blockindex"
+	"github.com/tendermint/tendermint/state/blockindex/kv"
 	"github.com/tendermint/tendermint/types"
 )
 
-func genHeader(hashBytes []byte) (*types.Header, cmn.HexBytes) {
-	hashHex := make([]byte, 2*len(hashBytes))
+func genHeader() (*types.Header, cmn.HexBytes) {
 	height := cmn.RandInt64()
-	hex.Encode(hashHex, hashBytes)
-	return &types.Header{LastBlockID: types.BlockID{Hash: hashHex}, Height: height}, hashHex
+	header := types.Header{Height: height, ValidatorsHash: testutil.RandomBytes(714, 20)}
+	hash := header.Hash()
+	return &header, hash
 }
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {
@@ -33,7 +33,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 
 	// block indexer
 	store := db.NewMemDB()
-	blockIndexer := kv2.NewBlockIndex(store)
+	blockIndexer := kv.NewBlockIndex(store)
 
 	service := blockindex.NewIndexerService(blockIndexer, eventBus)
 	service.SetLogger(log.TestingLogger())
@@ -42,14 +42,14 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	defer service.Stop()
 
 	// publish block
-	header, hash := genHeader([]byte("HELLOWORD"))
+	header, hash := genHeader()
 	eventBus.PublishEventNewBlockHeader(types.EventDataNewBlockHeader{
 		Header: *header,
 	})
 
 	time.Sleep(100 * time.Millisecond)
 
-	res, err := blockIndexer.Get(hash)
+	loadedBlockHeight, err := blockIndexer.Get(hash)
 	assert.NoError(t, err)
-	assert.Equal(t, res.LastBlockID.Hash, hash)
+	assert.Equal(t, loadedBlockHeight, header.Height)
 }

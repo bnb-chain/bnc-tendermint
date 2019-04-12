@@ -170,6 +170,7 @@ type Node struct {
 	txIndexer        txindex.TxIndexer
 	blockIndexer     blockindex.BlockIndexer
 	indexerService   *txindex.IndexerService
+	blockIndexService *blockindex.IndexerService
 	prometheusSrv    *http.Server
 }
 
@@ -579,6 +580,7 @@ func NewNode(config *cfg.Config,
 		txIndexer:        txIndexer,
 		blockIndexer:     blockIndexer,
 		indexerService:   txIndexerService,
+		blockIndexService: blockIndexerService,
 		eventBus:         eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
@@ -649,6 +651,7 @@ func (n *Node) OnStop() {
 	// first stop the non-reactor services
 	n.eventBus.Stop()
 	n.indexerService.Stop()
+	n.blockIndexService.Stop()
 
 	// now stop the reactors
 	// TODO: gracefully disconnect from peers.

@@ -1,7 +1,7 @@
 package kv
 
 import (
-	"encoding/hex"
+	"github.com/ethereum/go-ethereum/swarm/testutil"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -11,38 +11,36 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/types"
-
-	"github.com/ethereum/go-ethereum/swarm/testutil"
 )
 
-func genHeader(hashBytes []byte) (*types.Header, cmn.HexBytes) {
-	hashHex := make([]byte, 2*len(hashBytes))
+func genHeader() (*types.Header, cmn.HexBytes) {
 	height := cmn.RandInt64()
-	hex.Encode(hashHex, hashBytes)
-	return &types.Header{LastBlockID: types.BlockID{Hash: hashHex}, Height: height}, hashHex
+	header := types.Header{Height: height, ValidatorsHash: testutil.RandomBytes(714, 20)}
+	hash := header.Hash()
+	return &header, hash
 }
 
 func TestBlockIndex(t *testing.T) {
 	indexer := NewBlockIndex(db.NewMemDB())
 
-	blockHeader, hash := genHeader([]byte("HELLO WORLD"))
+	blockHeader, hash := genHeader()
 
 	if err := indexer.Index(blockHeader); err != nil {
 		t.Error(err)
 	}
 
-	loadedBlockResult, err := indexer.Get(hash)
+	loadedBlockHeight, err := indexer.Get(hash)
 	require.NoError(t, err)
-	assert.Equal(t, blockHeader, loadedBlockResult)
+	assert.Equal(t, blockHeader.Height, loadedBlockHeight)
 
-	blockHeader2, hash2 := genHeader([]byte("BYE BYE WORLD"))
+	blockHeader2, hash2 := genHeader()
 
 	err = indexer.Index(blockHeader2)
 	require.NoError(t, err)
 
-	loadedBlock2, err := indexer.Get(hash2)
+	loadedBlockHeight2, err := indexer.Get(hash2)
 	require.NoError(t, err)
-	assert.Equal(t, blockHeader2, loadedBlock2)
+	assert.Equal(t, blockHeader2.Height, loadedBlockHeight2)
 }
 
 func BenchmarkBlockIndex(b *testing.B) {
@@ -58,7 +56,7 @@ func BenchmarkBlockIndex(b *testing.B) {
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		block, _ := genHeader(testutil.RandomBytes(174, 30))
+		block, _ := genHeader()
 		err = indexer.Index(block)
 	}
 	if err != nil {
