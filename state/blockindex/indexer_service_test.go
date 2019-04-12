@@ -31,7 +31,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	require.NoError(t, err)
 	defer eventBus.Stop()
 
-	// tx indexer
+	// block indexer
 	store := db.NewMemDB()
 	blockIndexer := kv2.NewBlockIndex(store)
 
@@ -41,7 +41,7 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	require.NoError(t, err)
 	defer service.Stop()
 
-	// publish block with txs
+	// publish block
 	header, hash := genHeader([]byte("HELLOWORD"))
 	eventBus.PublishEventNewBlockHeader(types.EventDataNewBlockHeader{
 		Header: *header,
@@ -49,7 +49,6 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	// check the result
 	res, err := blockIndexer.Get(hash)
 	assert.NoError(t, err)
 	assert.Equal(t, res.LastBlockID.Hash, hash)
