@@ -1,19 +1,27 @@
 package blockindex_test
 
 import (
+	"encoding/hex"
+	"github.com/tendermint/tendermint/state/blockindex"
+	kv2 "github.com/tendermint/tendermint/state/blockindex/kv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	abci "github.com/tendermint/tendermint/abci/types"
+	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
-	"github.com/tendermint/tendermint/state/txindex"
-	"github.com/tendermint/tendermint/state/txindex/kv"
 	"github.com/tendermint/tendermint/types"
 )
+
+func genHeader(hashBytes []byte) (*types.Header, cmn.HexBytes) {
+	hashHex := make([]byte, 2*len(hashBytes))
+	height := cmn.RandInt64()
+	hex.Encode(hashHex, hashBytes)
+	return &types.Header{LastBlockID: types.BlockID{Hash: hashHex}, Height: height}, hashHex
+}
 
 func TestIndexerServiceIndexesBlocks(t *testing.T) {
 	// event bus
@@ -25,40 +33,24 @@ func TestIndexerServiceIndexesBlocks(t *testing.T) {
 
 	// tx indexer
 	store := db.NewMemDB()
-	txIndexer := kv.NewTxIndex(store, kv.IndexAllTags())
+	blockIndexer := kv2.NewBlockIndex(store)
 
-	service := txindex.NewIndexerService(txIndexer, eventBus)
+	service := blockindex.NewIndexerService(blockIndexer, eventBus)
 	service.SetLogger(log.TestingLogger())
 	err = service.Start()
 	require.NoError(t, err)
 	defer service.Stop()
 
 	// publish block with txs
+	header, hash := genHeader([]byte("HELLOWORD"))
 	eventBus.PublishEventNewBlockHeader(types.EventDataNewBlockHeader{
-		Header: types.Header{Height: 1, NumTxs: 2},
+		Header: *header,
 	})
-	txResult1 := &types.TxResult{
-		Height: 1,
-		Index:  uint32(0),
-		Tx:     types.Tx("foo"),
-		Result: abci.ResponseDeliverTx{Code: 0},
-	}
-	eventBus.PublishEventTx(types.EventDataTx{*txResult1})
-	txResult2 := &types.TxResult{
-		Height: 1,
-		Index:  uint32(1),
-		Tx:     types.Tx("bar"),
-		Result: abci.ResponseDeliverTx{Code: 0},
-	}
-	eventBus.PublishEventTx(types.EventDataTx{*txResult2})
 
 	time.Sleep(100 * time.Millisecond)
 
 	// check the result
-	res, err := txIndexer.Get(types.Tx("foo").Hash())
+	res, err := blockIndexer.Get(hash)
 	assert.NoError(t, err)
-	assert.Equal(t, txResult1, res)
-	res, err = txIndexer.Get(types.Tx("bar").Hash())
-	assert.NoError(t, err)
-	assert.Equal(t, txResult2, res)
+	assert.Equal(t, res.LastBlockID.Hash, hash)
 }
