@@ -60,7 +60,7 @@ func TestBackendsGetSetDelete(t *testing.T) {
 func withDB(t *testing.T, creator dbCreator, fn func(DB)) {
 	name := fmt.Sprintf("test_%x", cmn.RandStr(12))
 	dir := os.TempDir()
-	db, err := creator(name, dir)
+	db, err := creator(name, dir, nil)
 	require.Nil(t, err)
 	defer cleanupDBDir(dir, name)
 	fn(db)

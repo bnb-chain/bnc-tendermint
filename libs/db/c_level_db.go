@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	dbCreator := func(name string, dir string) (DB, error) {
+	dbCreator := func(name string, dir string, opt interface{}) (DB, error) {
 		return NewCLevelDB(name, dir)
 	}
 	registerDBCreator(LevelDBBackend, dbCreator, true)

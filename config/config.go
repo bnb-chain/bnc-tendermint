@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 const (
@@ -63,6 +65,7 @@ type Config struct {
 	// Options for services
 	RPC             *RPCConfig             `mapstructure:"rpc"`
 	P2P             *P2PConfig             `mapstructure:"p2p"`
+	DBCache         *DBCacheConfig         `mapstructure:"dbcache"`
 	Mempool         *MempoolConfig         `mapstructure:"mempool"`
 	Consensus       *ConsensusConfig       `mapstructure:"consensus"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
@@ -75,6 +78,7 @@ func DefaultConfig() *Config {
 		BaseConfig:      DefaultBaseConfig(),
 		RPC:             DefaultRPCConfig(),
 		P2P:             DefaultP2PConfig(),
+		DBCache:         DefaultDBCacheConfig(),
 		Mempool:         DefaultMempoolConfig(),
 		Consensus:       DefaultConsensusConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
@@ -88,6 +92,7 @@ func TestConfig() *Config {
 		BaseConfig:      TestBaseConfig(),
 		RPC:             TestRPCConfig(),
 		P2P:             TestP2PConfig(),
+		DBCache:         TestDBCacheConfig(),
 		Mempool:         TestMempoolConfig(),
 		Consensus:       TestConsensusConfig(),
 		TxIndex:         TestTxIndexConfig(),
@@ -116,6 +121,9 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.P2P.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [p2p] section")
+	}
+	if err := cfg.DBCache.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "Error in [dbcache] section")
 	}
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [mempool] section")
@@ -477,11 +485,11 @@ func DefaultP2PConfig() *P2PConfig {
 		MaxNumOutboundPeers:     10,
 		FlushThrottleTimeout:    10 * time.Millisecond,
 		MaxPacketMsgPayloadSize: 1024 * 1024,      // 1 MB
-		KeysPerRequest:		     2500,			   // would be around 250K for account node
+		KeysPerRequest:          2500,             // would be around 250K for account node
 		SendRate:                50 * 1024 * 1024, // 50 MB/s
 		RecvRate:                50 * 1024 * 1024, // 50 MB/s
-		PingInterval:  			 60 * time.Second,
-		PongTimeout:			 45 * time.Second,
+		PingInterval:            60 * time.Second,
+		PongTimeout:             45 * time.Second,
 		PexReactor:              true,
 		SeedMode:                false,
 		AllowDuplicateIP:        false,
@@ -548,6 +556,73 @@ func DefaultFuzzConnConfig() *FuzzConnConfig {
 		ProbDropRW:   0.2,
 		ProbDropConn: 0.00,
 		ProbSleep:    0.00,
+	}
+}
+
+//-----------------------------------------------------------------------------
+// DBCacheConfig defines the cache related configuration (should not impact back compatibility) options of goleveldb
+type DBCacheConfig struct {
+	// OpenFilesCacheCapacity defines the capacity of the open files caching.
+	OpenFilesCacheCapacity int `mapstructure:"open_files_cache_capacity"`
+
+	// BlockCacheCapacity defines the capacity of the 'sorted table' block caching.
+	BlockCacheCapacity int `mapstructure:"block_cache_capacity"`
+
+	// WriteBuffer defines maximum size of a 'memdb' before flushed to
+	// 'sorted table'.
+	WriteBuffer int `mapstructure:"write_buffer"`
+
+	// Filter defines an 'effective filter' to use. An 'effective filter'
+	// if defined will be used to generate per-table filter block.
+	// Greater than 0 would creates a new initialized bloom filter for given bitsPerKey.
+	BitsPerKey int `mapstructure:"bits_per_key"`
+}
+
+// DefaultDBCacheConfig returns a default configuration for goleveldb config
+func DefaultDBCacheConfig() *DBCacheConfig {
+	return &DBCacheConfig{
+		OpenFilesCacheCapacity: 1024,
+		BlockCacheCapacity:     8 * optPkg.MiB,
+		WriteBuffer:            4 * optPkg.MiB,
+		BitsPerKey:             10,
+	}
+}
+
+// TestDBCacheConfig returns a configuration for testing
+func TestDBCacheConfig() *DBCacheConfig {
+	cfg := DefaultDBCacheConfig()
+	cfg.OpenFilesCacheCapacity = 500
+	cfg.BlockCacheCapacity = 8 * optPkg.MiB
+	cfg.WriteBuffer = 4 * optPkg.MiB
+	cfg.BitsPerKey = 0
+	return cfg
+}
+
+// ValidateBasic performs basic validation (checking param bounds, etc.) and
+// returns an error if any check fails.
+func (cfg *DBCacheConfig) ValidateBasic() error {
+	if cfg.OpenFilesCacheCapacity < 0 {
+		return errors.New("open_files_cache_capacity can't be negative")
+	}
+	if cfg.BlockCacheCapacity < 0 {
+		return errors.New("block_cache_capacity can't be negative")
+	}
+	if cfg.WriteBuffer < 0 {
+		return errors.New("write_buffer can't be negative")
+	}
+	return nil
+}
+
+func (cfg *DBCacheConfig) ToGolevelDBOpt() *optPkg.Options {
+	var fltr filter.Filter
+	if cfg.BitsPerKey > 0 {
+		fltr = filter.NewBloomFilter(cfg.BitsPerKey)
+	}
+	return &optPkg.Options{
+		OpenFilesCacheCapacity: cfg.OpenFilesCacheCapacity,
+		BlockCacheCapacity:     cfg.BlockCacheCapacity,
+		WriteBuffer:            cfg.WriteBuffer,
+		Filter:                 fltr,
 	}
 }
 
