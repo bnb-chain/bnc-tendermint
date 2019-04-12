@@ -582,8 +582,8 @@ type DBCacheConfig struct {
 func DefaultDBCacheConfig() *DBCacheConfig {
 	return &DBCacheConfig{
 		OpenFilesCacheCapacity: 1024,
-		BlockCacheCapacity:     2 * optPkg.GiB,
-		WriteBuffer:            768 / 4 * optPkg.MiB,
+		BlockCacheCapacity:     8 * optPkg.MiB,
+		WriteBuffer:            4 * optPkg.MiB,
 		BitsPerKey:             10,
 	}
 }
