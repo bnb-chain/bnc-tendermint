@@ -225,7 +225,7 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 			// received all chunks!
 			if bcSR.pool.isComplete() {
-				bcSR.quitCh <- struct{}{}
+				close(bcSR.quitCh)
 
 				chunksToWrite := make([][]byte, 0, bcSR.pool.totalKeys)
 				for startIdx := int64(0); startIdx < bcSR.pool.totalKeys; startIdx += bcSR.pool.keysPerRequest {
@@ -277,7 +277,7 @@ func (bcSR *StateReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		default:
 			if msg.Height == 0 {
 				bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(*BlockchainReactor)
-				bcSR.quitCh <- struct{}{}
+				close(bcSR.quitCh)
 				bcR.SwitchToBlockchain(nil)
 			} else {
 				// if pool is not initialized yet (this is first state status response), we init it

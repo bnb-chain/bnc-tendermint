@@ -36,7 +36,7 @@ type StatePool struct {
 	numKeys []int64	// numKeys we are expected, in app defined sub store order
 	totalKeys int64	// sum of numKeys
 	numKeysReceived int64	// numKeys we have received, no need to be atomic, guarded by pool.mtx
-	step int64		// how many keys this node should request from peers
+	step int64		// how many requests this node should fire from each peer
 	state *sm.State	// tendermint state
 	chunks map[int64][][]byte	// startIdx -> [key, value] map
 	requests map[string]*StateRequest	// requests is used to verify whether we received out-of-date chunk.
@@ -80,7 +80,7 @@ func (pool *StatePool) AddStateChunk(peerID p2p.ID, msg *bcStateResponseMessage)
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	pool.Logger.Info("peer sent us a start index", "peer", peerID, "startIndex", msg.StartIdxInc, "endIndex", msg.EndIdxExc)
+	pool.Logger.Info("peer sent us a start index", "peer", peerID, "startIdx", msg.StartIdxInc, "endIdx", msg.EndIdxExc)
 
 	requestKey := requestKey(peerID, msg.StartIdxInc)
 	if request, ok := pool.requests[requestKey]; ok && request.StartIndex == msg.StartIdxInc && request.EndIndex == msg.EndIdxExc {
@@ -170,18 +170,18 @@ func (pool *StatePool) sendRequest() {
 		pool.Logger.Info("No peers available", "height", pool.height)
 	}
 
-	pool.step = int64(math.Ceil(float64(pool.totalKeys) / float64(len(peers))))
+	pool.step = int64(math.Ceil(float64(pool.totalKeys) / float64(pool.keysPerRequest * int64(len(peers)))))
 
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
 	for peerIdx, peer := range peers {
 		// Send request and wait.
-		endIndexForThisPeer := (int64(peerIdx) + 1) * pool.step
+		endIndexForThisPeer := (int64(peerIdx) + 1) * pool.step * pool.keysPerRequest
 		if endIndexForThisPeer > pool.totalKeys {
 			endIndexForThisPeer = pool.totalKeys
 		}
-		for startIdx := int64(peerIdx) * pool.step; startIdx < endIndexForThisPeer; startIdx += pool.keysPerRequest {
+		for startIdx := int64(peerIdx) * pool.step * pool.keysPerRequest; startIdx < endIndexForThisPeer; startIdx += pool.keysPerRequest {
 			endIndex := startIdx + pool.keysPerRequest
 			if endIndex > endIndexForThisPeer {
 				endIndex = endIndexForThisPeer
@@ -229,9 +229,6 @@ func (pool *StatePool) init(msg *bcStateStatusResponseMessage) {
 }
 
 func (pool *StatePool) reset() {
-	pool.mtx.Lock()
-	defer pool.mtx.Unlock()
-
 	if pool.isComplete() {
 		// we might already complete, possible routine:
 		// 1. poolRoutine find us timeout the ticker of retry
@@ -240,6 +237,9 @@ func (pool *StatePool) reset() {
 
 		// Deliberately do nothing here, pool should has been stopped
 	} else {
+		pool.mtx.Lock()
+		defer pool.mtx.Unlock()
+
 		pool.height = 0
 		pool.numKeys = make([]int64, 0)
 		pool.totalKeys = 0
