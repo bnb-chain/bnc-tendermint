@@ -10,6 +10,7 @@ import (
 	"github.com/tendermint/tendermint/proxy"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/blockindex"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/types"
 )
@@ -66,6 +67,7 @@ var (
 	genDoc           *types.GenesisDoc // cache the genesis structure
 	addrBook         p2p.AddrBook
 	txIndexer        txindex.TxIndexer
+	blockIndexer     blockindex.BlockIndexer
 	consensusReactor *consensus.ConsensusReactor
 	eventBus         *types.EventBus // thread safe
 	mempool          *mempl.Mempool
@@ -119,6 +121,10 @@ func SetProxyAppQuery(appConn proxy.AppConnQuery) {
 
 func SetTxIndexer(indexer txindex.TxIndexer) {
 	txIndexer = indexer
+}
+
+func SetBlockIndexer(indexer blockindex.BlockIndexer) {
+	blockIndexer = indexer
 }
 
 func SetConsensusReactor(conR *consensus.ConsensusReactor) {

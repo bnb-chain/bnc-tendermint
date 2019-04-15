@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	subscriber = "IndexerService"
+	subscriber = "TxIndexerService"
 )
 
 // IndexerService connects event bus and transaction indexer together in order
@@ -24,7 +24,7 @@ type IndexerService struct {
 // NewIndexerService returns a new service instance.
 func NewIndexerService(idr TxIndexer, eventBus *types.EventBus) *IndexerService {
 	is := &IndexerService{idr: idr, eventBus: eventBus}
-	is.BaseService = *cmn.NewBaseService(nil, "IndexerService", is)
+	is.BaseService = *cmn.NewBaseService(nil, "TxIndexerService", is)
 	return is
 }
 
@@ -59,7 +59,7 @@ func (is *IndexerService) OnStart() error {
 				batch.Add(&txResult)
 			}
 			is.idr.AddBatch(batch)
-			is.Logger.Info("Indexed block", "height", header.Height)
+			is.Logger.Info("Indexed transactions for block", "height", header.Height)
 		}
 	}()
 	return nil

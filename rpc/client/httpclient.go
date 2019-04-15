@@ -192,6 +192,15 @@ func (c *HTTP) Block(height *int64) (*ctypes.ResultBlock, error) {
 	return result, nil
 }
 
+func (c *HTTP) BlockByHash(blockHash []byte) (*ctypes.ResultBlock, error) {
+	result := new(ctypes.ResultBlock)
+	_, err := c.rpc.Call("block_by_hash", map[string]interface{}{"hash": blockHash}, result)
+	if err != nil {
+		return nil, errors.Wrap(err, "Block_by_hash")
+	}
+	return result, nil
+}
+
 func (c *HTTP) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	result := new(ctypes.ResultBlockResults)
 	_, err := c.rpc.Call("block_results", map[string]interface{}{"height": height}, result)

@@ -17,6 +17,7 @@ Special thanks to external contributors on this release:
 * P2P Protocol
 
 ### FEATURES:
+ - [node] Support block index by hash, query block by hash through rpc.
 
 ### IMPROVEMENTS:
 

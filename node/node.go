@@ -36,6 +36,9 @@ import (
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/blockindex"
+	bkv "github.com/tendermint/tendermint/state/blockindex/kv"
+	nullblk "github.com/tendermint/tendermint/state/blockindex/null"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
 	"github.com/tendermint/tendermint/state/txindex/null"
@@ -165,7 +168,9 @@ type Node struct {
 	proxyApp         proxy.AppConns         // connection to the application
 	rpcListeners     []net.Listener         // rpc servers
 	txIndexer        txindex.TxIndexer
+	blockIndexer     blockindex.BlockIndexer
 	indexerService   *txindex.IndexerService
+	blockIndexService *blockindex.IndexerService
 	prometheusSrv    *http.Server
 }
 
@@ -248,10 +253,30 @@ func NewNode(config *cfg.Config,
 		txIndexer = &null.TxIndex{}
 	}
 
-	indexerService := txindex.NewIndexerService(txIndexer, eventBus)
-	indexerService.SetLogger(logger.With("module", "txindex"))
+	txIndexerService := txindex.NewIndexerService(txIndexer, eventBus)
+	txIndexerService.SetLogger(logger.With("module", "txindex"))
 
-	err = indexerService.Start()
+	err = txIndexerService.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	// Block indexing
+	var blockIndexer blockindex.BlockIndexer
+	switch config.BlockIndex.Indexer {
+	case "kv":
+		store, err := dbProvider(&DBContext{"block_index", config})
+		if err != nil {
+			return nil, err
+		}
+		blockIndexer = bkv.NewBlockIndex(store)
+	default:
+		blockIndexer = &nullblk.BlockIndex{}
+	}
+	blockIndexerService := blockindex.NewIndexerService(blockIndexer, eventBus)
+	blockIndexerService.SetLogger(logger.With("module", "blockindex"))
+
+	err = blockIndexerService.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -553,7 +578,9 @@ func NewNode(config *cfg.Config,
 		evidencePool:     evidencePool,
 		proxyApp:         proxyApp,
 		txIndexer:        txIndexer,
-		indexerService:   indexerService,
+		blockIndexer:     blockIndexer,
+		indexerService:   txIndexerService,
+		blockIndexService: blockIndexerService,
 		eventBus:         eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
@@ -624,6 +651,7 @@ func (n *Node) OnStop() {
 	// first stop the non-reactor services
 	n.eventBus.Stop()
 	n.indexerService.Stop()
+	n.blockIndexService.Stop()
 
 	// now stop the reactors
 	// TODO: gracefully disconnect from peers.
@@ -676,6 +704,7 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetAddrBook(n.addrBook)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetTxIndexer(n.txIndexer)
+	rpccore.SetBlockIndexer(n.blockIndexer)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetEventBus(n.eventBus)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
