@@ -116,8 +116,12 @@ func (Local) Genesis() (*ctypes.ResultGenesis, error) {
 	return core.Genesis()
 }
 
-func (Local) Block(height *int64, blockHash []byte) (*ctypes.ResultBlock, error) {
-	return core.Block(height, blockHash)
+func (Local) Block(height *int64) (*ctypes.ResultBlock, error) {
+	return core.Block(height)
+}
+
+func (Local) BlockByHash(blockHash []byte) (*ctypes.ResultBlock, error) {
+	return core.BlockByHash(blockHash)
 }
 
 func (Local) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {

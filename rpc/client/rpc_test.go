@@ -167,7 +167,7 @@ func TestAppCalls(t *testing.T) {
 
 		// look for the future
 		h := sh + 2
-		_, err = c.Block(&h, nil)
+		_, err = c.Block(&h)
 		assert.NotNil(err) // no block yet
 
 		// write something
@@ -196,7 +196,7 @@ func TestAppCalls(t *testing.T) {
 		assert.EqualValues(tx, ptx.Tx)
 
 		// and we can even check the block is added
-		block, err := c.Block(&apph, nil)
+		block, err := c.Block(&apph)
 		require.Nil(err, "%d: %+v", i, err)
 		appHash := block.BlockMeta.Header.AppHash
 		assert.True(len(appHash) > 0)

@@ -123,8 +123,12 @@ func (c Client) Genesis() (*ctypes.ResultGenesis, error) {
 	return core.Genesis()
 }
 
-func (c Client) Block(height *int64, blockHash []byte) (*ctypes.ResultBlock, error) {
-	return core.Block(height, blockHash)
+func (c Client) Block(height *int64) (*ctypes.ResultBlock, error) {
+	return core.Block(height)
+}
+
+func (c Client) BlockByHash(blockHash []byte) (*ctypes.ResultBlock, error) {
+	return core.BlockByHash(blockHash)
 }
 
 func (c Client) Commit(height *int64) (*ctypes.ResultCommit, error) {

@@ -18,5 +18,5 @@ type BlockIndexer interface {
 
 //----------------------------------------------------
 // Errors
-// ErrorEmptyHash indicates empty hash
-var ErrorEmptyHash = errors.New("Block hash cannot be empty")
+// ErrorHashMissLength indicates length of hash is not correct
+var ErrorHashMissLength = errors.New("the lenght of Block hash is not 32")

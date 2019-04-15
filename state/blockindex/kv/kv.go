@@ -1,6 +1,7 @@
 package kv
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	dbm "github.com/tendermint/tendermint/libs/db"
@@ -27,8 +28,8 @@ func NewBlockIndex(store dbm.DB, options ...func(*BlockIndex)) *BlockIndex {
 // Get gets block height from the BlockIndex storage and returns it or 0 if the
 // block is not found.
 func (bki *BlockIndex) Get(hash []byte) (int64, error) {
-	if len(hash) == 0 {
-		return 0, blockindex.ErrorEmptyHash
+	if len(hash) != sha256.Size {
+		return 0, blockindex.ErrorHashMissLength
 	}
 	rawBytes := bki.store.Get(hash)
 	if rawBytes == nil {

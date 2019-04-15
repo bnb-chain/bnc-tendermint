@@ -183,11 +183,20 @@ func (c *HTTP) Genesis() (*ctypes.ResultGenesis, error) {
 	return result, nil
 }
 
-func (c *HTTP) Block(height *int64, blockHash []byte) (*ctypes.ResultBlock, error) {
+func (c *HTTP) Block(height *int64) (*ctypes.ResultBlock, error) {
 	result := new(ctypes.ResultBlock)
-	_, err := c.rpc.Call("block", map[string]interface{}{"height": height, "blockhash": blockHash}, result)
+	_, err := c.rpc.Call("block", map[string]interface{}{"height": height}, result)
 	if err != nil {
 		return nil, errors.Wrap(err, "Block")
+	}
+	return result, nil
+}
+
+func (c *HTTP) BlockByHash(blockHash []byte) (*ctypes.ResultBlock, error) {
+	result := new(ctypes.ResultBlock)
+	_, err := c.rpc.Call("block_by_hash", map[string]interface{}{"hash": blockHash}, result)
+	if err != nil {
+		return nil, errors.Wrap(err, "Block_by_hash")
 	}
 	return result, nil
 }
