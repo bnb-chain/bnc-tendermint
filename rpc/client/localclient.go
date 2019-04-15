@@ -120,6 +120,10 @@ func (Local) Block(height *int64) (*ctypes.ResultBlock, error) {
 	return core.Block(height)
 }
 
+func (Local) BlockByHash(blockHash []byte) (*ctypes.ResultBlock, error) {
+	return core.BlockByHash(blockHash)
+}
+
 func (Local) BlockResults(height *int64) (*ctypes.ResultBlockResults, error) {
 	return core.BlockResults(height)
 }
