@@ -337,6 +337,22 @@ type RPCConfig struct {
 	// Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
 	// 1024 - 40 - 10 - 50 = 924 = ~900
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
+
+	// Maximum number of go routine to process websocket request.
+	// 1 - process websocket request synchronously.
+	// 10 - default size.
+	// Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+	WebsocketPoolMaxSize int `mapstructure:"websocket_pool_size"`
+
+	// The queued buffer for workers to process requests.
+	// 10 -default
+	WebsocketPoolQueueSize int `mapstructure:"websocket_pool_queue_size"`
+
+	// The initial size of goroutines in pool.
+	// 1 - process websocket request synchronously.
+	// 5 - default size
+	// Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+	WebsocketPoolSpawnSize int `mapstructure:"websocket_pool_spawn_size"`
 }
 
 // DefaultRPCConfig returns a default configuration for the RPC server
@@ -349,8 +365,11 @@ func DefaultRPCConfig() *RPCConfig {
 		GRPCListenAddress:      "",
 		GRPCMaxOpenConnections: 900,
 
-		Unsafe:             false,
-		MaxOpenConnections: 900,
+		Unsafe:                 false,
+		MaxOpenConnections:     900,
+		WebsocketPoolMaxSize:   10,
+		WebsocketPoolQueueSize: 10,
+		WebsocketPoolSpawnSize: 5,
 	}
 }
 
@@ -371,6 +390,18 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.MaxOpenConnections < 0 {
 		return errors.New("max_open_connections can't be negative")
+	}
+	if cfg.WebsocketPoolMaxSize < 1 {
+		return errors.New("websocket_pool_size can't be less than 1")
+	}
+	if cfg.WebsocketPoolQueueSize < 1 {
+		return errors.New("websocket_pool_queue_size can't be less than 1")
+	}
+	if cfg.WebsocketPoolSpawnSize < 1 {
+		return errors.New("websocket_pool_spawn_size can't be less than 1")
+	}
+	if cfg.WebsocketPoolSpawnSize > cfg.WebsocketPoolMaxSize {
+		return errors.New("websocket_pool_spawn_size can't be large than websocket_pool_size")
 	}
 	return nil
 }

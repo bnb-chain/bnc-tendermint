@@ -19,6 +19,7 @@ import (
 
 	amino "github.com/tendermint/go-amino"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/gopool"
 	"github.com/tendermint/tendermint/libs/log"
 	types "github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -436,6 +437,8 @@ type wsConnection struct {
 
 	// object that is used to subscribe / unsubscribe from events
 	eventSub types.EventSubscriber
+
+	workerPool *gopool.Pool
 }
 
 // NewWSConnection wraps websocket.Conn.
@@ -474,6 +477,12 @@ func NewWSConnection(
 func EventSubscriber(eventSub types.EventSubscriber) func(*wsConnection) {
 	return func(wsc *wsConnection) {
 		wsc.eventSub = eventSub
+	}
+}
+
+func SetWorkerPool(workerPool *gopool.Pool) func(*wsConnection) {
+	return func(wsc *wsConnection) {
+		wsc.workerPool = workerPool
 	}
 }
 
@@ -612,8 +621,13 @@ func (wsc *wsConnection) readRoutine() {
 				return
 			}
 			// Fetch the RPCFunc and execute it.
-			// Should we consider the risk of building too many goroutines?
-			go wsc.processRequest(in)
+			if wsc.workerPool != nil {
+				wsc.workerPool.Schedule(func() {
+					wsc.processRequest(in)
+				})
+			} else {
+				wsc.processRequest(in)
+			}
 
 		}
 	}
