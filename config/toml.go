@@ -179,18 +179,17 @@ max_open_connections = {{ .RPC.MaxOpenConnections }}
 
 
 # Maximum number of go routine to process websocket request.
-# 0 - Never process websocket request.
+# 1 - process websocket request synchronously.
 # 10 - default size.
 # Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
 websocket_pool_size = {{ .RPC.WebsocketPoolMaxSize }}
 	
 # The queued buffer for workers to process requests.
-# 1 - No block
 # 10 -default
 websocket_pool_queue_size = {{ .RPC.WebsocketPoolQueueSize }}
 
 # The initial size of goroutines in pool.
-# 0 - Never process websocket request.
+# 1 - process websocket request synchronously.
 # 5 - default size
 # Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
 websocket_pool_spawn_size = {{ .RPC.WebsocketPoolSpawnSize }}
