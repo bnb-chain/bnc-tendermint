@@ -305,7 +305,9 @@ func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
 		// FIXME: persistent peers can't be inbound right now.
 		// self-reported address for inbound persistent peers
 		addr := peer.NodeInfo().NetAddress()
-		go sw.reconnectToPeer(addr)
+		if addr != nil {
+			go sw.reconnectToPeer(addr)
+		}
 	}
 }
 
@@ -393,7 +395,10 @@ func (sw *Switch) SetAddrBook(addrBook AddrBook) {
 // like contributed to consensus.
 func (sw *Switch) MarkPeerAsGood(peer Peer) {
 	if sw.addrBook != nil {
-		sw.addrBook.MarkGood(peer.NodeInfo().NetAddress())
+		addr := peer.NodeInfo().NetAddress()
+		if addr != nil {
+			sw.addrBook.MarkGood(addr)
+		}
 	}
 }
 
@@ -552,7 +557,7 @@ func (sw *Switch) acceptRoutine() {
 		if in >= sw.config.MaxNumInboundPeers {
 			sw.Logger.Info(
 				"Ignoring inbound connection: already have enough inbound peers",
-				"address", p.NodeInfo().NetAddress().String(),
+				"address", p.NodeInfo().NetAddress(),
 				"have", in,
 				"max", sw.config.MaxNumInboundPeers,
 			)
