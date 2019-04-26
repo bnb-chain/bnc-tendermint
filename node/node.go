@@ -694,8 +694,11 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 	// we may expose the rpc over both a unix and tcp socket
 	listeners := make([]net.Listener, len(listenAddrs))
-	wsWorkerPool := gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
-	wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
+	var wsWorkerPool *gopool.Pool
+	if n.config.RPC.WebsocketPoolMaxSize > 1{
+		wsWorkerPool = gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
+		wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
+	}
 
 	for i, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
