@@ -19,6 +19,7 @@ import (
 
 	amino "github.com/tendermint/go-amino"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	"github.com/tendermint/tendermint/libs/gopool"
 	"github.com/tendermint/tendermint/libs/log"
 	types "github.com/tendermint/tendermint/rpc/lib/types"
 )
@@ -436,6 +437,8 @@ type wsConnection struct {
 
 	// object that is used to subscribe / unsubscribe from events
 	eventSub types.EventSubscriber
+
+	workerPool *gopool.Pool
 }
 
 // NewWSConnection wraps websocket.Conn.
@@ -474,6 +477,12 @@ func NewWSConnection(
 func EventSubscriber(eventSub types.EventSubscriber) func(*wsConnection) {
 	return func(wsc *wsConnection) {
 		wsc.eventSub = eventSub
+	}
+}
+
+func SetWorkerPool(workerPool *gopool.Pool) func(*wsConnection) {
+	return func(wsc *wsConnection) {
+		wsc.workerPool = workerPool
 	}
 }
 
@@ -611,57 +620,68 @@ func (wsc *wsConnection) readRoutine() {
 				wsc.Stop()
 				return
 			}
-
-			var request types.RPCRequest
-			err = json.Unmarshal(in, &request)
-			if err != nil {
-				wsc.WriteRPCResponse(types.RPCParseError(types.JSONRPCStringID(""), errors.Wrap(err, "Error unmarshaling request")))
-				continue
-			}
-
-			// A Notification is a Request object without an "id" member.
-			// The Server MUST NOT reply to a Notification, including those that are within a batch request.
-			if request.ID == types.JSONRPCStringID("") {
-				wsc.Logger.Debug("WSJSONRPC received a notification, skipping... (please send a non-empty ID if you want to call a method)")
-				continue
-			}
-
-			// Now, fetch the RPCFunc and execute it.
-
-			rpcFunc := wsc.funcMap[request.Method]
-			if rpcFunc == nil {
-				wsc.WriteRPCResponse(types.RPCMethodNotFoundError(request.ID))
-				continue
-			}
-			var args []reflect.Value
-			if rpcFunc.ws {
-				wsCtx := types.WSRPCContext{Request: request, WSRPCConnection: wsc}
-				if len(request.Params) > 0 {
-					args, err = jsonParamsToArgsWS(rpcFunc, wsc.cdc, request.Params, wsCtx)
-				}
+			// Fetch the RPCFunc and execute it.
+			if wsc.workerPool != nil {
+				wsc.workerPool.Schedule(func() {
+					wsc.processRequest(in)
+				})
 			} else {
-				if len(request.Params) > 0 {
-					args, err = jsonParamsToArgsRPC(rpcFunc, wsc.cdc, request.Params)
-				}
-			}
-			if err != nil {
-				wsc.WriteRPCResponse(types.RPCInternalError(request.ID, errors.Wrap(err, "Error converting json params to arguments")))
-				continue
-			}
-			returns := rpcFunc.f.Call(args)
-
-			// TODO: Need to encode args/returns to string if we want to log them
-			wsc.Logger.Info("WSJSONRPC", "method", request.Method)
-
-			result, err := unreflectResult(returns)
-			if err != nil {
-				wsc.WriteRPCResponse(types.RPCInternalError(request.ID, err))
-				continue
+				wsc.processRequest(in)
 			}
 
-			wsc.WriteRPCResponse(types.NewRPCSuccessResponse(wsc.cdc, request.ID, result))
 		}
 	}
+}
+
+func (wsc *wsConnection) processRequest(message []byte) {
+	var request types.RPCRequest
+	err := json.Unmarshal(message, &request)
+	if err != nil {
+		wsc.WriteRPCResponse(types.RPCParseError(types.JSONRPCStringID(""), errors.Wrap(err, "Error unmarshaling request")))
+		return
+	}
+
+	// A Notification is a Request object without an "id" member.
+	// The Server MUST NOT reply to a Notification, including those that are within a batch request.
+	if request.ID == types.JSONRPCStringID("") {
+		wsc.Logger.Debug("WSJSONRPC received a notification, skipping... (please send a non-empty ID if you want to call a method)")
+		return
+	}
+
+	// Now, fetch the RPCFunc and execute it.
+
+	rpcFunc := wsc.funcMap[request.Method]
+	if rpcFunc == nil {
+		wsc.WriteRPCResponse(types.RPCMethodNotFoundError(request.ID))
+		return
+	}
+	var args []reflect.Value
+	if rpcFunc.ws {
+		wsCtx := types.WSRPCContext{Request: request, WSRPCConnection: wsc}
+		if len(request.Params) > 0 {
+			args, err = jsonParamsToArgsWS(rpcFunc, wsc.cdc, request.Params, wsCtx)
+		}
+	} else {
+		if len(request.Params) > 0 {
+			args, err = jsonParamsToArgsRPC(rpcFunc, wsc.cdc, request.Params)
+		}
+	}
+	if err != nil {
+		wsc.WriteRPCResponse(types.RPCInternalError(request.ID, errors.Wrap(err, "Error converting json params to arguments")))
+		return
+	}
+	returns := rpcFunc.f.Call(args)
+
+	// TODO: Need to encode args/returns to string if we want to log them
+	wsc.Logger.Info("WSJSONRPC", "method", request.Method)
+
+	result, err := unreflectResult(returns)
+	if err != nil {
+		wsc.WriteRPCResponse(types.RPCInternalError(request.ID, err))
+		return
+	}
+
+	wsc.WriteRPCResponse(types.NewRPCSuccessResponse(wsc.cdc, request.ID, result))
 }
 
 // receives on a write channel and writes out on the socket
