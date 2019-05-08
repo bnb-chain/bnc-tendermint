@@ -727,6 +727,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	if n.config.RPC.WebsocketPoolMaxSize > 1{
 		wsWorkerPool = gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
 		wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
+		wsWorkerPool.Start()
 	}
 
 	for i, listenAddr := range listenAddrs {

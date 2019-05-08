@@ -16,13 +16,13 @@ var ErrScheduleTimeout = fmt.Errorf("schedule error: timed out")
 // Pool contains logic of goroutine reuse.
 type Pool struct {
 	common.BaseService
-	sem  chan struct{}
-	work chan func()
+	spawn     int
+	sem       chan struct{}
+	taskQueue chan func()
 }
 
-// NewPool creates new goroutine pool with given size. It also creates a work
-// queue of given size. Finally, it spawns given amount of goroutines
-// immediately.
+// NewPool creates new goroutine pool with given size. It also creates a taskQueue
+// of given size.
 func NewPool(size, queue, spawn int) *Pool {
 	if spawn <= 0 && queue > 0 {
 		panic("dead queue configuration detected")
@@ -31,17 +31,26 @@ func NewPool(size, queue, spawn int) *Pool {
 		panic("spawn > workers")
 	}
 	p := &Pool{
-		sem:  make(chan struct{}, size),
-		work: make(chan func(), queue),
+		sem:       make(chan struct{}, size),
+		taskQueue: make(chan func(), queue),
+		spawn:     spawn,
 	}
 	p.BaseService = *common.NewBaseService(nil, "routine-pool", p)
 
-	for i := 0; i < spawn; i++ {
+	return p
+}
+
+func (p *Pool) QueuedTasks() int {
+	return len(p.taskQueue)
+}
+
+// Spawns given amount of goroutines.
+func (p *Pool) OnStart() error {
+	for i := 0; i < p.spawn; i++ {
 		p.sem <- struct{}{}
 		go p.worker(func() {})
 	}
-
-	return p
+	return nil
 }
 
 // Schedule schedules task to be executed over pool's workers.
@@ -59,7 +68,7 @@ func (p *Pool) schedule(task func(), timeout <-chan time.Time) error {
 	select {
 	case <-timeout:
 		return ErrScheduleTimeout
-	case p.work <- task:
+	case p.taskQueue <- task:
 		return nil
 	case p.sem <- struct{}{}:
 		go p.worker(task)
@@ -71,13 +80,19 @@ func (p *Pool) worker(task func()) {
 	defer func() {
 		if r := recover(); r != nil {
 			p.Logger.Error("failed to process task", "err", r, "stack", string(debug.Stack()))
+
+			//Only create new routine while panic
+			<-p.sem
 		}
-		<-p.sem
 	}()
 
 	task()
-
-	for task := range p.work {
-		task()
+	for {
+		select {
+		case <-p.Quit():
+			return
+		case t := <-p.taskQueue:
+			t()
+		}
 	}
 }

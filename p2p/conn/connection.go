@@ -15,6 +15,7 @@ import (
 	amino "github.com/tendermint/go-amino"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	flow "github.com/tendermint/tendermint/libs/flowrate"
+	"github.com/tendermint/tendermint/libs/gopool"
 	"github.com/tendermint/tendermint/libs/log"
 )
 
@@ -32,6 +33,7 @@ const (
 	defaultFlushThrottle = 10 * time.Millisecond
 
 	defaultSendQueueCapacity   = 1
+	defaultWorkQueueSize       = 100
 	defaultRecvBufferCapacity  = 4096
 	defaultRecvMessageCapacity = 22020096                // 21MB
 	defaultSendRate            = int64(50 * 1024 * 1024) // 50MB/s
@@ -206,6 +208,9 @@ func (c *MConnection) OnStart() error {
 	c.chStatsTimer = cmn.NewRepeatTimer("chStats", updateStats)
 	c.quitSendRoutine = make(chan struct{})
 	c.doneSendRoutine = make(chan struct{})
+	for _, channel := range c.channels {
+		channel.worker.Start()
+	}
 	go c.sendRoutine()
 	go c.recvRoutine()
 	return nil
@@ -278,7 +283,9 @@ func (c *MConnection) OnStop() {
 	if c.stopServices() {
 		return
 	}
-
+	for _, channel := range c.channels {
+		channel.worker.Stop()
+	}
 	c.conn.Close() // nolint: errcheck
 
 	// We can't close pong safely here because
@@ -602,7 +609,10 @@ FOR_LOOP:
 				// this copy is due to the underlying memory is shared, and causes problem for async call
 				msgCopy := make([]byte, len(msgBytes))
 				copy(msgCopy, msgBytes)
-				c.onReceive(pkt.ChannelID, msgCopy)
+
+				channel.worker.Schedule(func() {
+					c.onReceive(pkt.ChannelID, msgCopy)
+				})
 			}
 		default:
 			err := fmt.Errorf("Unknown message type %v", reflect.TypeOf(packet))
@@ -650,6 +660,7 @@ type ChannelStatus struct {
 	SendQueueSize     int
 	Priority          int
 	RecentlySent      int64
+	BlockedPackages   int
 }
 
 func (c *MConnection) Status() ConnectionStatus {
@@ -665,6 +676,7 @@ func (c *MConnection) Status() ConnectionStatus {
 			SendQueueSize:     int(atomic.LoadInt32(&channel.sendQueueSize)),
 			Priority:          channel.desc.Priority,
 			RecentlySent:      atomic.LoadInt64(&channel.recentlySent),
+			BlockedPackages:   channel.worker.QueuedTasks(),
 		}
 	}
 	return status
@@ -675,6 +687,7 @@ func (c *MConnection) Status() ConnectionStatus {
 type ChannelDescriptor struct {
 	ID                  byte
 	Priority            int
+	WorkerQueueSize     int
 	SendQueueCapacity   int
 	RecvBufferCapacity  int
 	RecvMessageCapacity int
@@ -689,6 +702,9 @@ func (chDesc ChannelDescriptor) FillDefaults() (filled ChannelDescriptor) {
 	}
 	if chDesc.RecvMessageCapacity == 0 {
 		chDesc.RecvMessageCapacity = defaultRecvMessageCapacity
+	}
+	if chDesc.WorkerQueueSize == 0 {
+		chDesc.WorkerQueueSize = defaultWorkQueueSize
 	}
 	filled = chDesc
 	return
@@ -707,6 +723,7 @@ type Channel struct {
 
 	maxPacketMsgPayloadSize int
 
+	worker *gopool.Pool
 	Logger log.Logger
 }
 
@@ -721,11 +738,13 @@ func newChannel(conn *MConnection, desc ChannelDescriptor) *Channel {
 		sendQueue:               make(chan []byte, desc.SendQueueCapacity),
 		recving:                 make([]byte, 0, desc.RecvBufferCapacity),
 		maxPacketMsgPayloadSize: conn.config.MaxPacketMsgPayloadSize,
+		worker:                  gopool.NewPool(1, desc.WorkerQueueSize, 1),
 	}
 }
 
 func (ch *Channel) SetLogger(l log.Logger) {
 	ch.Logger = l
+	ch.worker.SetLogger(l)
 }
 
 // Queues message to send to this channel.

@@ -153,7 +153,8 @@ func (sw *Switch) AddReactor(name string, reactor Reactor) Reactor {
 		if sw.reactorsByCh[chID] != nil {
 			cmn.PanicSanity(fmt.Sprintf("Channel %X has multiple reactors %v & %v", chID, sw.reactorsByCh[chID], reactor))
 		}
-		sw.chDescs = append(sw.chDescs, chDesc)
+		filledChDesc := chDesc.FillDefaults()
+		sw.chDescs = append(sw.chDescs, &filledChDesc)
 		sw.reactorsByCh[chID] = reactor
 	}
 	sw.reactors[name] = reactor
