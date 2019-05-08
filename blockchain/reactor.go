@@ -265,6 +265,16 @@ func (bcR *BlockchainReactor) poolRoutine() {
 				if !queued {
 					bcR.Logger.Debug("Send queue is full, drop block request", "peer", peer.ID(), "height", request.Height)
 				}
+			case err := <-bcR.errorsCh:
+				peer := bcR.Switch.Peers().Get(err.peerID)
+				if peer != nil {
+					bcR.Switch.StopPeerForError(peer, err)
+				}
+
+			case <-statusUpdateTicker.C:
+				// ask for status updates
+				go bcR.BroadcastStatusRequest() // nolint: errcheck
+
 			}
 		}
 	}()
@@ -272,16 +282,6 @@ func (bcR *BlockchainReactor) poolRoutine() {
 FOR_LOOP:
 	for {
 		select {
-		case err := <-bcR.errorsCh:
-			peer := bcR.Switch.Peers().Get(err.peerID)
-			if peer != nil {
-				bcR.Switch.StopPeerForError(peer, err)
-			}
-
-		case <-statusUpdateTicker.C:
-			// ask for status updates
-			go bcR.BroadcastStatusRequest() // nolint: errcheck
-
 		case <-switchToConsensusTicker.C:
 			height, numPending, lenRequesters := bcR.pool.GetStatus()
 			outbound, inbound, _ := bcR.Switch.NumPeers()
