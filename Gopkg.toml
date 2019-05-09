@@ -88,6 +88,10 @@
 ## - github.com/rcrowley/go-metrics
 ## - golang.org/x/net
 
+[[constraint]]
+  name = "github.com/libp2p/go-buffer-pool"
+  version = "^0.0.1"
+
 [prune]
   go-tests = true
   unused-packages = true
