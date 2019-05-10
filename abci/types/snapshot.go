@@ -21,10 +21,10 @@ const (
 // AppStateChunk completeness enums
 // We don't use enum because amino doesn't support encode enum
 const (
-	Complete uint8 = 0
-	InComplete_First uint8 = 1
-	InComplete_Mid uint8 = 2
-	InComplete_Last uint8 = 3
+	Complete uint8 = iota
+	InComplete_First
+	InComplete_Mid
+	InComplete_Last
 )
 
 type SHA256Sum [sha256.Size]byte // check sum of chunk
@@ -122,7 +122,7 @@ func (reader *SnapshotReader) IsFinalized() bool {
 	return err == nil
 }
 
-func (reader *SnapshotReader) LatestSnapshotHeight() int64 {
+func (reader *SnapshotReader) InitSnapshotHeight() int64 {
 	var latestHeight int64
 
 	toTraverse := filepath.Join(reader.DbDir, snapshotDir)
@@ -130,7 +130,7 @@ func (reader *SnapshotReader) LatestSnapshotHeight() int64 {
 		for _, f := range files {
 			if f.IsDir() {
 				if height, err := strconv.ParseInt(f.Name(), 10, 64); err == nil && height > latestHeight {
-					if _, err := os.Stat(filepath.Join(toTraverse, f.Name(), finalizedDir)); !os.IsNotExist(err) {
+					if _, err := os.Stat(filepath.Join(toTraverse, f.Name(), finalizedDir)); err == nil {
 						latestHeight = height
 					}
 				}

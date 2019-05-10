@@ -23,7 +23,8 @@ import (
 
 const (
 	// StateSyncChannel is a channel for state and status updates (`StateStore` height)
-	StateSyncChannel = byte(0x35)
+	// First implementation (range request) of state sync is 0x35
+	StateSyncChannel = byte(0x36)
 
 	// ====== move to config ======
 	stateSyncPriority = 10			// channel priority of state sync
@@ -52,7 +53,8 @@ type peerError struct {
 	peerID p2p.ID
 }
 
-// BlockchainReactor handles long-term catchup syncing.
+// StateReactor handles initial state syncing.
+// User manual: https://docs.binance.org/fullnode.html#state-sync
 type StateReactor struct {
 	p2p.BaseReactor
 
@@ -117,7 +119,9 @@ func (bcSR *StateReactor) OnStart() error {
 
 // OnStop implements cmn.Service.
 func (bcSR *StateReactor) OnStop() {
-	bcSR.pool.Stop()
+	if bcSR.pool.IsRunning() {
+		bcSR.pool.Stop()
+	}
 }
 
 // GetChannels implements Reactor
@@ -310,7 +314,6 @@ func (bcSR *StateReactor) poolRoutine() {
 		}
 	}()
 
-FOR_LOOP:
 	for {
 		select {
 		case err := <-bcSR.errorsCh:
@@ -330,10 +333,10 @@ FOR_LOOP:
 			bcSR.BroadcastStateStatusRequest()
 
 		case <- bcSR.pool.Quit():
-			break FOR_LOOP
+			return
 
 		case <-bcSR.Quit():
-			break FOR_LOOP
+			return
 		}
 	}
 }

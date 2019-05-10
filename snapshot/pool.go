@@ -58,8 +58,8 @@ type StatePool struct {
 	triedManifestFinalization int                 // how many times we have tried finalize manifest received
 
 	// peers
-	respondedPeers map[abci.SHA256Sum][]p2p.ID // peers that response manifest to us, used to determine whom we will trust and request snapshot chunk from
-	trustedPeers   map[p2p.ID]*spPeer          // peers we trusted and want sync from
+	respondedPeers map[abci.SHA256Sum]map[p2p.ID]struct{} // peers that response manifest to us, used to determine whom we will trust and request snapshot chunk from
+	trustedPeers   map[p2p.ID]*spPeer          			  // peers we trusted and want sync from
 
 	// number of pending request snapshots after pool init
 	numPending int
@@ -74,7 +74,7 @@ func NewStatePool(app proxy.AppConnState, requestsCh chan<- SnapshotRequest, err
 		trustedPeers:           make(map[p2p.ID]*spPeer),
 		receivedManifests:      make(map[abci.SHA256Sum]*abci.Manifest),
 		pendingScheduledHashes: make(chan abci.SHA256Sum, 100),
-		respondedPeers:         make(map[abci.SHA256Sum][]p2p.ID),
+		respondedPeers:         make(map[abci.SHA256Sum]map[p2p.ID]struct{}),
 
 		requestsCh: requestsCh,
 		errorsCh:   errorsCh,
@@ -143,7 +143,17 @@ func (pool *StatePool) removePeerGuarded(peerID p2p.ID) {
 
 		return true
 	})
-	delete(pool.trustedPeers, peerID)
+
+	if peer, ok := pool.trustedPeers[peerID]; ok {
+		if peer.timeout != nil {
+			peer.timeout.Stop()
+		}
+
+		for _, peers := range pool.respondedPeers {
+			delete(peers, peerID)
+		}
+		delete(pool.trustedPeers, peerID)
+	}
 }
 
 // Pick an available peer to fetch snapshot chunk
@@ -187,7 +197,11 @@ func (pool *StatePool) addManifest(peerId p2p.ID, msg *bcManifestResponseMessage
 
 	if msg.Height == 0 {
 		pool.receivedManifests[pool.dummyHash] = nil
-		pool.respondedPeers[pool.dummyHash] = append(pool.respondedPeers[pool.dummyHash], peerId)
+		if _, ok := pool.respondedPeers[pool.dummyHash]; ok {
+			pool.respondedPeers[pool.dummyHash][peerId] = struct{}{}
+		} else {
+			pool.respondedPeers[pool.dummyHash] = map[p2p.ID]struct{}{peerId: {}}
+		}
 	} else {
 		hash, manifest, err := pool.validateAndUnmarshalManifest(msg)
 		if err != nil {
@@ -196,7 +210,11 @@ func (pool *StatePool) addManifest(peerId p2p.ID, msg *bcManifestResponseMessage
 		if _, ok := pool.receivedManifests[hash]; !ok {
 			pool.receivedManifests[hash] = manifest
 		}
-		pool.respondedPeers[hash] = append(pool.respondedPeers[hash], peerId)
+		if _, ok := pool.respondedPeers[hash]; ok {
+			pool.respondedPeers[hash][peerId] = struct{}{}
+		} else {
+			pool.respondedPeers[hash] = map[p2p.ID]struct{}{peerId: {}}
+		}
 
 		// if we already finalized manifest and this is a "trusted" peer, we add it to peer list
 		if pool.manifestHash == hash {
@@ -226,7 +244,7 @@ func (pool *StatePool) validateAndUnmarshalManifest(msg *bcManifestResponseMessa
 	}
 }
 
-func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest, peers []p2p.ID) error {
+func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest, peers map[p2p.ID]struct{}) error {
 	if hash == pool.dummyHash && manifest == nil {
 		pool.manifestHash = hash
 		return nil
@@ -241,7 +259,7 @@ func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest,
 		return err
 	}
 
-	for _, peer := range peers {
+	for peer, _ := range peers {
 		pool.addPeerGuarded(peer, hash)
 	}
 
@@ -274,6 +292,10 @@ func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest,
 
 func (pool *StatePool) loadFromDiskOrSchedule(hash abci.SHA256Sum, existChunks map[abci.SHA256Sum]abci.SnapshotChunk) {
 	if compressed, err := Manager().Reader.LoadFromRestoration(hash); err == nil {
+		chunkHash := sha256.Sum256(compressed)
+		if chunkHash != hash {	// the chunk we downloaded last time is not complete, re-download it again
+			pool.pendingScheduledHashes <- hash
+		}
 		if decompressed, err := snappy.Decode(nil, compressed); err == nil {
 			var snapshotChunk abci.SnapshotChunk
 			if err := cdc.UnmarshalBinaryBare(decompressed, &snapshotChunk); err == nil {
@@ -321,13 +343,13 @@ func (pool *StatePool) tryInit() bool {
 		pool.initGuarded(majorityManifestHash, majorityManifest, pool.respondedPeers[majorityManifestHash])
 		return true
 	}
-	if pool.triedManifestFinalization >= maxTriedManifestFinalist && numOfPeers > 1 && !hasSameNumOfPeers {
+	if pool.triedManifestFinalization >= maxTriedManifestFinalist && numOfPeers > 0 && !hasSameNumOfPeers {
 		pool.Logger.Info("did not collect enough manifest, but will start anyway", "manifestHash", fmt.Sprintf("%x", majorityManifestHash), "numOfPeers", numOfPeers)
 		pool.initGuarded(majorityManifestHash, majorityManifest, pool.respondedPeers[majorityManifestHash])
 		return true
 	}
 
-	pool.Logger.Info("decided not init pool", "peers", len(pool.respondedPeers), "tried", pool.triedManifestFinalization)
+	pool.Logger.Info("decided not init pool", "manifests", len(pool.respondedPeers), "tried", pool.triedManifestFinalization)
 	for hash, peers := range pool.respondedPeers {
 		pool.Logger.Info(fmt.Sprintf("hash: %x, peers: %v", hash, peers))
 	}

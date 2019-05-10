@@ -25,7 +25,7 @@ func InitSnapshotManager(
 	logger log.Logger) {
 
 	reader := abci.SnapshotReader{DbDir: dbDir}
-	height := reader.LatestSnapshotHeight()
+	height := reader.InitSnapshotHeight()
 
 	mgr := &SnapshotManager{
 		stateDB:    stateDB,
