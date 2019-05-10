@@ -177,6 +177,23 @@ unsafe = {{ .RPC.Unsafe }}
 # 1024 - 40 - 10 - 50 = 924 = ~900
 max_open_connections = {{ .RPC.MaxOpenConnections }}
 
+
+# Maximum number of go routine to process websocket request.
+# 1 - process websocket request synchronously.
+# 10 - default size.
+# Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+websocket_pool_size = {{ .RPC.WebsocketPoolMaxSize }}
+	
+# The queued buffer for workers to process requests.
+# 10 -default
+websocket_pool_queue_size = {{ .RPC.WebsocketPoolQueueSize }}
+
+# The initial size of goroutines in pool.
+# 1 - process websocket request synchronously.
+# 5 - default size
+# Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+websocket_pool_spawn_size = {{ .RPC.WebsocketPoolSpawnSize }}
+
 ##### peer to peer configuration options #####
 [p2p]
 
