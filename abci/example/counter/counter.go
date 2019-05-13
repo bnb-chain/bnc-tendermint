@@ -81,6 +81,10 @@ func (app *CounterApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 	return types.ResponseCheckTx{Code: code.CodeTypeOK}
 }
 
+func (app *CounterApplication) ReCheckTx(tx []byte) types.ResponseCheckTx {
+	return app.CheckTx(tx)
+}
+
 func (app *CounterApplication) Commit() (resp types.ResponseCommit) {
 	app.hashCount++
 	if app.txCount == 0 {

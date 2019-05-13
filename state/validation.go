@@ -13,7 +13,7 @@ import (
 //-----------------------------------------------------
 // Validate block
 
-func validateBlock(evidencePool EvidencePool, stateDB dbm.DB, state State, block *types.Block) error {
+func validateBlock(evidencePool EvidencePool, stateDB dbm.DB, state State, block *types.Block, withAppStat bool) error {
 	// Validate internal consistency.
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -56,8 +56,9 @@ func validateBlock(evidencePool EvidencePool, stateDB dbm.DB, state State, block
 	}
 
 	// Validate app info
-	if !bytes.Equal(block.AppHash, state.AppHash) {
-		return fmt.Errorf("Wrong Block.Header.AppHash.  Expected %X, got %v",
+	if withAppStat && !bytes.Equal(block.AppHash, state.AppHash) {
+		return fmt.Errorf(
+			"Wrong Block.Header.AppHash.  Expected %X, got %v",
 			state.AppHash,
 			block.AppHash,
 		)
@@ -68,19 +69,20 @@ func validateBlock(evidencePool EvidencePool, stateDB dbm.DB, state State, block
 			block.ConsensusHash,
 		)
 	}
-	if !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
-		return fmt.Errorf("Wrong Block.Header.LastResultsHash.  Expected %X, got %v",
+	if withAppStat && !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
+		return fmt.Errorf(
+			"Wrong Block.Header.LastResultsHash.  Expected %X, got %v",
 			state.LastResultsHash,
 			block.LastResultsHash,
 		)
 	}
-	if !bytes.Equal(block.ValidatorsHash, state.Validators.Hash()) {
+	if withAppStat && !bytes.Equal(block.ValidatorsHash, state.Validators.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.ValidatorsHash.  Expected %X, got %v",
 			state.Validators.Hash(),
 			block.ValidatorsHash,
 		)
 	}
-	if !bytes.Equal(block.NextValidatorsHash, state.NextValidators.Hash()) {
+	if withAppStat && !bytes.Equal(block.NextValidatorsHash, state.NextValidators.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.NextValidatorsHash.  Expected %X, got %v",
 			state.NextValidators.Hash(),
 			block.NextValidatorsHash,
@@ -133,7 +135,7 @@ func validateBlock(evidencePool EvidencePool, stateDB dbm.DB, state State, block
 	}
 
 	// Limit the amount of evidence
-	maxNumEvidence, _ := types.MaxEvidencePerBlock(state.ConsensusParams.BlockSize.MaxBytes)
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(state.ConsensusParams.Block.MaxBytes)
 	numEvidence := int64(len(block.Evidence.Evidence))
 	if numEvidence > maxNumEvidence {
 		return types.NewErrEvidenceOverflow(maxNumEvidence, numEvidence)

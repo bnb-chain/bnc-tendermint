@@ -42,7 +42,7 @@ var crc32c = crc32.MakeTable(crc32.Castagnoli)
 // Unmarshal and apply a single message to the consensus state as if it were
 // received in receiveRoutine.  Lines that start with "#" are ignored.
 // NOTE: receiveRoutine should not be running.
-func (cs *ConsensusState) readReplayMessage(msg *TimedWALMessage, newStepCh chan interface{}) error {
+func (cs *ConsensusState) readReplayMessage(msg *TimedWALMessage, newStepSub types.Subscription) error {
 	// Skip meta messages which exist for demarcating boundaries.
 	if _, ok := msg.Msg.(EndHeightMessage); ok {
 		return nil
@@ -54,15 +54,17 @@ func (cs *ConsensusState) readReplayMessage(msg *TimedWALMessage, newStepCh chan
 		cs.Logger.Info("Replay: New Step", "height", m.Height, "round", m.Round, "step", m.Step)
 		// these are playback checks
 		ticker := time.After(time.Second * 2)
-		if newStepCh != nil {
+		if newStepSub != nil {
 			select {
-			case mi := <-newStepCh:
-				m2 := mi.(types.EventDataRoundState)
+			case stepMsg := <-newStepSub.Out():
+				m2 := stepMsg.Data().(types.EventDataRoundState)
 				if m.Height != m2.Height || m.Round != m2.Round || m.Step != m2.Step {
 					return fmt.Errorf("RoundState mismatch. Got %v; Expected %v", m2, m)
 				}
+			case <-newStepSub.Cancelled():
+				return fmt.Errorf("Failed to read off newStepSub.Out(). newStepSub was cancelled")
 			case <-ticker:
-				return fmt.Errorf("Failed to read off newStepCh")
+				return fmt.Errorf("Failed to read off newStepSub.Out()")
 			}
 		}
 	case msgInfo:
@@ -201,11 +203,12 @@ type Handshaker struct {
 	genDoc       *types.GenesisDoc
 	logger       log.Logger
 
-	nBlocks int // number of blocks applied to the state
+	withAppStat bool
+	nBlocks     int // number of blocks applied to the state
 }
 
 func NewHandshaker(stateDB dbm.DB, state sm.State,
-	store sm.BlockStore, genDoc *types.GenesisDoc) *Handshaker {
+	store sm.BlockStore, genDoc *types.GenesisDoc, withAppStat bool) *Handshaker {
 
 	return &Handshaker{
 		stateDB:      stateDB,
@@ -215,6 +218,7 @@ func NewHandshaker(stateDB dbm.DB, state sm.State,
 		genDoc:       genDoc,
 		logger:       log.NewNopLogger(),
 		nBlocks:      0,
+		withAppStat:  withAppStat,
 	}
 }
 
@@ -322,7 +326,7 @@ func (h *Handshaker) ReplayBlocks(
 			}
 
 			if res.ConsensusParams != nil {
-				state.ConsensusParams = types.PB2TM.ConsensusParams(res.ConsensusParams)
+				state.ConsensusParams = state.ConsensusParams.Update(res.ConsensusParams)
 			}
 			sm.SaveState(h.stateDB, state)
 		}
@@ -330,7 +334,7 @@ func (h *Handshaker) ReplayBlocks(
 
 	// First handle edge cases and constraints on the storeBlockHeight.
 	if storeBlockHeight == 0 {
-		return appHash, checkAppHash(state, appHash)
+		return appHash, checkAppHash(state, appHash, !h.withAppStat)
 
 	} else if storeBlockHeight < appBlockHeight {
 		// the app should never be ahead of the store (but this is under app's control)
@@ -357,7 +361,7 @@ func (h *Handshaker) ReplayBlocks(
 
 		} else if appBlockHeight == storeBlockHeight {
 			// We're good!
-			return appHash, checkAppHash(state, appHash)
+			return appHash, checkAppHash(state, appHash, !h.withAppStat)
 		}
 
 	} else if storeBlockHeight == stateBlockHeight+1 {
@@ -432,7 +436,7 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBl
 		appHash = state.AppHash
 	}
 
-	return appHash, checkAppHash(state, appHash)
+	return appHash, checkAppHash(state, appHash, h.withAppStat)
 }
 
 // ApplyBlock on the proxyApp with the last block.
@@ -440,7 +444,7 @@ func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.Ap
 	block := h.store.LoadBlock(height)
 	meta := h.store.LoadBlockMeta(height)
 
-	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, sm.MockMempool{}, sm.MockEvidencePool{})
+	blockExec := sm.NewBlockExecutor(h.stateDB, h.logger, proxyApp, sm.MockMempool{}, sm.MockEvidencePool{}, h.withAppStat)
 	blockExec.SetEventBus(h.eventBus)
 
 	var err error
@@ -454,7 +458,10 @@ func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.Ap
 	return state, nil
 }
 
-func checkAppHash(state sm.State, appHash []byte) error {
+func checkAppHash(state sm.State, appHash []byte, skip bool) error {
+	if skip {
+		return nil
+	}
 	if !bytes.Equal(state.AppHash, appHash) {
 		panic(fmt.Errorf("Tendermint state.AppHash does not match AppHash after replay. Got %X, expected %X", appHash, state.AppHash).Error())
 	}

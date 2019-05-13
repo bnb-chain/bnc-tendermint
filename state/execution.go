@@ -36,6 +36,9 @@ type BlockExecutor struct {
 	logger log.Logger
 
 	metrics *Metrics
+
+	// whether to check appHash
+	withAppState bool
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
@@ -48,7 +51,8 @@ func BlockExecutorWithMetrics(metrics *Metrics) BlockExecutorOption {
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus, mempool Mempool, evpool EvidencePool, options ...BlockExecutorOption) *BlockExecutor {
+func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus,
+	mempool Mempool, evpool EvidencePool, withAppState bool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
 		db:       db,
 		proxyApp: proxyApp,
@@ -57,6 +61,7 @@ func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsen
 		evpool:   evpool,
 		logger:   logger,
 		metrics:  NopMetrics(),
+		withAppState: withAppState,
 	}
 
 	for _, option := range options {
@@ -82,8 +87,8 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	proposerAddr []byte,
 ) (*types.Block, *types.PartSet) {
 
-	maxBytes := state.ConsensusParams.BlockSize.MaxBytes
-	maxGas := state.ConsensusParams.BlockSize.MaxGas
+	maxBytes := state.ConsensusParams.Block.MaxBytes
+	maxGas := state.ConsensusParams.Block.MaxGas
 
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(maxBytes)
@@ -101,7 +106,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
 func (blockExec *BlockExecutor) ValidateBlock(state State, block *types.Block) error {
-	return validateBlock(blockExec.evpool, blockExec.db, state, block)
+	return validateBlock(blockExec.evpool, blockExec.db, state, block, blockExec.withAppState)
 }
 
 // ApplyBlock validates the block against the state, executes it against the app,

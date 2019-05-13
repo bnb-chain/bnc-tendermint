@@ -25,7 +25,9 @@ import (
 	"github.com/tendermint/tendermint/evidence"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
+	"github.com/tendermint/tendermint/libs/gopool"
 	"github.com/tendermint/tendermint/libs/log"
+	tmpubsub "github.com/tendermint/tendermint/libs/pubsub"
 	mempl "github.com/tendermint/tendermint/mempool"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/p2p/pex"
@@ -36,6 +38,9 @@ import (
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/state/blockindex"
+	bkv "github.com/tendermint/tendermint/state/blockindex/kv"
+	nullblk "github.com/tendermint/tendermint/state/blockindex/null"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/state/txindex/kv"
 	"github.com/tendermint/tendermint/state/txindex/null"
@@ -59,7 +64,7 @@ type DBProvider func(*DBContext) (dbm.DB, error)
 // specified in the ctx.Config.
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	dbType := dbm.DBBackendType(ctx.Config.DBBackend)
-	return dbm.NewDB(ctx.ID, dbType, ctx.Config.DBDir()), nil
+	return dbm.NewDBWithOpt(ctx.ID, dbType, ctx.Config.DBDir(), ctx.Config.DBCache.ToGolevelDBOpt()), nil
 }
 
 // GenesisDocProvider returns a GenesisDoc.
@@ -165,7 +170,9 @@ type Node struct {
 	proxyApp         proxy.AppConns         // connection to the application
 	rpcListeners     []net.Listener         // rpc servers
 	txIndexer        txindex.TxIndexer
+	blockIndexer     blockindex.BlockIndexer
 	indexerService   *txindex.IndexerService
+	blockIndexService *blockindex.IndexerService
 	prometheusSrv    *http.Server
 }
 
@@ -248,10 +255,30 @@ func NewNode(config *cfg.Config,
 		txIndexer = &null.TxIndex{}
 	}
 
-	indexerService := txindex.NewIndexerService(txIndexer, eventBus)
-	indexerService.SetLogger(logger.With("module", "txindex"))
+	txIndexerService := txindex.NewIndexerService(txIndexer, eventBus)
+	txIndexerService.SetLogger(logger.With("module", "txindex"))
 
-	err = indexerService.Start()
+	err = txIndexerService.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	// Block indexing
+	var blockIndexer blockindex.BlockIndexer
+	switch config.BlockIndex.Indexer {
+	case "kv":
+		store, err := dbProvider(&DBContext{"block_index", config})
+		if err != nil {
+			return nil, err
+		}
+		blockIndexer = bkv.NewBlockIndex(store)
+	default:
+		blockIndexer = &nullblk.BlockIndex{}
+	}
+	blockIndexerService := blockindex.NewIndexerService(blockIndexer, eventBus)
+	blockIndexerService.SetLogger(logger.With("module", "blockindex"))
+
+	err = blockIndexerService.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -259,7 +286,7 @@ func NewNode(config *cfg.Config,
 	// Create the handshaker, which calls RequestInfo, sets the AppVersion on the state,
 	// and replays any blocks as necessary to sync tendermint with the app.
 	consensusLogger := logger.With("module", "consensus")
-	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc)
+	handshaker := cs.NewHandshaker(stateDB, state, blockStore, genDoc, config.WithAppStat)
 	handshaker.SetLogger(consensusLogger)
 	handshaker.SetEventBus(eventBus)
 	if err := handshaker.Handshake(proxyApp); err != nil {
@@ -301,7 +328,7 @@ func NewNode(config *cfg.Config,
 	fastSync := config.FastSync
 	if state.Validators.Size() == 1 {
 		addr, _ := state.Validators.GetByIndex(0)
-		privValAddr := privValidator.GetPubKey().Address()
+		privValAddr := privValidator.GetAddress()
 		if bytes.Equal(privValAddr, addr) {
 			fastSync = false
 		}
@@ -350,7 +377,24 @@ func NewNode(config *cfg.Config,
 	evidenceReactor := evidence.NewEvidenceReactor(evidencePool)
 	evidenceReactor.SetLogger(evidenceLogger)
 
-	blockExecLogger := logger.With("module", "state")
+	if state.Validators.Size() == 1 {
+		addr, _ := state.Validators.GetByIndex(0)
+		if bytes.Equal(privValidator.GetAddress(), addr) {
+			config.StateSync = false
+		}
+	}
+
+	var stateReactor *bc.StateReactor
+	if config.StateSyncReactor {
+		// !!!This method may change config.StateSync!!!
+		// so the later reactor need read config.StateSync rather than a copied variable
+		stateReactor = bc.NewStateReactor(stateDB, proxyApp.State(), config)
+		stateReactor.SetLogger(logger.With("module", "statesync"))
+	} else {
+		config.StateSync = false
+	}
+
+	blockExecLogger := logger.With("module", "exec")
 	// make block executor for consensus and blockchain reactors to execute blocks
 	blockExec := sm.NewBlockExecutor(
 		stateDB,
@@ -358,11 +402,12 @@ func NewNode(config *cfg.Config,
 		proxyApp.Consensus(),
 		mempool,
 		evidencePool,
+		config.WithAppStat,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
 	// Make BlockchainReactor
-	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && !config.StateSync)
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
 
 	// Make ConsensusReactor
@@ -379,7 +424,7 @@ func NewNode(config *cfg.Config,
 	if privValidator != nil {
 		consensusState.SetPrivValidator(privValidator)
 	}
-	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync, cs.ReactorMetrics(csMetrics))
+	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || config.StateSync, cs.ReactorMetrics(csMetrics))
 	consensusReactor.SetLogger(consensusLogger)
 
 	// services which will be publishing and/or subscribing for messages (events)
@@ -465,6 +510,9 @@ func NewNode(config *cfg.Config,
 	)
 	sw.SetLogger(p2pLogger)
 	sw.AddReactor("MEMPOOL", mempoolReactor)
+	if config.StateSyncReactor {
+		sw.AddReactor("STATE", stateReactor)
+	}
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
 	sw.AddReactor("EVIDENCE", evidenceReactor)
@@ -488,7 +536,7 @@ func NewNode(config *cfg.Config,
 	addrBook := pex.NewAddrBook(config.P2P.AddrBookFile(), config.P2P.AddrBookStrict)
 
 	// Add ourselves to addrbook to prevent dialing ourselves
-	addrBook.AddOurAddress(nodeInfo.NetAddress())
+	addrBook.AddOurAddress(sw.NetAddress())
 
 	addrBook.SetLogger(p2pLogger.With("book", config.P2P.AddrBookFile()))
 	if config.P2P.PexReactor {
@@ -497,6 +545,12 @@ func NewNode(config *cfg.Config,
 			&pex.PEXReactorConfig{
 				Seeds:    splitAndTrimEmpty(config.P2P.Seeds, ",", " "),
 				SeedMode: config.P2P.SeedMode,
+				// See consensus/reactor.go: blocksToContributeToBecomeGoodPeer 10000
+				// blocks assuming 10s blocks ~ 28 hours.
+				// TODO (melekes): make it dynamic based on the actual block latencies
+				// from the live network.
+				// https://github.com/tendermint/tendermint/issues/3523
+				SeedDisconnectWaitPeriod: 28 * time.Hour,
 			})
 		pexReactor.SetLogger(logger.With("module", "pex"))
 		sw.AddReactor("PEX", pexReactor)
@@ -532,7 +586,9 @@ func NewNode(config *cfg.Config,
 		evidencePool:     evidencePool,
 		proxyApp:         proxyApp,
 		txIndexer:        txIndexer,
-		indexerService:   indexerService,
+		blockIndexer:     blockIndexer,
+		indexerService:   txIndexerService,
+		blockIndexService: blockIndexerService,
 		eventBus:         eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
@@ -603,6 +659,7 @@ func (n *Node) OnStop() {
 	// first stop the non-reactor services
 	n.eventBus.Stop()
 	n.indexerService.Stop()
+	n.blockIndexService.Stop()
 
 	// now stop the reactors
 	// TODO: gracefully disconnect from peers.
@@ -655,9 +712,11 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetAddrBook(n.addrBook)
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetTxIndexer(n.txIndexer)
+	rpccore.SetBlockIndexer(n.blockIndexer)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetEventBus(n.eventBus)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
+	rpccore.SetConfig(*n.config.RPC)
 }
 
 func (n *Node) startRPC() ([]net.Listener, error) {
@@ -672,17 +731,39 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 
 	// we may expose the rpc over both a unix and tcp socket
 	listeners := make([]net.Listener, len(listenAddrs))
+	var wsWorkerPool *gopool.Pool
+	if n.config.RPC.WebsocketPoolMaxSize > 1{
+		wsWorkerPool = gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
+		wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
+	}
+
 	for i, listenAddr := range listenAddrs {
 		mux := http.NewServeMux()
 		rpcLogger := n.Logger.With("module", "rpc-server")
-		wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec, rpcserver.EventSubscriber(n.eventBus))
-		wm.SetLogger(rpcLogger.With("protocol", "websocket"))
+		wmLogger := rpcLogger.With("protocol", "websocket")
+		wm := rpcserver.NewWebsocketManager(rpccore.Routes, coreCodec,
+			rpcserver.OnDisconnect(func(remoteAddr string) {
+				err := n.eventBus.UnsubscribeAll(context.Background(), remoteAddr)
+				if err != nil && err != tmpubsub.ErrSubscriptionNotFound {
+					wmLogger.Error("Failed to unsubscribe addr from events", "addr", remoteAddr, "err", err)
+				}
+			}), rpcserver.SetWorkerPool(wsWorkerPool))
+		wm.SetLogger(wmLogger)
 		mux.HandleFunc("/websocket", wm.WebsocketHandler)
 		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, coreCodec, rpcLogger)
 
+		config := rpcserver.DefaultConfig()
+		config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
+		// If necessary adjust global WriteTimeout to ensure it's greater than
+		// TimeoutBroadcastTxCommit.
+		// See https://github.com/tendermint/tendermint/issues/3435
+		if config.WriteTimeout <= n.config.RPC.TimeoutBroadcastTxCommit {
+			config.WriteTimeout = n.config.RPC.TimeoutBroadcastTxCommit + 1*time.Second
+		}
+
 		listener, err := rpcserver.Listen(
 			listenAddr,
-			rpcserver.Config{MaxOpenConnections: n.config.RPC.MaxOpenConnections},
+			config,
 		)
 		if err != nil {
 			return nil, err
@@ -697,20 +778,33 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 			})
 			rootHandler = corsMiddleware.Handler(mux)
 		}
+		if n.config.RPC.IsTLSEnabled() {
+			go rpcserver.StartHTTPAndTLSServer(
+				listener,
+				rootHandler,
+				n.config.RPC.CertFile(),
+				n.config.RPC.KeyFile(),
+				rpcLogger,
+				config,
+			)
+		} else {
+			go rpcserver.StartHTTPServer(
+				listener,
+				rootHandler,
+				rpcLogger,
+				config,
+			)
+		}
 
-		go rpcserver.StartHTTPServer(
-			listener,
-			rootHandler,
-			rpcLogger,
-		)
 		listeners[i] = listener
 	}
 
 	// we expose a simplified api over grpc for convenience to app devs
 	grpcListenAddr := n.config.RPC.GRPCListenAddress
 	if grpcListenAddr != "" {
-		listener, err := rpcserver.Listen(
-			grpcListenAddr, rpcserver.Config{MaxOpenConnections: n.config.RPC.GRPCMaxOpenConnections})
+		config := rpcserver.DefaultConfig()
+		config.MaxOpenConnections = n.config.RPC.MaxOpenConnections
+		listener, err := rpcserver.Listen(grpcListenAddr, config)
 		if err != nil {
 			return nil, err
 		}
@@ -832,6 +926,7 @@ func makeNodeInfo(
 		Network:         chainID,
 		Version:         version.TMCoreSemVer,
 		Channels: []byte{
+			bc.StateChannel,
 			bc.BlockchainChannel,
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
 			mempl.MempoolChannel,
@@ -914,7 +1009,7 @@ func createAndStartPrivValidatorSocketClient(
 		)
 	}
 
-	pvsc := privval.NewSocketVal(logger.With("module", "privval"), listener)
+	pvsc := privval.NewSignerValidatorEndpoint(logger.With("module", "privval"), listener)
 	if err := pvsc.Start(); err != nil {
 		return nil, errors.Wrap(err, "failed to start private validator")
 	}

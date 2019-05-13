@@ -1,10 +1,12 @@
 package core
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
@@ -13,11 +15,11 @@ import (
 // Block headers are returned in descending order (highest first).
 //
 // ```shell
-// curl 'localhost:26657/blockchain?minHeight=10&maxHeight=10'
+// curl 'localhost:27147/blockchain?minHeight=10&maxHeight=10'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -68,7 +70,7 @@ import (
 // ```
 //
 // <aside class="notice">Returns at most 20 items.</aside>
-func BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
+func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.ResultBlockchainInfo, error) {
 
 	// maximum 20 block metas
 	const limit int64 = 20
@@ -125,11 +127,11 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 // If no height is provided, it will fetch the latest block.
 //
 // ```shell
-// curl 'localhost:26657/block?height=10'
+// curl 'localhost:27147/block?height=10'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -226,9 +228,125 @@ func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
 //   "jsonrpc": "2.0"
 // }
 // ```
-func Block(heightPtr *int64) (*ctypes.ResultBlock, error) {
+func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error) {
 	storeHeight := blockStore.Height()
 	height, err := getHeight(storeHeight, heightPtr)
+	if err != nil {
+		return nil, err
+	}
+
+	blockMeta := blockStore.LoadBlockMeta(height)
+	block := blockStore.LoadBlock(height)
+	return &ctypes.ResultBlock{BlockMeta: blockMeta, Block: block}, nil
+}
+
+// Get block at a given block hash.
+// If no block hash is provided, it will return with error.
+//
+// ```shell
+// curl 'localhost:27147/block_by_hash?hash=0xF70588DAB36BDA5A953D548A16F7D48C6C2DFD78'
+// ```
+//
+// ```go
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
+// err := client.Start()
+// if err != nil {
+//   // handle error
+// }
+// defer client.Stop()
+// info, err := client.BlockByHash([]byte("F70588DAB36BDA5A953D548A16F7D48C6C2DFD78"))
+// ```
+//
+// > The above command returns JSON structured like this:
+//
+// ```json
+// {
+//   "error": "",
+//   "result": {
+//     "block": {
+//       "last_commit": {
+//         "precommits": [
+//           {
+//             "signature": {
+//               "data": "12C0D8893B8A38224488DC1DE6270DF76BB1A5E9DB1C68577706A6A97C6EC34FFD12339183D5CA8BC2F46148773823DE905B7F6F5862FD564038BB7AE03BF50D",
+//               "type": "ed25519"
+//             },
+//             "block_id": {
+//               "parts": {
+//                 "hash": "3C78F00658E06744A88F24FF97A0A5011139F34A",
+//                 "total": "1"
+//               },
+//               "hash": "F70588DAB36BDA5A953D548A16F7D48C6C2DFD78"
+//             },
+//             "type": "2",
+//             "round": "0",
+//             "height": "9",
+//             "validator_index": "0",
+//             "validator_address": "E89A51D60F68385E09E716D353373B11F8FACD62"
+//           }
+//         ],
+//         "blockID": {
+//           "parts": {
+//             "hash": "3C78F00658E06744A88F24FF97A0A5011139F34A",
+//             "total": "1"
+//           },
+//           "hash": "F70588DAB36BDA5A953D548A16F7D48C6C2DFD78"
+//         }
+//       },
+//       "data": {
+//         "txs": []
+//       },
+//       "header": {
+//         "app_hash": "",
+//         "chain_id": "test-chain-6UTNIN",
+//         "height": "10",
+//         "time": "2017-05-29T15:05:53.877Z",
+//         "num_txs": "0",
+//         "last_block_id": {
+//           "parts": {
+//             "hash": "3C78F00658E06744A88F24FF97A0A5011139F34A",
+//             "total": "1"
+//           },
+//           "hash": "F70588DAB36BDA5A953D548A16F7D48C6C2DFD78"
+//         },
+//         "last_commit_hash": "F31CC4282E50B3F2A58D763D233D76F26D26CABE",
+//         "data_hash": "",
+//         "validators_hash": "9365FC80F234C967BD233F5A3E2AB2F1E4B0E5AA"
+//       }
+//     },
+//     "block_meta": {
+//       "header": {
+//         "app_hash": "",
+//         "chain_id": "test-chain-6UTNIN",
+//         "height": "10",
+//         "time": "2017-05-29T15:05:53.877Z",
+//         "num_txs": "0",
+//         "last_block_id": {
+//           "parts": {
+//             "hash": "3C78F00658E06744A88F24FF97A0A5011139F34A",
+//             "total": "1"
+//           },
+//           "hash": "F70588DAB36BDA5A953D548A16F7D48C6C2DFD78"
+//         },
+//         "last_commit_hash": "F31CC4282E50B3F2A58D763D233D76F26D26CABE",
+//         "data_hash": "",
+//         "validators_hash": "9365FC80F234C967BD233F5A3E2AB2F1E4B0E5AA"
+//       },
+//       "block_id": {
+//         "parts": {
+//           "hash": "277A4DBEF91483A18B85F2F5677ABF9694DFA40F",
+//           "total": "1"
+//         },
+//         "hash": "96B1D2F2D201BA4BC383EB8224139DB1294944E5"
+//       }
+//     }
+//   },
+//   "id": "",
+//   "jsonrpc": "2.0"
+// }
+// ```
+func BlockByHash(ctx *rpctypes.Context, blockHash []byte) (*ctypes.ResultBlock, error) {
+	height, err := getHeightViaHash(blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -242,11 +360,11 @@ func Block(heightPtr *int64) (*ctypes.ResultBlock, error) {
 // If no height is provided, it will fetch the commit for the latest block.
 //
 // ```shell
-// curl 'localhost:26657/commit?height=11'
+// curl 'localhost:27147/commit?height=11'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -313,7 +431,7 @@ func Block(heightPtr *int64) (*ctypes.ResultBlock, error) {
 //   "jsonrpc": "2.0"
 // }
 // ```
-func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
+func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, error) {
 	storeHeight := blockStore.Height()
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
@@ -341,11 +459,11 @@ func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 // Thus response.results[5] is the results of executing getBlock(h).Txs[5]
 //
 // ```shell
-// curl 'localhost:26657/block_results?height=10'
+// curl 'localhost:27147/block_results?height=10'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -372,7 +490,7 @@ func Commit(heightPtr *int64) (*ctypes.ResultCommit, error) {
 //  ]
 // }
 // ```
-func BlockResults(heightPtr *int64) (*ctypes.ResultBlockResults, error) {
+func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	storeHeight := blockStore.Height()
 	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
@@ -404,4 +522,21 @@ func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
 		return height, nil
 	}
 	return currentHeight, nil
+}
+
+func getHeightViaHash(blockHash []byte) (int64, error) {
+	if blockHash == nil {
+		return 0, fmt.Errorf("blockHash is missing")
+	}
+	if len(blockHash) != sha256.Size {
+		return 0, fmt.Errorf("length of blockHash is not 32")
+	}
+	blockHeight, err := blockIndexer.Get(blockHash)
+	if err != nil {
+		return 0, fmt.Errorf("get block from blockHash indexer failed, err: %v", err)
+	}
+	if blockHeight == 0 {
+		return 0, fmt.Errorf("the specified block blockHash do not exist")
+	}
+	return blockHeight, nil
 }

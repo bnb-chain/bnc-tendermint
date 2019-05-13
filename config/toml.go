@@ -81,6 +81,15 @@ moniker = "{{ .BaseConfig.Moniker }}"
 # and verifying their commits
 fast_sync = {{ .BaseConfig.FastSync }}
 
+
+# As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
+state_sync_reactor = {{ .BaseConfig.StateSyncReactor }}
+
+# If this node is many days behind the tip of the chain, StateSync
+# allows them to catchup quickly by downloading app state (without historical blocks)
+# in parallel and start syncing block afterwards
+state_sync = {{ .BaseConfig.StateSync }}
+
 # Database backend: leveldb | memdb | cleveldb
 db_backend = "{{ .BaseConfig.DBBackend }}"
 
@@ -120,6 +129,9 @@ prof_laddr = "{{ .BaseConfig.ProfListenAddress }}"
 # If true, query the ABCI app on connecting to a new peer
 # so the app can decide if we should keep the connection or not
 filter_peers = {{ .BaseConfig.FilterPeers }}
+
+# If false, will not check appHash when apply block
+with_app_stat = {{ .BaseConfig.WithAppStat }}
 
 ##### advanced configuration options #####
 
@@ -165,6 +177,50 @@ unsafe = {{ .RPC.Unsafe }}
 # 1024 - 40 - 10 - 50 = 924 = ~900
 max_open_connections = {{ .RPC.MaxOpenConnections }}
 
+
+# Maximum number of go routine to process websocket request.
+# 1 - process websocket request synchronously.
+# 10 - default size.
+# Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+websocket_pool_size = {{ .RPC.WebsocketPoolMaxSize }}
+	
+# The queued buffer for workers to process requests.
+# 10 -default
+websocket_pool_queue_size = {{ .RPC.WebsocketPoolQueueSize }}
+
+# The initial size of goroutines in pool.
+# 1 - process websocket request synchronously.
+# 5 - default size
+# Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+websocket_pool_spawn_size = {{ .RPC.WebsocketPoolSpawnSize }}
+
+# Maximum number of unique clientIDs that can /subscribe
+# If you're using /broadcast_tx_commit, set to the estimated maximum number
+# of broadcast_tx_commit calls per block.
+max_subscription_clients = {{ .RPC.MaxSubscriptionClients }}
+
+# Maximum number of unique queries a given client can /subscribe to
+# If you're using GRPC (or Local RPC client) and /broadcast_tx_commit, set to
+# the estimated # maximum number of broadcast_tx_commit calls per block.
+max_subscriptions_per_client = {{ .RPC.MaxSubscriptionsPerClient }}
+
+# How long to wait for a tx to be committed during /broadcast_tx_commit.
+# WARNING: Using a value larger than 10s will result in increasing the
+# global HTTP write timeout, which applies to all connections and endpoints.
+# See https://github.com/tendermint/tendermint/issues/3435
+timeout_broadcast_tx_commit = "{{ .RPC.TimeoutBroadcastTxCommit }}"
+
+# The name of a file containing certificate that is used to create the HTTPS server.
+# If the certificate is signed by a certificate authority,
+# the certFile should be the concatenation of the server's certificate, any intermediates,
+# and the CA's certificate.
+# NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+tls_cert_file = "{{ .RPC.TLSCertFile }}"
+
+# The name of a file containing matching private key that is used to create the HTTPS server.
+# NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+tls_key_file = "{{ .RPC.TLSKeyFile }}"
+
 ##### peer to peer configuration options #####
 [p2p]
 
@@ -205,11 +261,20 @@ flush_throttle_timeout = "{{ .P2P.FlushThrottleTimeout }}"
 # Maximum size of a message packet payload, in bytes
 max_packet_msg_payload_size = {{ .P2P.MaxPacketMsgPayloadSize }}
 
+# Maximum num of keys a state sync request ask for
+keys_per_request = {{ .P2P.KeysPerRequest }}
+
 # Rate at which packets can be sent, in bytes/second
 send_rate = {{ .P2P.SendRate }}
 
 # Rate at which packets can be received, in bytes/second
 recv_rate = {{ .P2P.RecvRate }}
+
+# Interval to send pings
+ping_interval = "{{ .P2P.PingInterval }}"
+
+# Maximum wait time for pongs
+pong_timeout = "{{ .P2P.PongTimeout }}"
 
 # Set true to enable the peer-exchange reactor
 pex = {{ .P2P.PexReactor }}
@@ -230,6 +295,22 @@ allow_duplicate_ip = {{ .P2P.AllowDuplicateIP }}
 handshake_timeout = "{{ .P2P.HandshakeTimeout }}"
 dial_timeout = "{{ .P2P.DialTimeout }}"
 
+##### dbcache configuration options #####
+[dbcache]
+# OpenFilesCacheCapacity defines the capacity of the open files caching.
+open_files_cache_capacity = {{ .DBCache.OpenFilesCacheCapacity }}
+
+# BlockCacheCapacity defines the capacity of the 'sorted table' block caching.
+block_cache_capacity = {{ .DBCache.BlockCacheCapacity }}
+
+# WriteBuffer defines maximum size of a 'memdb' before flushed to 'sorted table'.
+write_buffer = {{ .DBCache.WriteBuffer }}
+
+# Filter defines an 'effective filter' to use. An 'effective filter'
+# if defined will be used to generate per-table filter block.
+# Greater than 0 would creates a new initialized bloom filter for given bitsPerKey.
+bits_per_key = {{ .DBCache.BitsPerKey }}
+
 ##### mempool configuration options #####
 [mempool]
 
@@ -237,10 +318,15 @@ recheck = {{ .Mempool.Recheck }}
 broadcast = {{ .Mempool.Broadcast }}
 wal_dir = "{{ js .Mempool.WalPath }}"
 
-# size of the mempool
+# Maximum number of transactions in the mempool
 size = {{ .Mempool.Size }}
 
-# size of the cache (used to filter transactions we saw earlier)
+# Limit the total size of all txs in the mempool.
+# This only accounts for raw transactions (e.g. given 1MB transactions and
+# max_txs_bytes=5MB, mempool will only accept 5 transactions).
+max_txs_bytes = {{ .Mempool.MaxTxsBytes }}
+
+# Size of the cache (used to filter transactions we saw earlier) in transactions
 cache_size = {{ .Mempool.CacheSize }}
 
 ##### consensus configuration options #####
@@ -266,9 +352,6 @@ create_empty_blocks_interval = "{{ .Consensus.CreateEmptyBlocksInterval }}"
 # Reactor sleep duration parameters
 peer_gossip_sleep_duration = "{{ .Consensus.PeerGossipSleepDuration }}"
 peer_query_maj23_sleep_duration = "{{ .Consensus.PeerQueryMaj23SleepDuration }}"
-
-# Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
-blocktime_iota = "{{ .Consensus.BlockTimeIota }}"
 
 ##### transactions indexer configuration options #####
 [tx_index]
@@ -296,6 +379,16 @@ index_tags = "{{ .TxIndex.IndexTags }}"
 # precedence over IndexAllTags (i.e. when given both, IndexTags will be
 # indexed).
 index_all_tags = {{ .TxIndex.IndexAllTags }}
+
+##### block indexer configuration options #####
+[block_index]
+
+# What indexer to use for blocks
+#
+# Options:
+#   1) "null"
+#   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
+indexer = "{{ .BlockIndex.Indexer }}"
 
 ##### instrumentation configuration options #####
 [instrumentation]

@@ -7,6 +7,7 @@ import (
 
 	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/tendermint/tendermint/state/txindex/null"
 	"github.com/tendermint/tendermint/types"
 )
@@ -16,17 +17,18 @@ import (
 // place.
 //
 // ```shell
-// curl "localhost:26657/tx?hash=0x2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF"
+// curl "localhost:27147/tx?hash=0xF87370F68C82D9AC7201248ECA48CEC5F16FFEC99C461C1B2961341A2FE9C1C8"
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
 // }
 // defer client.Stop()
-// tx, err := client.Tx([]byte("2B8EC32BA2579B3B8606E42C06DE2F7AFA2556EF"), true)
+// hashBytes, err := hex.DecodeString("F87370F68C82D9AC7201248ECA48CEC5F16FFEC99C461C1B2961341A2FE9C1C8")
+// tx, err := client.Tx(hashBytes, true)
 // ```
 //
 // > The above command returns JSON structured like this:
@@ -64,7 +66,7 @@ import (
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                               |
-// |-----------+--------+---------+----------+-----------------------------------------------------------|
+// |-----------|--------|---------|----------|-----------------------------------------------------------|
 // | hash      | []byte | nil     | true     | The transaction hash                                      |
 // | prove     | bool   | false   | false    | Include a proof of the transaction inclusion in the block |
 //
@@ -76,7 +78,7 @@ import (
 // - `index`: `int` - index of the transaction
 // - `height`: `int` - height of the block where this transaction was in
 // - `hash`: `[]byte` - hash of the transaction
-func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
+func Tx(ctx *rpctypes.Context, hash []byte, prove bool) (*ctypes.ResultTx, error) {
 
 	// if index is disabled, return error
 	if _, ok := txIndexer.(*null.TxIndex); ok {
@@ -115,11 +117,11 @@ func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
 // list of transactions (maximum ?per_page entries) and the total count.
 //
 // ```shell
-// curl "localhost:26657/tx_search?query=\"account.owner='Ivan'\"&prove=true"
+// curl "localhost:27147/tx_search?query=\"account.owner='Ivan'\"&prove=true"
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -168,7 +170,7 @@ func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
 // ### Query Parameters
 //
 // | Parameter | Type   | Default | Required | Description                                               |
-// |-----------+--------+---------+----------+-----------------------------------------------------------|
+// |-----------|--------|---------|----------|-----------------------------------------------------------|
 // | query     | string | ""      | true     | Query                                                     |
 // | prove     | bool   | false   | false    | Include proofs of the transactions inclusion in the block |
 // | page      | int    | 1       | false    | Page number (1-based)                                     |
@@ -182,7 +184,7 @@ func Tx(hash []byte, prove bool) (*ctypes.ResultTx, error) {
 // - `index`: `int` - index of the transaction
 // - `height`: `int` - height of the block where this transaction was in
 // - `hash`: `[]byte` - hash of the transaction
-func TxSearch(query string, prove bool, page, perPage int) (*ctypes.ResultTxSearch, error) {
+func TxSearch(ctx *rpctypes.Context, query string, prove bool, page, perPage int) (*ctypes.ResultTxSearch, error) {
 	// if index is disabled, return error
 	if _, ok := txIndexer.(*null.TxIndex); ok {
 		return nil, fmt.Errorf("Transaction indexing is disabled")

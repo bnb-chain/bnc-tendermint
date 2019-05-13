@@ -20,6 +20,22 @@ func TestNewNetAddress(t *testing.T) {
 	}, "Calling NewNetAddress with UDPAddr should not panic in testing")
 }
 
+func TestIDAddressString(t *testing.T) {
+	testCases := []struct {
+		id       ID
+		hostPort string
+		expect   string
+	}{
+		{"123xxx", "tcp://127.0.0.1:8080", "123xxx@127.0.0.1:8080"},
+		{"123xxx", "udp://127.0.0.1:8080", "123xxx@127.0.0.1:8080"},
+		{"123xxx", "127.0.0.1:8080", "123xxx@127.0.0.1:8080"},
+	}
+	for _, tc := range testCases {
+		ac := IDAddressString(tc.id, tc.hostPort)
+		assert.Equal(t, tc.expect, ac)
+	}
+}
+
 func TestNewNetAddressStringWithOptionalID(t *testing.T) {
 	testCases := []struct {
 		name     string

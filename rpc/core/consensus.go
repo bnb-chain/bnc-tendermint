@@ -3,19 +3,22 @@ package core
 import (
 	cm "github.com/tendermint/tendermint/consensus"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
 
 // Get the validator set at the given block height.
 // If no height is provided, it will fetch the current validator set.
+// Note the validators are sorted by their address - this is the canonical
+// order for the validators in the set as used in computing their Merkle root.
 //
 // ```shell
-// curl 'localhost:26657/validators'
+// curl 'localhost:27147/validators'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -47,7 +50,7 @@ import (
 // 	"jsonrpc": "2.0"
 // }
 // ```
-func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
+func Validators(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultValidators, error) {
 	// The latest validator that we know is the
 	// NextValidator of the last block.
 	height := consensusState.GetState().LastBlockHeight + 1
@@ -69,11 +72,11 @@ func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
 // UNSTABLE
 //
 // ```shell
-// curl 'localhost:26657/dump_consensus_state'
+// curl 'localhost:27147/dump_consensus_state'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -166,7 +169,7 @@ func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
 //     },
 //     "peers": [
 //       {
-//         "node_address": "30ad1854af22506383c3f0e57fb3c7f90984c5e8@172.16.63.221:26656",
+//         "node_address": "30ad1854af22506383c3f0e57fb3c7f90984c5e8@172.16.63.221:27146",
 //         "peer_state": {
 //           "round_state": {
 //             "height": "7185",
@@ -200,7 +203,7 @@ func Validators(heightPtr *int64) (*ctypes.ResultValidators, error) {
 //   }
 // }
 // ```
-func DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
+func DumpConsensusState(ctx *rpctypes.Context) (*ctypes.ResultDumpConsensusState, error) {
 	// Get Peer consensus states.
 	peers := p2pPeers.Peers().List()
 	peerStates := make([]ctypes.PeerStateInfo, len(peers))
@@ -215,7 +218,7 @@ func DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 		}
 		peerStates[i] = ctypes.PeerStateInfo{
 			// Peer basic info.
-			NodeAddress: peer.NodeInfo().NetAddress().String(),
+			NodeAddress: peer.SocketAddr().String(),
 			// Peer consensus state.
 			PeerState: peerStateJSON,
 		}
@@ -234,11 +237,11 @@ func DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 // UNSTABLE
 //
 // ```shell
-// curl 'localhost:26657/consensus_state'
+// curl 'localhost:27147/consensus_state'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -277,7 +280,7 @@ func DumpConsensusState() (*ctypes.ResultDumpConsensusState, error) {
 //  }
 //}
 //```
-func ConsensusState() (*ctypes.ResultConsensusState, error) {
+func ConsensusState(ctx *rpctypes.Context) (*ctypes.ResultConsensusState, error) {
 	// Get self round state.
 	bz, err := consensusState.GetRoundStateSimpleJSON()
 	return &ctypes.ResultConsensusState{RoundState: bz}, err
@@ -287,11 +290,11 @@ func ConsensusState() (*ctypes.ResultConsensusState, error) {
 // If no height is provided, it will fetch the current consensus params.
 //
 // ```shell
-// curl 'localhost:26657/consensus_params'
+// curl 'localhost:27147/consensus_params'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -320,7 +323,7 @@ func ConsensusState() (*ctypes.ResultConsensusState, error) {
 //   }
 // }
 // ```
-func ConsensusParams(heightPtr *int64) (*ctypes.ResultConsensusParams, error) {
+func ConsensusParams(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultConsensusParams, error) {
 	height := consensusState.GetState().LastBlockHeight + 1
 	height, err := getHeight(height, heightPtr)
 	if err != nil {

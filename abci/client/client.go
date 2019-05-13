@@ -30,6 +30,7 @@ type Client interface {
 	SetOptionAsync(types.RequestSetOption) *ReqRes
 	DeliverTxAsync(tx []byte) *ReqRes
 	CheckTxAsync(tx []byte) *ReqRes
+	ReCheckTxAsync(tx []byte) *ReqRes
 	QueryAsync(types.RequestQuery) *ReqRes
 	CommitAsync() *ReqRes
 	InitChainAsync(types.RequestInitChain) *ReqRes
@@ -47,6 +48,12 @@ type Client interface {
 	InitChainSync(types.RequestInitChain) (*types.ResponseInitChain, error)
 	BeginBlockSync(types.RequestBeginBlock) (*types.ResponseBeginBlock, error)
 	EndBlockSync(types.RequestEndBlock) (*types.ResponseEndBlock, error)
+
+	LatestSnapshot() (height int64, numKeys []int64, err error)
+	ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error)
+	StartRecovery(height int64, numKeys []int64) error
+	WriteRecoveryChunk(chunk [][]byte) error
+	EndRecovery(height int64) error
 }
 
 //----------------------------------------

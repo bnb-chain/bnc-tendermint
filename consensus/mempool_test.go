@@ -106,7 +106,11 @@ func deliverTxsRange(cs *ConsensusState, start, end int) {
 
 func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 	state, privVals := randGenesisState(1, false, 10)
-	cs := newConsensusState(state, privVals[0], NewCounterApplication())
+	// checkTx and block mutex are not purely FIFO, so we don't need to stick
+	// to the counter sequence
+	app := NewCounterApplication()
+	app.serial = false
+	cs := newConsensusState(state, privVals[0], app)
 	height, round := cs.Height, cs.Round
 	newBlockCh := subscribe(cs.eventBus, types.EventQueryNewBlock)
 
@@ -117,9 +121,9 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 	for nTxs := 0; nTxs < NTxs; {
 		ticker := time.NewTicker(time.Second * 30)
 		select {
-		case b := <-newBlockCh:
-			evt := b.(types.EventDataNewBlock)
-			nTxs += int(evt.Block.Header.NumTxs)
+		case msg := <-newBlockCh:
+			blockEvent := msg.Data().(types.EventDataNewBlock)
+			nTxs += int(blockEvent.Block.Header.NumTxs)
 		case <-ticker.C:
 			panic("Timed out waiting to commit blocks with transactions")
 		}
@@ -193,10 +197,11 @@ type CounterApplication struct {
 
 	txCount        int
 	mempoolTxCount int
+	serial         bool
 }
 
 func NewCounterApplication() *CounterApplication {
-	return &CounterApplication{}
+	return &CounterApplication{serial: true}
 }
 
 func (app *CounterApplication) Info(req abci.RequestInfo) abci.ResponseInfo {
@@ -205,7 +210,7 @@ func (app *CounterApplication) Info(req abci.RequestInfo) abci.ResponseInfo {
 
 func (app *CounterApplication) DeliverTx(tx []byte) abci.ResponseDeliverTx {
 	txValue := txAsUint64(tx)
-	if txValue != uint64(app.txCount) {
+	if app.serial && txValue != uint64(app.txCount) {
 		return abci.ResponseDeliverTx{
 			Code: code.CodeTypeBadNonce,
 			Log:  fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.txCount, txValue)}
@@ -216,7 +221,7 @@ func (app *CounterApplication) DeliverTx(tx []byte) abci.ResponseDeliverTx {
 
 func (app *CounterApplication) CheckTx(tx []byte) abci.ResponseCheckTx {
 	txValue := txAsUint64(tx)
-	if txValue != uint64(app.mempoolTxCount) {
+	if app.serial && txValue != uint64(app.mempoolTxCount) {
 		return abci.ResponseCheckTx{
 			Code: code.CodeTypeBadNonce,
 			Log:  fmt.Sprintf("Invalid nonce. Expected %v, got %v", app.mempoolTxCount, txValue)}

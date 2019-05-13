@@ -177,6 +177,15 @@ func (cli *grpcClient) CheckTxAsync(tx []byte) *ReqRes {
 	return cli.finishAsyncCall(req, &types.Response{Value: &types.Response_CheckTx{CheckTx: res}})
 }
 
+func (cli *grpcClient) ReCheckTxAsync(tx []byte) *ReqRes {
+	req := types.ToRequestCheckTx(tx)
+	res, err := cli.client.CheckTx(context.Background(), req.GetCheckTx(), grpc.FailFast(true))
+	if err != nil {
+		cli.StopForError(err)
+	}
+	return cli.finishAsyncCall(req, &types.Response{Value: &types.Response_CheckTx{res}})
+}
+
 func (cli *grpcClient) QueryAsync(params types.RequestQuery) *ReqRes {
 	req := types.ToRequestQuery(params)
 	res, err := cli.client.Query(context.Background(), req.GetQuery(), grpc.FailFast(true))
@@ -298,4 +307,20 @@ func (cli *grpcClient) BeginBlockSync(params types.RequestBeginBlock) (*types.Re
 func (cli *grpcClient) EndBlockSync(params types.RequestEndBlock) (*types.ResponseEndBlock, error) {
 	reqres := cli.EndBlockAsync(params)
 	return reqres.Response.GetEndBlock(), cli.Error()
+}
+
+func (cli *grpcClient) LatestSnapshot() (height int64, numKeys []int64, err error) {
+	return 0, make([]int64, 0), nil
+}
+func (cli *grpcClient) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
+	return make([][]byte, 0), nil
+}
+func (cli *grpcClient) StartRecovery(height int64, numKeys []int64) error {
+	return nil
+}
+func (cli *grpcClient) WriteRecoveryChunk(chunk [][]byte) error {
+	return nil
+}
+func (cli *grpcClient) EndRecovery(height int64) error {
+	return nil
 }

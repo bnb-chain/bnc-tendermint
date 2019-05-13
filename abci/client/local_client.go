@@ -103,6 +103,16 @@ func (app *localClient) CheckTxAsync(tx []byte) *ReqRes {
 	)
 }
 
+func (app *localClient) ReCheckTxAsync(tx []byte) *ReqRes {
+	app.mtx.Lock()
+	defer app.mtx.Unlock()
+	res := app.Application.ReCheckTx(tx)
+	return app.callback(
+		types.ToRequestCheckTx(tx),
+		types.ToResponseCheckTx(res),
+	)
+}
+
 func (app *localClient) QueryAsync(req types.RequestQuery) *ReqRes {
 	app.mtx.Lock()
 	defer app.mtx.Unlock()
@@ -156,6 +166,41 @@ func (app *localClient) EndBlockAsync(req types.RequestEndBlock) *ReqRes {
 		types.ToRequestEndBlock(req),
 		types.ToResponseEndBlock(res),
 	)
+}
+
+func (app *localClient) LatestSnapshot() (height int64, numKeys []int64, err error) {
+	app.mtx.Lock()
+	defer app.mtx.Unlock()
+
+	return app.Application.LatestSnapshot()
+}
+
+func (app *localClient) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
+	app.mtx.Lock()
+	defer app.mtx.Unlock()
+
+	return app.Application.ReadSnapshotChunk(height, startIndex, endIndex)
+}
+
+func (app *localClient) StartRecovery(height int64, numKeys []int64) error {
+	app.mtx.Lock()
+	defer app.mtx.Unlock()
+
+	return app.Application.StartRecovery(height, numKeys)
+}
+
+func (app *localClient) WriteRecoveryChunk(chunk [][]byte) error {
+	app.mtx.Lock()
+	defer app.mtx.Unlock()
+
+	return app.Application.WriteRecoveryChunk(chunk)
+}
+
+func (app *localClient) EndRecovery(height int64) error {
+	app.mtx.Lock()
+	defer app.mtx.Unlock()
+
+	return app.Application.EndRecovery(height)
 }
 
 //-------------------------------------------------------

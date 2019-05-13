@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -14,7 +13,6 @@ import (
 	"github.com/tendermint/tendermint/abci/example/kvstore"
 	bc "github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
-	auto "github.com/tendermint/tendermint/libs/autofile"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
@@ -24,13 +22,12 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
-// WALGenerateNBlocks generates a consensus WAL. It does this by spining up a
+// WALGenerateNBlocks generates a consensus WAL. It does this by spinning up a
 // stripped down version of node (proxy app, event bus, consensus state) with a
 // persistent kvstore application and special consensus wal instance
 // (byteBufferWAL) and waits until numBlocks are created. If the node fails to produce given numBlocks, it returns an error.
 func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	config := getConfig(t)
-	defer os.RemoveAll(config.RootDir)
 
 	app := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), "wal_generator"))
 
@@ -71,7 +68,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	defer eventBus.Stop()
 	mempool := sm.MockMempool{}
 	evpool := sm.MockEvidencePool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool, evpool)
+	blockExec := sm.NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), mempool, evpool, true)
 	consensusState := NewConsensusState(config.Consensus, state.Copy(), blockExec, blockStore, mempool, evpool)
 	consensusState.SetLogger(logger)
 	consensusState.SetEventBus(eventBus)
@@ -194,10 +191,9 @@ func (w *byteBufferWAL) WriteSync(m WALMessage) {
 	w.Write(m)
 }
 
-func (w *byteBufferWAL) Group() *auto.Group {
-	panic("not implemented")
-}
-func (w *byteBufferWAL) SearchForEndHeight(height int64, options *WALSearchOptions) (gr *auto.GroupReader, found bool, err error) {
+func (w *byteBufferWAL) FlushAndSync() error { return nil }
+
+func (w *byteBufferWAL) SearchForEndHeight(height int64, options *WALSearchOptions) (rd io.ReadCloser, found bool, err error) {
 	return nil, false, nil
 }
 

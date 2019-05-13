@@ -7,6 +7,7 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/p2p"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
+	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
@@ -15,11 +16,11 @@ import (
 // hash, app hash, block height and time.
 //
 // ```shell
-// curl 'localhost:26657/status'
+// curl 'localhost:27147/status'
 // ```
 //
 // ```go
-// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+// client := client.NewHTTP("tcp://0.0.0.0:27147", "/websocket")
 // err := client.Start()
 // if err != nil {
 //   // handle error
@@ -42,14 +43,14 @@ import (
 //   			"app": "0"
 //   		},
 //   		"id": "53729852020041b956e86685e24394e0bee4373f",
-//   		"listen_addr": "10.0.2.15:26656",
+//   		"listen_addr": "10.0.2.15:27146",
 //   		"network": "test-chain-Y1OHx6",
 //   		"version": "0.24.0-2ce1abc2",
 //   		"channels": "4020212223303800",
 //   		"moniker": "ubuntu-xenial",
 //   		"other": {
 //   			"tx_index": "on",
-//   			"rpc_addr": "tcp://0.0.0.0:26657"
+//   			"rpc_addr": "tcp://0.0.0.0:27147"
 //   		}
 //   	},
 //   	"sync_info": {
@@ -70,8 +71,8 @@ import (
 //   }
 // }
 // ```
-func Status() (*ctypes.ResultStatus, error) {
-	var latestHeight int64 = -1
+func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
+	var latestHeight int64
 	if consensusReactor.FastSync() {
 		latestHeight = blockStore.Height()
 	} else {

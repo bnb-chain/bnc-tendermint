@@ -89,6 +89,9 @@ func GetConfig() *cfg.Config {
 		globalConfig.RPC.ListenAddress = rpc
 		globalConfig.RPC.CORSAllowedOrigins = []string{"https://tendermint.com/"}
 		globalConfig.RPC.GRPCListenAddress = grpc
+		globalConfig.RPC.WebsocketPoolMaxSize = 1
+		globalConfig.RPC.WebsocketPoolQueueSize = 1
+		globalConfig.RPC.WebsocketPoolSpawnSize = 1
 		globalConfig.TxIndex.IndexTags = "app.creator,tx.height" // see kvstore application
 	}
 	return globalConfig

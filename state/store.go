@@ -9,7 +9,21 @@ import (
 	"github.com/tendermint/tendermint/types"
 )
 
+const (
+	// persist validators every valSetCheckpointInterval blocks to avoid
+	// LoadValidators taking too much time.
+	// https://github.com/tendermint/tendermint/pull/3438
+	// 100000 results in ~ 100ms to get 100 validators (see BenchmarkLoadValidators)
+	valSetCheckpointInterval = 100000
+)
+
 //------------------------------------------------------------------------
+
+const latestStateToKeep int64 = 1 << 20
+
+func calcStateKey(height int64) []byte {
+	return []byte(fmt.Sprintf("stateKey:%v", height % latestStateToKeep))
+}
 
 func calcValidatorsKey(height int64) []byte {
 	return []byte(fmt.Sprintf("validatorsKey:%v", height))
@@ -62,6 +76,24 @@ func LoadState(db dbm.DB) State {
 	return loadState(db, stateKey)
 }
 
+func LoadStateForHeight(db dbm.DB, height int64) *State {
+	var state State
+	buf := db.Get(calcStateKey(height))
+	if len(buf) == 0 {
+		return nil
+	}
+
+	err := cdc.UnmarshalBinaryBare(buf, &state)
+	if err != nil {
+		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
+		cmn.Exit(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
+                %v\n`, err))
+	}
+	// TODO: ensure that buf is completely read.
+
+	return &state
+}
+
 func loadState(db dbm.DB, key []byte) (state State) {
 	buf := db.Get(key)
 	if len(buf) == 0 {
@@ -98,7 +130,8 @@ func saveState(db dbm.DB, state State, key []byte) {
 	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
 	// Save next consensus params.
 	saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
-	db.SetSync(key, state.Bytes())
+	db.SetSync(calcStateKey(state.LastBlockHeight), state.Bytes())
+	db.SetSync(stateKey, state.Bytes())
 }
 
 //------------------------------------------------------------------------
@@ -182,23 +215,36 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 	if valInfo == nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
-
 	if valInfo.ValidatorSet == nil {
-		valInfo2 := loadValidatorsInfo(db, valInfo.LastHeightChanged)
-		if valInfo2 == nil {
-			panic(
-				fmt.Sprintf(
-					"Couldn't find validators at height %d as last changed from height %d",
-					valInfo.LastHeightChanged,
-					height,
-				),
-			)
+		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
+		valInfo2 := loadValidatorsInfo(db, lastStoredHeight)
+		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
+			// TODO (melekes): remove the below if condition in the 0.33 major
+			// release and just panic. Old chains might panic otherwise if they
+			// haven't saved validators at intermediate (%valSetCheckpointInterval)
+			// height yet.
+			// https://github.com/tendermint/tendermint/issues/3543
+			valInfo2 = loadValidatorsInfo(db, valInfo.LastHeightChanged)
+			lastStoredHeight = valInfo.LastHeightChanged
+			if valInfo2 == nil || valInfo2.ValidatorSet == nil {
+				panic(
+					fmt.Sprintf("Couldn't find validators at height %d (height %d was originally requested)",
+						lastStoredHeight,
+						height,
+					),
+				)
+			}
 		}
-		valInfo2.ValidatorSet.IncrementProposerPriority(int(height - valInfo.LastHeightChanged)) // mutate
+		valInfo2.ValidatorSet.IncrementProposerPriority(int(height - lastStoredHeight)) // mutate
 		valInfo = valInfo2
 	}
 
 	return valInfo.ValidatorSet, nil
+}
+
+func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
+	checkpointHeight := height - height%valSetCheckpointInterval
+	return cmn.MaxInt64(checkpointHeight, lastHeightChanged)
 }
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
@@ -221,10 +267,10 @@ func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
 }
 
 // saveValidatorsInfo persists the validator set.
-// `height` is the effective height for which the validator is responsible for signing.
-// It should be called from s.Save(), right before the state itself is persisted.
-// If the validator set did not change after processing the latest block,
-// only the last height for which the validators changed is persisted.
+//
+// `height` is the effective height for which the validator is responsible for
+// signing. It should be called from s.Save(), right before the state itself is
+// persisted.
 func saveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *types.ValidatorSet) {
 	if lastHeightChanged > height {
 		panic("LastHeightChanged cannot be greater than ValidatorsInfo height")
@@ -232,7 +278,9 @@ func saveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *type
 	valInfo := &ValidatorsInfo{
 		LastHeightChanged: lastHeightChanged,
 	}
-	if lastHeightChanged == height {
+	// Only persist validator set if it was updated or checkpoint height (see
+	// valSetCheckpointInterval) is reached.
+	if height == lastHeightChanged || height%valSetCheckpointInterval == 0 {
 		valInfo.ValidatorSet = valSet
 	}
 	db.Set(calcValidatorsKey(height), valInfo.Bytes())

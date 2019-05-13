@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -160,10 +161,6 @@ func assertMsgReceivedWithTimeout(t *testing.T, msgBytes []byte, channel byte, r
 
 func TestSwitchFiltersOutItself(t *testing.T) {
 	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
-	// addr := s1.NodeInfo().NetAddress()
-
-	// // add ourselves like we do in node.go#427
-	// s1.addrBook.AddOurAddress(addr)
 
 	// simulate s1 having a public IP by creating a remote peer with the same ID
 	rp := &remotePeer{PrivKey: s1.nodeKey.PrivKey, Config: cfg}
@@ -273,6 +270,8 @@ func TestSwitchPeerFilterTimeout(t *testing.T) {
 
 func TestSwitchPeerFilterDuplicate(t *testing.T) {
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
+	sw.Start()
+	defer sw.Stop()
 
 	// simulate remote peer
 	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
@@ -287,18 +286,17 @@ func TestSwitchPeerFilterDuplicate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if err := sw.addPeer(p); err != nil {
 		t.Fatal(err)
 	}
 
 	err = sw.addPeer(p)
-	if err, ok := err.(ErrRejected); ok {
-		if !err.IsDuplicate() {
-			t.Errorf("expected peer to be duplicate")
+	if errRej, ok := err.(ErrRejected); ok {
+		if !errRej.IsDuplicate() {
+			t.Errorf("expected peer to be duplicate. got %v", errRej)
 		}
 	} else {
-		t.Errorf("expected ErrRejected")
+		t.Errorf("expected ErrRejected, got %v", err)
 	}
 }
 
@@ -405,8 +403,10 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
 	rp.Start()
 	defer rp.Stop()
+	addr := *rp.Addr()
+	sw.config.PersistentPeers = addr.String()
 
-	p, err := sw.transport.Dial(*rp.Addr(), peerConfig{
+	p, err := sw.transport.Dial(addr, peerConfig{
 		chDescs:      sw.chDescs,
 		onPeerError:  sw.StopPeerForError,
 		persistent:   true,
@@ -447,6 +447,7 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	// simulate first time dial failure
 	conf := config.DefaultP2PConfig()
 	conf.TestDialFail = true
+	sw.config.PersistentPeers = fmt.Sprintf("%s,%s", sw.config.PersistentPeers, rp.Addr().String())
 	err = sw.addOutboundPeerWithConfig(rp.Addr(), conf, true)
 	require.NotNil(err)
 
@@ -495,7 +496,7 @@ func TestSwitchAcceptRoutine(t *testing.T) {
 		rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
 		remotePeers = append(remotePeers, rp)
 		rp.Start()
-		c, err := rp.Dial(sw.NodeInfo().NetAddress())
+		c, err := rp.Dial(sw.NetAddress())
 		require.NoError(t, err)
 		// spawn a reading routine to prevent connection from closing
 		go func(c net.Conn) {
@@ -514,7 +515,7 @@ func TestSwitchAcceptRoutine(t *testing.T) {
 	// 2. check we close new connections if we already have MaxNumInboundPeers peers
 	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
 	rp.Start()
-	conn, err := rp.Dial(sw.NodeInfo().NetAddress())
+	conn, err := rp.Dial(sw.NetAddress())
 	require.NoError(t, err)
 	// check conn is closed
 	one := make([]byte, 1)
@@ -528,6 +529,48 @@ func TestSwitchAcceptRoutine(t *testing.T) {
 	for _, rp := range remotePeers {
 		rp.Stop()
 	}
+}
+
+type errorTransport struct {
+	acceptErr error
+}
+
+func (et errorTransport) NetAddress() NetAddress {
+	panic("not implemented")
+}
+
+func (et errorTransport) Accept(c peerConfig) (Peer, error) {
+	return nil, et.acceptErr
+}
+func (errorTransport) Dial(NetAddress, peerConfig) (Peer, error) {
+	panic("not implemented")
+}
+func (errorTransport) Cleanup(Peer) {
+	panic("not implemented")
+}
+
+func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
+	sw := NewSwitch(cfg, errorTransport{ErrFilterTimeout{}})
+	assert.NotPanics(t, func() {
+		err := sw.Start()
+		assert.NoError(t, err)
+		sw.Stop()
+	})
+
+	sw = NewSwitch(cfg, errorTransport{ErrRejected{conn: nil, err: errors.New("filtered"), isFiltered: true}})
+	assert.NotPanics(t, func() {
+		err := sw.Start()
+		assert.NoError(t, err)
+		sw.Stop()
+	})
+	// TODO(melekes) check we remove our address from addrBook
+
+	sw = NewSwitch(cfg, errorTransport{ErrTransportClosed{}})
+	assert.NotPanics(t, func() {
+		err := sw.Start()
+		assert.NoError(t, err)
+		sw.Stop()
+	})
 }
 
 func BenchmarkSwitchBroadcast(b *testing.B) {
@@ -585,7 +628,7 @@ func (book *addrBookMock) OurAddress(addr *NetAddress) bool {
 	_, ok := book.ourAddrs[addr.String()]
 	return ok
 }
-func (book *addrBookMock) MarkGood(*NetAddress) {}
+func (book *addrBookMock) MarkGood(ID) {}
 func (book *addrBookMock) HasAddress(addr *NetAddress) bool {
 	_, ok := book.addrs[addr.String()]
 	return ok

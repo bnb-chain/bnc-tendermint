@@ -78,6 +78,10 @@ func (app *PersistentKVStoreApplication) CheckTx(tx []byte) types.ResponseCheckT
 	return app.app.CheckTx(tx)
 }
 
+func (app *PersistentKVStoreApplication) ReCheckTx(tx []byte) types.ResponseCheckTx {
+	return app.app.CheckTx(tx)
+}
+
 // Commit will panic if InitChain was not called
 func (app *PersistentKVStoreApplication) Commit() types.ResponseCommit {
 	return app.app.Commit()
@@ -108,6 +112,26 @@ func (app *PersistentKVStoreApplication) BeginBlock(req types.RequestBeginBlock)
 // Update the validator set
 func (app *PersistentKVStoreApplication) EndBlock(req types.RequestEndBlock) types.ResponseEndBlock {
 	return types.ResponseEndBlock{ValidatorUpdates: app.ValUpdates}
+}
+
+func (app *PersistentKVStoreApplication) LatestSnapshot() (height int64, numKeys []int64, err error) {
+	return 0, make([]int64, 0), nil
+}
+
+func (app *PersistentKVStoreApplication) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
+	return make([][]byte, 0), nil
+}
+
+func (app *PersistentKVStoreApplication) StartRecovery(height int64, numKeys []int64) error {
+	return nil
+}
+
+func (app *PersistentKVStoreApplication) WriteRecoveryChunk(chunk [][]byte) error {
+	return nil
+}
+
+func (app *PersistentKVStoreApplication) EndRecovery(height int64) error {
+	return nil
 }
 
 //---------------------------------------------

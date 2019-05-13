@@ -124,6 +124,26 @@ func (bcR *BlockchainReactor) OnStop() {
 	bcR.pool.Stop()
 }
 
+// SwitchToBlockchain switches from fastest_sync mode to blockchain mode.
+// It resets the state, turns off fastest_sync, and starts the blockchain state-machine
+func (bcR *BlockchainReactor) SwitchToBlockchain(state *sm.State) {
+	bcR.Logger.Info("SwitchToBlockchain")
+	if state != nil {
+		bcR.initialState = *state
+		bcR.pool.height = state.LastBlockHeight + 1
+		bcR.store.SetHeight(state.LastBlockHeight)
+		bcR.Logger.Debug("SwitchToBlockchain", "lastheight", state.LastBlockHeight, "apphash", state.AppHash)
+	}
+
+	bcR.fastSync = true
+	err := bcR.pool.Start()
+	if err != nil {
+		bcR.Logger.Error("Error starting blockchainReactor", "err", err)
+		return
+	}
+	go bcR.poolRoutine()
+}
+
 // GetChannels implements Reactor
 func (bcR *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
@@ -228,41 +248,55 @@ func (bcR *BlockchainReactor) poolRoutine() {
 
 	didProcessCh := make(chan struct{}, 1)
 
+	go func() {
+		for {
+			select {
+			case <-bcR.Quit():
+				return
+			case <-bcR.pool.Quit():
+				return
+			case request := <-bcR.requestsCh:
+				peer := bcR.Switch.Peers().Get(request.PeerID)
+				if peer == nil {
+					continue
+				}
+				msgBytes := cdc.MustMarshalBinaryBare(&bcBlockRequestMessage{request.Height})
+				queued := peer.TrySend(BlockchainChannel, msgBytes)
+				if !queued {
+					bcR.Logger.Debug("Send queue is full, drop block request", "peer", peer.ID(), "height", request.Height)
+				}
+			case err := <-bcR.errorsCh:
+				peer := bcR.Switch.Peers().Get(err.peerID)
+				if peer != nil {
+					bcR.Switch.StopPeerForError(peer, err)
+				}
+
+			case <-statusUpdateTicker.C:
+				// ask for status updates
+				go bcR.BroadcastStatusRequest() // nolint: errcheck
+
+			}
+		}
+	}()
+
 FOR_LOOP:
 	for {
 		select {
-		case request := <-bcR.requestsCh:
-			peer := bcR.Switch.Peers().Get(request.PeerID)
-			if peer == nil {
-				continue FOR_LOOP // Peer has since been disconnected.
-			}
-			msgBytes := cdc.MustMarshalBinaryBare(&bcBlockRequestMessage{request.Height})
-			queued := peer.TrySend(BlockchainChannel, msgBytes)
-			if !queued {
-				// We couldn't make the request, send-queue full.
-				// The pool handles timeouts, just let it go.
-				continue FOR_LOOP
-			}
-
-		case err := <-bcR.errorsCh:
-			peer := bcR.Switch.Peers().Get(err.peerID)
-			if peer != nil {
-				bcR.Switch.StopPeerForError(peer, err)
-			}
-
-		case <-statusUpdateTicker.C:
-			// ask for status updates
-			go bcR.BroadcastStatusRequest() // nolint: errcheck
-
 		case <-switchToConsensusTicker.C:
 			height, numPending, lenRequesters := bcR.pool.GetStatus()
 			outbound, inbound, _ := bcR.Switch.NumPeers()
 			bcR.Logger.Debug("Consensus ticker", "numPending", numPending, "total", lenRequesters,
-				"outbound", outbound, "inbound", inbound)
-			if bcR.pool.IsCaughtUp() {
+				"outbound", outbound, "inbound", inbound, "height", height, "blocksSynced", blocksSynced,
+				"poolHeight", bcR.pool.height, "poolstarttime", bcR.pool.startTime, "poolMaxPeerHeight", bcR.pool.maxPeerHeight,
+				"poolHeight", bcR.pool.height)
+			// height == 1 is for initial nodes start
+			// blocksSynced > 0 is for the pool.height might greater than pool.MaxPeerHeight after state sync
+			// numPending=0 total=0 outbound=1 inbound=0 height=6601 blocksSynced=0 poolHeight=6601 poolstarttime=2019-02-22T09:02:07.881888662Z poolMaxPeerHeight=6437 poolHeight=6601
+			// we need make sure blockstore has a block because when switch to consensus, it will verify the commit between block and state
+			// refer to `cs.blockStore.LoadSeenCommit(state.LastBlockHeight)`
+			if bcR.pool.IsCaughtUp() && (height == bcR.pool.initHeight || blocksSynced > 0) {
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
-
 				conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
 				if ok {
 					conR.SwitchToConsensus(state, blocksSynced)
@@ -334,6 +368,7 @@ FOR_LOOP:
 				// TODO: same thing for app - but we would need a way to
 				// get the hash without persisting the state
 				var err error
+				bcR.Logger.Debug("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
 				state, err = bcR.blockExec.ApplyBlock(state, firstID, first)
 				if err != nil {
 					// TODO This is bad, are we zombie?

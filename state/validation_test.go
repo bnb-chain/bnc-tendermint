@@ -20,7 +20,7 @@ func TestValidateBlockHeader(t *testing.T) {
 	var height int64 = 1 // TODO(#2589): generalize
 	state, stateDB := state(1, int(height))
 
-	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, nil)
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, nil, true)
 
 	// A good block passes.
 	block := makeBlock(state, height)
@@ -94,7 +94,7 @@ func TestValidateBlockEvidence(t *testing.T) {
 	var height int64 = 1 // TODO(#2589): generalize
 	state, stateDB := state(1, int(height))
 
-	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, nil)
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, nil, true)
 
 	// make some evidence
 	addr, _ := state.Validators.GetByIndex(0)
@@ -108,7 +108,7 @@ func TestValidateBlockEvidence(t *testing.T) {
 	require.NoError(t, err)
 
 	// A block with too much evidence fails.
-	maxBlockSize := state.ConsensusParams.BlockSize.MaxBytes
+	maxBlockSize := state.ConsensusParams.Block.MaxBytes
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(maxBlockSize)
 	require.True(t, maxNumEvidence > 2)
 	for i := int64(0); i < maxNumEvidence; i++ {
@@ -133,7 +133,7 @@ func TestValidateFailBlockOnCommittedEvidence(t *testing.T) {
 	var height int64 = 1
 	state, stateDB := state(1, int(height))
 
-	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, mockEvPoolAlwaysCommitted{})
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), nil, nil, mockEvPoolAlwaysCommitted{}, true)
 	// A block with a couple pieces of evidence passes.
 	block := makeBlock(state, height)
 	addr, _ := state.Validators.GetByIndex(0)

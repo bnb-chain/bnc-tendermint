@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/syndtr/goleveldb/leveldb/filter"
+	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 const (
@@ -63,9 +65,11 @@ type Config struct {
 	// Options for services
 	RPC             *RPCConfig             `mapstructure:"rpc"`
 	P2P             *P2PConfig             `mapstructure:"p2p"`
+	DBCache         *DBCacheConfig         `mapstructure:"dbcache"`
 	Mempool         *MempoolConfig         `mapstructure:"mempool"`
 	Consensus       *ConsensusConfig       `mapstructure:"consensus"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
+	BlockIndex      *BlockIndexConfig      `mapstructure:"block_index"`
 	Instrumentation *InstrumentationConfig `mapstructure:"instrumentation"`
 }
 
@@ -75,9 +79,11 @@ func DefaultConfig() *Config {
 		BaseConfig:      DefaultBaseConfig(),
 		RPC:             DefaultRPCConfig(),
 		P2P:             DefaultP2PConfig(),
+		DBCache:         DefaultDBCacheConfig(),
 		Mempool:         DefaultMempoolConfig(),
 		Consensus:       DefaultConsensusConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
+		BlockIndex:      DefaultBlockIndexConfig(),
 		Instrumentation: DefaultInstrumentationConfig(),
 	}
 }
@@ -88,9 +94,11 @@ func TestConfig() *Config {
 		BaseConfig:      TestBaseConfig(),
 		RPC:             TestRPCConfig(),
 		P2P:             TestP2PConfig(),
+		DBCache:         TestDBCacheConfig(),
 		Mempool:         TestMempoolConfig(),
 		Consensus:       TestConsensusConfig(),
 		TxIndex:         TestTxIndexConfig(),
+		BlockIndex:      TestBlockIndexConfig(),
 		Instrumentation: TestInstrumentationConfig(),
 	}
 }
@@ -116,6 +124,9 @@ func (cfg *Config) ValidateBasic() error {
 	}
 	if err := cfg.P2P.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [p2p] section")
+	}
+	if err := cfg.DBCache.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "Error in [dbcache] section")
 	}
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [mempool] section")
@@ -152,6 +163,14 @@ type BaseConfig struct {
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
 	FastSync bool `mapstructure:"fast_sync"`
+
+	// As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
+	StateSyncReactor bool `mapstructure:"state_sync_reactor"`
+
+	// If this node is many days behind the tip of the chain, StateSync
+	// allows them to catchup quickly by downloading app state (without historical blocks)
+	// in parallel and start syncing block afterwards
+	StateSync bool `mapstructure:"state_sync"`
 
 	// Database backend: leveldb | memdb | cleveldb
 	DBBackend string `mapstructure:"db_backend"`
@@ -190,6 +209,9 @@ type BaseConfig struct {
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
 	FilterPeers bool `mapstructure:"filter_peers"` // false
+
+	// Whether application get state
+	WithAppStat bool `mapstructure:"with_app_stat"`
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
@@ -206,9 +228,12 @@ func DefaultBaseConfig() BaseConfig {
 		LogFormat:          LogFormatPlain,
 		ProfListenAddress:  "",
 		FastSync:           true,
+		StateSyncReactor:   true,
+		StateSync:          false,
 		FilterPeers:        false,
 		DBBackend:          "leveldb",
 		DBPath:             "data",
+		WithAppStat:        true,
 	}
 }
 
@@ -323,6 +348,52 @@ type RPCConfig struct {
 	// Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}
 	// 1024 - 40 - 10 - 50 = 924 = ~900
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
+
+	// Maximum number of go routine to process websocket request.
+	// 1 - process websocket request synchronously.
+	// 10 - default size.
+	// Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+	WebsocketPoolMaxSize int `mapstructure:"websocket_pool_size"`
+
+	// The queued buffer for workers to process requests.
+	// 10 -default
+	WebsocketPoolQueueSize int `mapstructure:"websocket_pool_queue_size"`
+
+	// The initial size of goroutines in pool.
+	// 1 - process websocket request synchronously.
+	// 5 - default size
+	// Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
+	WebsocketPoolSpawnSize int `mapstructure:"websocket_pool_spawn_size"`
+
+	// Maximum number of unique clientIDs that can /subscribe
+	// If you're using /broadcast_tx_commit, set to the estimated maximum number
+	// of broadcast_tx_commit calls per block.
+	MaxSubscriptionClients int `mapstructure:"max_subscription_clients"`
+
+	// Maximum number of unique queries a given client can /subscribe to
+	// If you're using GRPC (or Local RPC client) and /broadcast_tx_commit, set
+	// to the estimated maximum number of broadcast_tx_commit calls per block.
+	MaxSubscriptionsPerClient int `mapstructure:"max_subscriptions_per_client"`
+
+	// How long to wait for a tx to be committed during /broadcast_tx_commit
+	// WARNING: Using a value larger than 10s will result in increasing the
+	// global HTTP write timeout, which applies to all connections and endpoints.
+	// See https://github.com/tendermint/tendermint/issues/3435
+	TimeoutBroadcastTxCommit time.Duration `mapstructure:"timeout_broadcast_tx_commit"`
+
+	// The name of a file containing certificate that is used to create the HTTPS server.
+	//
+	// If the certificate is signed by a certificate authority,
+	// the certFile should be the concatenation of the server's certificate, any intermediates,
+	// and the CA's certificate.
+	//
+	// NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+	TLSCertFile string `mapstructure:"tls_cert_file"`
+
+	// The name of a file containing matching private key that is used to create the HTTPS server.
+	//
+	// NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+	TLSKeyFile string `mapstructure:"tls_key_file"`
 }
 
 // DefaultRPCConfig returns a default configuration for the RPC server
@@ -335,8 +406,18 @@ func DefaultRPCConfig() *RPCConfig {
 		GRPCListenAddress:      "",
 		GRPCMaxOpenConnections: 900,
 
-		Unsafe:             false,
-		MaxOpenConnections: 900,
+		Unsafe:                 false,
+		MaxOpenConnections:     900,
+		WebsocketPoolMaxSize:   10,
+		WebsocketPoolQueueSize: 10,
+		WebsocketPoolSpawnSize: 5,
+
+		MaxSubscriptionClients:    100,
+		MaxSubscriptionsPerClient: 5,
+		TimeoutBroadcastTxCommit:  10 * time.Second,
+
+		TLSCertFile: "",
+		TLSKeyFile:  "",
 	}
 }
 
@@ -358,12 +439,45 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	if cfg.MaxOpenConnections < 0 {
 		return errors.New("max_open_connections can't be negative")
 	}
+	if cfg.WebsocketPoolMaxSize < 1 {
+		return errors.New("websocket_pool_size can't be less than 1")
+	}
+	if cfg.WebsocketPoolQueueSize < 1 {
+		return errors.New("websocket_pool_queue_size can't be less than 1")
+	}
+	if cfg.WebsocketPoolSpawnSize < 1 {
+		return errors.New("websocket_pool_spawn_size can't be less than 1")
+	}
+	if cfg.WebsocketPoolSpawnSize > cfg.WebsocketPoolMaxSize {
+		return errors.New("websocket_pool_spawn_size can't be large than websocket_pool_size")
+	}
+	if cfg.MaxSubscriptionClients < 0 {
+		return errors.New("max_subscription_clients can't be negative")
+	}
+	if cfg.MaxSubscriptionsPerClient < 0 {
+		return errors.New("max_subscriptions_per_client can't be negative")
+	}
+	if cfg.TimeoutBroadcastTxCommit < 0 {
+		return errors.New("timeout_broadcast_tx_commit can't be negative")
+	}
 	return nil
 }
 
 // IsCorsEnabled returns true if cross-origin resource sharing is enabled.
 func (cfg *RPCConfig) IsCorsEnabled() bool {
 	return len(cfg.CORSAllowedOrigins) != 0
+}
+
+func (cfg RPCConfig) KeyFile() string {
+	return rootify(filepath.Join(defaultConfigDir, cfg.TLSKeyFile), cfg.RootDir)
+}
+
+func (cfg RPCConfig) CertFile() string {
+	return rootify(filepath.Join(defaultConfigDir, cfg.TLSCertFile), cfg.RootDir)
+}
+
+func (cfg RPCConfig) IsTLSEnabled() bool {
+	return cfg.TLSCertFile != "" && cfg.TLSKeyFile != ""
 }
 
 //-----------------------------------------------------------------------------
@@ -408,11 +522,20 @@ type P2PConfig struct {
 	// Maximum size of a message packet payload, in bytes
 	MaxPacketMsgPayloadSize int `mapstructure:"max_packet_msg_payload_size"`
 
+	// Maximum num of keys a state sync request ask for
+	KeysPerRequest int `mapstructure:"keys_per_request"`
+
 	// Rate at which packets can be sent, in bytes/second
 	SendRate int64 `mapstructure:"send_rate"`
 
 	// Rate at which packets can be received, in bytes/second
 	RecvRate int64 `mapstructure:"recv_rate"`
+
+	// Interval to send pings
+	PingInterval time.Duration `mapstructure:"ping_interval"`
+
+	// Maximum wait time for pongs
+	PongTimeout time.Duration `mapstructure:"pong_timeout"`
 
 	// Set true to enable the peer-exchange reactor
 	PexReactor bool `mapstructure:"pex"`
@@ -452,10 +575,13 @@ func DefaultP2PConfig() *P2PConfig {
 		AddrBookStrict:          true,
 		MaxNumInboundPeers:      40,
 		MaxNumOutboundPeers:     10,
-		FlushThrottleTimeout:    100 * time.Millisecond,
-		MaxPacketMsgPayloadSize: 1024,    // 1 kB
-		SendRate:                5120000, // 5 mB/s
-		RecvRate:                5120000, // 5 mB/s
+		FlushThrottleTimeout:    10 * time.Millisecond,
+		MaxPacketMsgPayloadSize: 1024 * 1024,      // 1 MB
+		KeysPerRequest:          2500,             // would be around 250K for account node
+		SendRate:                50 * 1024 * 1024, // 50 MB/s
+		RecvRate:                50 * 1024 * 1024, // 50 MB/s
+		PingInterval:            60 * time.Second,
+		PongTimeout:             45 * time.Second,
 		PexReactor:              true,
 		SeedMode:                false,
 		AllowDuplicateIP:        false,
@@ -526,16 +652,84 @@ func DefaultFuzzConnConfig() *FuzzConnConfig {
 }
 
 //-----------------------------------------------------------------------------
+// DBCacheConfig defines the cache related configuration (should not impact back compatibility) options of goleveldb
+type DBCacheConfig struct {
+	// OpenFilesCacheCapacity defines the capacity of the open files caching.
+	OpenFilesCacheCapacity int `mapstructure:"open_files_cache_capacity"`
+
+	// BlockCacheCapacity defines the capacity of the 'sorted table' block caching.
+	BlockCacheCapacity int `mapstructure:"block_cache_capacity"`
+
+	// WriteBuffer defines maximum size of a 'memdb' before flushed to
+	// 'sorted table'.
+	WriteBuffer int `mapstructure:"write_buffer"`
+
+	// Filter defines an 'effective filter' to use. An 'effective filter'
+	// if defined will be used to generate per-table filter block.
+	// Greater than 0 would creates a new initialized bloom filter for given bitsPerKey.
+	BitsPerKey int `mapstructure:"bits_per_key"`
+}
+
+// DefaultDBCacheConfig returns a default configuration for goleveldb config
+func DefaultDBCacheConfig() *DBCacheConfig {
+	return &DBCacheConfig{
+		OpenFilesCacheCapacity: 1024,
+		BlockCacheCapacity:     8 * optPkg.MiB,
+		WriteBuffer:            4 * optPkg.MiB,
+		BitsPerKey:             10,
+	}
+}
+
+// TestDBCacheConfig returns a configuration for testing
+func TestDBCacheConfig() *DBCacheConfig {
+	cfg := DefaultDBCacheConfig()
+	cfg.OpenFilesCacheCapacity = 500
+	cfg.BlockCacheCapacity = 8 * optPkg.MiB
+	cfg.WriteBuffer = 4 * optPkg.MiB
+	cfg.BitsPerKey = 0
+	return cfg
+}
+
+// ValidateBasic performs basic validation (checking param bounds, etc.) and
+// returns an error if any check fails.
+func (cfg *DBCacheConfig) ValidateBasic() error {
+	if cfg.OpenFilesCacheCapacity < 0 {
+		return errors.New("open_files_cache_capacity can't be negative")
+	}
+	if cfg.BlockCacheCapacity < 0 {
+		return errors.New("block_cache_capacity can't be negative")
+	}
+	if cfg.WriteBuffer < 0 {
+		return errors.New("write_buffer can't be negative")
+	}
+	return nil
+}
+
+func (cfg *DBCacheConfig) ToGolevelDBOpt() *optPkg.Options {
+	var fltr filter.Filter
+	if cfg.BitsPerKey > 0 {
+		fltr = filter.NewBloomFilter(cfg.BitsPerKey)
+	}
+	return &optPkg.Options{
+		OpenFilesCacheCapacity: cfg.OpenFilesCacheCapacity,
+		BlockCacheCapacity:     cfg.BlockCacheCapacity,
+		WriteBuffer:            cfg.WriteBuffer,
+		Filter:                 fltr,
+	}
+}
+
+//-----------------------------------------------------------------------------
 // MempoolConfig
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
 type MempoolConfig struct {
-	RootDir   string `mapstructure:"home"`
-	Recheck   bool   `mapstructure:"recheck"`
-	Broadcast bool   `mapstructure:"broadcast"`
-	WalPath   string `mapstructure:"wal_dir"`
-	Size      int    `mapstructure:"size"`
-	CacheSize int    `mapstructure:"cache_size"`
+	RootDir     string `mapstructure:"home"`
+	Recheck     bool   `mapstructure:"recheck"`
+	Broadcast   bool   `mapstructure:"broadcast"`
+	WalPath     string `mapstructure:"wal_dir"`
+	Size        int    `mapstructure:"size"`
+	MaxTxsBytes int64  `mapstructure:"max_txs_bytes"`
+	CacheSize   int    `mapstructure:"cache_size"`
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool
@@ -544,10 +738,11 @@ func DefaultMempoolConfig() *MempoolConfig {
 		Recheck:   true,
 		Broadcast: true,
 		WalPath:   "",
-		// Each signature verification takes .5ms, size reduced until we implement
+		// Each signature verification takes .5ms, Size reduced until we implement
 		// ABCI Recheck
-		Size:      5000,
-		CacheSize: 10000,
+		Size:        5000,
+		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
+		CacheSize:   10000,
 	}
 }
 
@@ -573,6 +768,9 @@ func (cfg *MempoolConfig) WalEnabled() bool {
 func (cfg *MempoolConfig) ValidateBasic() error {
 	if cfg.Size < 0 {
 		return errors.New("size can't be negative")
+	}
+	if cfg.MaxTxsBytes < 0 {
+		return errors.New("max_txs_bytes can't be negative")
 	}
 	if cfg.CacheSize < 0 {
 		return errors.New("cache_size can't be negative")
@@ -608,9 +806,6 @@ type ConsensusConfig struct {
 	// Reactor sleep duration parameters
 	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
 	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
-
-	// Block time parameters. Corresponds to the minimum time increment between consecutive blocks.
-	BlockTimeIota time.Duration `mapstructure:"blocktime_iota"`
 }
 
 // DefaultConsensusConfig returns a default configuration for the consensus service
@@ -627,9 +822,8 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		SkipTimeoutCommit:           false,
 		CreateEmptyBlocks:           true,
 		CreateEmptyBlocksInterval:   0 * time.Second,
-		PeerGossipSleepDuration:     100 * time.Millisecond,
+		PeerGossipSleepDuration:     10 * time.Millisecond,
 		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
-		BlockTimeIota:               1000 * time.Millisecond,
 	}
 }
 
@@ -646,14 +840,7 @@ func TestConsensusConfig() *ConsensusConfig {
 	cfg.SkipTimeoutCommit = true
 	cfg.PeerGossipSleepDuration = 5 * time.Millisecond
 	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
-	cfg.BlockTimeIota = 10 * time.Millisecond
 	return cfg
-}
-
-// MinValidVoteTime returns the minimum acceptable block time.
-// See the [BFT time spec](https://godoc.org/github.com/tendermint/tendermint/docs/spec/consensus/bft-time.md).
-func (cfg *ConsensusConfig) MinValidVoteTime(lastBlockTime time.Time) time.Time {
-	return lastBlockTime.Add(cfg.BlockTimeIota)
 }
 
 // WaitForTxs returns true if the consensus should wait for transactions before entering the propose step
@@ -733,9 +920,6 @@ func (cfg *ConsensusConfig) ValidateBasic() error {
 	if cfg.PeerQueryMaj23SleepDuration < 0 {
 		return errors.New("peer_query_maj23_sleep_duration can't be negative")
 	}
-	if cfg.BlockTimeIota < 0 {
-		return errors.New("blocktime_iota can't be negative")
-	}
 	return nil
 }
 
@@ -770,6 +954,18 @@ type TxIndexConfig struct {
 	IndexAllTags bool `mapstructure:"index_all_tags"`
 }
 
+//-----------------------------------------------------------------------------
+// BlockIndexConfig
+// BlockIndexConfig defines the configuration for the block indexer
+type BlockIndexConfig struct {
+	// What indexer to use for block
+	//
+	// Options:
+	//   1) "null"
+	//   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
+	Indexer string `mapstructure:"indexer"`
+}
+
 // DefaultTxIndexConfig returns a default configuration for the transaction indexer.
 func DefaultTxIndexConfig() *TxIndexConfig {
 	return &TxIndexConfig{
@@ -782,6 +978,16 @@ func DefaultTxIndexConfig() *TxIndexConfig {
 // TestTxIndexConfig returns a default configuration for the transaction indexer.
 func TestTxIndexConfig() *TxIndexConfig {
 	return DefaultTxIndexConfig()
+}
+
+// DefaultBlockIndexConfig returns a default configuration for the block indexer.
+func DefaultBlockIndexConfig() *BlockIndexConfig {
+	return &BlockIndexConfig{Indexer: "null"}
+}
+
+// DefaultBlockIndexConfig returns a default configuration for the block indexer.
+func TestBlockIndexConfig() *BlockIndexConfig {
+	return DefaultBlockIndexConfig()
 }
 
 //-----------------------------------------------------------------------------

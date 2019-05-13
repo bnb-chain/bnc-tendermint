@@ -38,11 +38,12 @@ func TestApplyBlock(t *testing.T) {
 	state, stateDB := state(1, 1)
 
 	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(),
-		MockMempool{}, MockEvidencePool{})
+		MockMempool{}, MockEvidencePool{}, true)
 
 	block := makeBlock(state, 1)
 	blockID := types.BlockID{block.Hash(), block.MakePartSet(testPartSize).Header()}
 
+	//nolint:ineffassign
 	state, err = blockExec.ApplyBlock(state, blockID, block)
 	require.Nil(t, err)
 
@@ -309,16 +310,15 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 
 	state, stateDB := state(1, 1)
 
-	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), MockMempool{}, MockEvidencePool{})
-
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(),
+		MockMempool{}, MockEvidencePool{}, true)
 	eventBus := types.NewEventBus()
 	err = eventBus.Start()
 	require.NoError(t, err)
 	defer eventBus.Stop()
 	blockExec.SetEventBus(eventBus)
 
-	updatesCh := make(chan interface{}, 1)
-	err = eventBus.Subscribe(context.Background(), "TestEndBlockValidatorUpdates", types.EventQueryValidatorSetUpdates, updatesCh)
+	updatesSub, err := eventBus.Subscribe(context.Background(), "TestEndBlockValidatorUpdates", types.EventQueryValidatorSetUpdates)
 	require.NoError(t, err)
 
 	block := makeBlock(state, 1)
@@ -342,13 +342,15 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 
 	// test we threw an event
 	select {
-	case e := <-updatesCh:
-		event, ok := e.(types.EventDataValidatorSetUpdates)
-		require.True(t, ok, "Expected event of type EventDataValidatorSetUpdates, got %T", e)
+	case msg := <-updatesSub.Out():
+		event, ok := msg.Data().(types.EventDataValidatorSetUpdates)
+		require.True(t, ok, "Expected event of type EventDataValidatorSetUpdates, got %T", msg.Data())
 		if assert.NotEmpty(t, event.ValidatorUpdates) {
 			assert.Equal(t, pubkey, event.ValidatorUpdates[0].PubKey)
 			assert.EqualValues(t, 10, event.ValidatorUpdates[0].VotingPower)
 		}
+	case <-updatesSub.Cancelled():
+		t.Fatalf("updatesSub was cancelled (reason: %v)", updatesSub.Err())
 	case <-time.After(1 * time.Second):
 		t.Fatal("Did not receive EventValidatorSetUpdates within 1 sec.")
 	}
@@ -365,7 +367,7 @@ func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 	defer proxyApp.Stop()
 
 	state, stateDB := state(1, 1)
-	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), MockMempool{}, MockEvidencePool{})
+	blockExec := NewBlockExecutor(stateDB, log.TestingLogger(), proxyApp.Consensus(), MockMempool{}, MockEvidencePool{}, true)
 
 	block := makeBlock(state, 1)
 	blockID := types.BlockID{block.Hash(), block.MakePartSet(testPartSize).Header()}
