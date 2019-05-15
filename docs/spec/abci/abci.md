@@ -445,12 +445,12 @@ Commit are included in the header of the next block.
 ###  ConsensusParams
 
 - **Fields**:
-  - `Block (BlockParams)`: Parameters limiting the size of a block and time between consecutive blocks.
+  - `BlockSize (BlockSizeParams)`: Parameters limiting the size of a block.
   - `Evidence (EvidenceParams)`: Parameters limiting the validity of
     evidence of byzantine behaviour.
   - `Validator (ValidatorParams)`: Parameters limitng the types of pubkeys validators can use.
 
-### BlockParams
+### BlockSizeParams
 
 - **Fields**:
   - `MaxBytes (int64)`: Max size of a block, in bytes.
