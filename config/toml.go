@@ -85,10 +85,13 @@ fast_sync = {{ .BaseConfig.FastSync }}
 # As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
 state_sync_reactor = {{ .BaseConfig.StateSyncReactor }}
 
-# If this node is many days behind the tip of the chain, StateSync
+# If this node is many days behind the tip of the chain, StateSyncHeight
 # allows them to catchup quickly by downloading app state (without historical blocks)
 # in parallel and start syncing block afterwards
-state_sync = {{ .BaseConfig.StateSync }}
+# <0 - turn off state sync
+# =0 - sync from peer's latest height
+# >0 - sync from that height
+state_sync_height = {{ .BaseConfig.StateSyncHeight }}
 
 # Database backend: leveldb | memdb | cleveldb
 db_backend = "{{ .BaseConfig.DBBackend }}"

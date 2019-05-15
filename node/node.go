@@ -383,7 +383,7 @@ func NewNode(config *cfg.Config,
 	if state.Validators.Size() == 1 {
 		addr, _ := state.Validators.GetByIndex(0)
 		if bytes.Equal(privValidator.GetAddress(), addr) {
-			config.StateSync = false
+			config.StateSyncHeight = -1
 		}
 	}
 
@@ -392,12 +392,12 @@ func NewNode(config *cfg.Config,
 		stateSyncLogger := logger.With("module", "statesync")
 		snapshot.InitSnapshotManager(stateDB, txDB, blockStore, config.DBDir(), stateSyncLogger)
 
-		// !!!This method may change config.StateSync!!!
-		// so the later reactor need read config.StateSync rather than a copied variable
+		// !!!This method may change config.StateSyncHeight!!!
+		// so the later reactor need read config.StateSyncHeight rather than a copied variable
 		stateReactor = snapshot.NewStateReactor(stateDB, proxyApp.State(), config)
 		stateReactor.SetLogger(stateSyncLogger)
 	} else {
-		config.StateSync = false
+		config.StateSyncHeight = -1
 	}
 
 	blockExecLogger := logger.With("module", "exec")
@@ -413,7 +413,7 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Make BlockchainReactor
-	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && !config.StateSync)
+	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && (config.StateSyncHeight < 0))
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
 
 	// Make ConsensusReactor
@@ -430,7 +430,7 @@ func NewNode(config *cfg.Config,
 	if privValidator != nil {
 		consensusState.SetPrivValidator(privValidator)
 	}
-	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || config.StateSync, cs.ReactorMetrics(csMetrics))
+	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || (config.StateSyncHeight >= 0), cs.ReactorMetrics(csMetrics))
 	consensusReactor.SetLogger(consensusLogger)
 
 	// services which will be publishing and/or subscribing for messages (events)

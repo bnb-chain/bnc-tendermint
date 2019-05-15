@@ -106,7 +106,10 @@ func (reader *SnapshotReader) LoadManifest(height int64) (int64, []byte, error) 
 	var lookupHeight int64
 	if height == 0 {
 		lookupHeight = reader.Height
+	} else {
+		lookupHeight = height
 	}
+
 	if lookupHeight == 0 {
 		return 0, nil, fmt.Errorf("requested wrong height: %d, reader height: %d", height, reader.Height)
 	} else {

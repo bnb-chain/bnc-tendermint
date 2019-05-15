@@ -60,7 +60,7 @@ type StateReactor struct {
 
 	config    *cfg.Config
 	pool      *StatePool
-	stateSync bool // positive for enable this reactor
+	stateSync int64 // 0 and positive for enable this reactor
 
 	requestsCh <-chan SnapshotRequest
 	errorsCh   <-chan peerError
@@ -84,13 +84,13 @@ func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config)
 	if _, err := os.Stat(lockFilePath); !os.IsNotExist(err) {
 		// if we already state synced, we modify the config so that fast sync and consensus reactor is not impacted
 		// setting here is to make sure there is an error log for user when state reactor started (logger is not initialized here)
-		config.StateSync = false
+		config.StateSyncHeight = -1
 	}
 
 	bcSR := &StateReactor{
 		config: 	  config,
 		pool:         pool,
-		stateSync:    config.StateSync,
+		stateSync:    config.StateSyncHeight,
 		requestsCh:   requestsCh,
 		errorsCh:     errorsCh,
 	}
@@ -106,7 +106,7 @@ func (bcSR *StateReactor) SetLogger(l log.Logger) {
 
 // OnStart implements cmn.Service.
 func (bcSR *StateReactor) OnStart() error {
-	if bcSR.stateSync {
+	if bcSR.stateSync >= 0 {
 		if err := bcSR.pool.Start(); err != nil {
 			return err
 		}
@@ -344,7 +344,7 @@ func (bcSR *StateReactor) poolRoutine() {
 // BroadcastStatusRequest broadcasts `StateStore` height.
 func (bcSR *StateReactor) BroadcastStateStatusRequest() {
 	bcSR.Logger.Info("broadcast state status request")
-	msgBytes := cdc.MustMarshalBinaryBare(&bcManifestRequestMessage{})
+	msgBytes := cdc.MustMarshalBinaryBare(&bcManifestRequestMessage{Height: bcSR.config.StateSyncHeight})
 	bcSR.Switch.Broadcast(StateSyncChannel, msgBytes)
 }
 
