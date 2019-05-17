@@ -170,12 +170,12 @@
   revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
-  digest = "1:f9e8d1157f79aa5e81b34e0cdc7a6c99d6e44ad7a098f4e6869b8b83ef3d27bb"
+  digest = "1:b18a269f11ff51135d6f82987dbb53288f4d66098a6639b429f4f494a910155b"
   name = "github.com/libp2p/go-buffer-pool"
   packages = ["."]
   pruneopts = "UT"
-  revision = "eecb57f6a721b4a66062ebeb61d1da7ce1c38fbf"
-  version = "v0.0.1"
+  revision = "c4a5988a1e475884367015e1a2d0bd5fa4c491f4"
+  version = "v0.0.2"
 
 [[projects]]
   digest = "1:53e8c5c79716437e601696140e8b1801aae4204f4ec54a504333702a49572c4f"
@@ -511,11 +511,6 @@
     "github.com/btcsuite/btcd/btcec",
     "github.com/btcsuite/btcutil/base58",
     "github.com/btcsuite/btcutil/bech32",
-<<<<<<< HEAD
-=======
-    "github.com/ethereum/go-ethereum/crypto/secp256k1",
-    "github.com/ethereum/go-ethereum/swarm/testutil",
->>>>>>> use byte buffer pool to decreass allocs
     "github.com/fortytw2/leaktest",
     "github.com/go-kit/kit/log",
     "github.com/go-kit/kit/log/level",
@@ -532,11 +527,8 @@
     "github.com/golang/protobuf/ptypes/timestamp",
     "github.com/gorilla/websocket",
     "github.com/jmhodges/levigo",
-<<<<<<< HEAD
-    "github.com/magiconair/properties/assert",
-=======
     "github.com/libp2p/go-buffer-pool",
->>>>>>> use byte buffer pool to decreass allocs
+    "github.com/magiconair/properties/assert",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
     "github.com/prometheus/client_golang/prometheus/promhttp",
