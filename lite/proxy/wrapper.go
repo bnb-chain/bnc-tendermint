@@ -202,11 +202,6 @@ func (w Wrapper) UnsubscribeAllWS(ctx *rpctypes.Context) (*ctypes.ResultUnsubscr
 	return &ctypes.ResultUnsubscribe{}, nil
 }
 
-//func (w Wrapper) Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
-//	return
-//}
-
-
 // // WrappedSwitch creates a websocket connection that auto-verifies any info
 // // coming through before passing it along.
 // //
