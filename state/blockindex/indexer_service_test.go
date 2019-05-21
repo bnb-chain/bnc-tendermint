@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/ethereum/go-ethereum/swarm/testutil"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
@@ -18,7 +17,7 @@ import (
 
 func genHeader() (*types.Header, cmn.HexBytes) {
 	height := cmn.RandInt64()
-	header := types.Header{Height: height, ValidatorsHash: testutil.RandomBytes(714, 20)}
+	header := types.Header{Height: height, ValidatorsHash: cmn.RandBytes(20)}
 	hash := header.Hash()
 	return &header, hash
 }

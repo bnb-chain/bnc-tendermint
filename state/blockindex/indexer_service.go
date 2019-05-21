@@ -30,21 +30,21 @@ func NewIndexerService(idr BlockIndexer, eventBus *types.EventBus) *IndexerServi
 
 // OnStart implements cmn.Service by subscribing for blocks and indexing them by hash.
 func (is *IndexerService) OnStart() error {
-	blockHeadersCh := make(chan interface{})
-	if err := is.eventBus.Subscribe(context.Background(), subscriber, types.EventQueryNewBlockHeader, blockHeadersCh); err != nil {
+	blockHeadersSub, err := is.eventBus.SubscribeUnbuffered(context.Background(), subscriber, types.EventQueryNewBlockHeader)
+	if err != nil {
 		return err
 	}
 
 	go func() {
 		for {
-			e, ok := <-blockHeadersCh
-			if !ok {
-				return
-			}
-			header := e.(types.EventDataNewBlockHeader).Header
+			msg := <-blockHeadersSub.Out()
+			header := msg.Data().(types.EventDataNewBlockHeader).Header
 
-			is.idr.Index(&header)
-			is.Logger.Info("Indexed block", "height", header.Height, "hash", header.LastBlockID.Hash)
+			if err := is.idr.Index(&header); err != nil {
+				is.Logger.Error("Failed to index block", "height", header.Height, "err", err)
+			} else {
+				is.Logger.Info("Indexed block", "height", header.Height, "hash", header.LastBlockID.Hash)
+			}
 		}
 	}()
 	return nil
