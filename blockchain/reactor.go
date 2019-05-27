@@ -286,9 +286,7 @@ FOR_LOOP:
 			height, numPending, lenRequesters := bcR.pool.GetStatus()
 			outbound, inbound, _ := bcR.Switch.NumPeers()
 			bcR.Logger.Debug("Consensus ticker", "numPending", numPending, "total", lenRequesters,
-				"outbound", outbound, "inbound", inbound, "height", height, "blocksSynced", blocksSynced,
-				"poolHeight", bcR.pool.height, "poolstarttime", bcR.pool.startTime, "poolMaxPeerHeight", bcR.pool.maxPeerHeight,
-				"poolHeight", bcR.pool.height)
+				"outbound", outbound, "inbound", inbound, "height", height, "blocksSynced", blocksSynced, "poolstarttime", bcR.pool.startTime, "poolMaxPeerHeight", bcR.pool.maxPeerHeight)
 			// height == 1 is for initial nodes start
 			// blocksSynced > 0 is for the pool.height might greater than pool.MaxPeerHeight after state sync
 			// numPending=0 total=0 outbound=1 inbound=0 height=6601 blocksSynced=0 poolHeight=6601 poolstarttime=2019-02-22T09:02:07.881888662Z poolMaxPeerHeight=6437 poolHeight=6601
@@ -368,7 +366,6 @@ FOR_LOOP:
 				// TODO: same thing for app - but we would need a way to
 				// get the hash without persisting the state
 				var err error
-				bcR.Logger.Debug("state lastheight: %d, apphash: %X\n", state.LastBlockHeight, state.AppHash)
 				state, err = bcR.blockExec.ApplyBlock(state, firstID, first)
 				if err != nil {
 					// TODO This is bad, are we zombie?

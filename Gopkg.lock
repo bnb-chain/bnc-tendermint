@@ -525,6 +525,7 @@
     "github.com/gogo/protobuf/types",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes/timestamp",
+    "github.com/golang/snappy",
     "github.com/gorilla/websocket",
     "github.com/jmhodges/levigo",
     "github.com/libp2p/go-buffer-pool",

@@ -170,7 +170,10 @@ type BaseConfig struct {
 	// If this node is many days behind the tip of the chain, StateSync
 	// allows them to catchup quickly by downloading app state (without historical blocks)
 	// in parallel and start syncing block afterwards
-	StateSync bool `mapstructure:"state_sync"`
+	// <0 - turn off state sync
+	// =0 - sync from peer's latest height
+	// >0 - sync from that height
+	StateSyncHeight int64 `mapstructure:"state_sync_height"`
 
 	// Database backend: leveldb | memdb | cleveldb
 	DBBackend string `mapstructure:"db_backend"`
@@ -229,7 +232,7 @@ func DefaultBaseConfig() BaseConfig {
 		ProfListenAddress:  "",
 		FastSync:           true,
 		StateSyncReactor:   true,
-		StateSync:          false,
+		StateSyncHeight:    -1,
 		FilterPeers:        false,
 		DBBackend:          "leveldb",
 		DBPath:             "data",

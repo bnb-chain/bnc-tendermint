@@ -348,19 +348,10 @@ func (cli *socketClient) EndBlockSync(req types.RequestEndBlock) (*types.Respons
 
 //----------------------------------------
 
-func (cli *socketClient) LatestSnapshot() (height int64, numKeys []int64, err error) {
-	return 0, make([]int64, 0), nil
-}
-func (cli *socketClient) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
-	return make([][]byte, 0), nil
-}
-func (cli *socketClient) StartRecovery(height int64, numKeys []int64) error {
+func (cli *socketClient) StartRecovery(manifest *types.Manifest) error {
 	return nil
 }
-func (cli *socketClient) WriteRecoveryChunk(chunk [][]byte) error {
-	return nil
-}
-func (cli *socketClient) EndRecovery(height int64) error {
+func (cli *socketClient) WriteRecoveryChunk(hash types.SHA256Sum, chunk *types.AppStateChunk, isComplete bool) error {
 	return nil
 }
 
