@@ -5,9 +5,11 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/tendermint/tendermint/types/time"
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	_ "net/http/pprof"
 )
 
 type kvstoreConn struct {
@@ -42,9 +45,26 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 	return kvstoreConn{fooReader, fooWriter}, kvstoreConn{barReader, barWriter}
 }
 
-func makeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection) {
 
-	var fooConn, barConn = makeKVStoreConnPair()
+func makeKVStoreConnPair1() (fooConn, barConn net.Conn) {
+	l,err:=net.Listen("tcp","127.0.0.1:4443")
+	if err!=nil{
+		panic(err)
+	}
+	wg:=sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		fooConn,_ =l.Accept()
+		wg.Done()
+	}()
+	barConn ,_ =  net.Dial("tcp","127.0.0.1:4443")
+	wg.Wait()
+	return
+}
+
+func MakeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection) {
+
+	var fooConn, barConn = makeKVStoreConnPair1()
 	var fooPrvKey = ed25519.GenPrivKey()
 	var fooPubKey = fooPrvKey.PubKey()
 	var barPrvKey = ed25519.GenPrivKey()
@@ -91,7 +111,7 @@ func makeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection
 }
 
 func TestSecretConnectionHandshake(t *testing.T) {
-	fooSecConn, barSecConn := makeSecretConnPair(t)
+	fooSecConn, barSecConn := MakeSecretConnPair(t)
 	if err := fooSecConn.Close(); err != nil {
 		t.Error(err)
 	}
@@ -127,7 +147,7 @@ func TestShareLowOrderPubkey(t *testing.T) {
 }
 
 func TestConcurrentWrite(t *testing.T) {
-	fooSecConn, barSecConn := makeSecretConnPair(t)
+	fooSecConn, barSecConn := MakeSecretConnPair(t)
 	fooWriteText := cmn.RandStr(dataMaxSize)
 
 	// write from two routines.
@@ -149,7 +169,7 @@ func TestConcurrentWrite(t *testing.T) {
 }
 
 func TestConcurrentRead(t *testing.T) {
-	fooSecConn, barSecConn := makeSecretConnPair(t)
+	fooSecConn, barSecConn := MakeSecretConnPair(t)
 	fooWriteText := cmn.RandStr(dataMaxSize)
 	n := 100
 
@@ -366,32 +386,47 @@ func createGoldenTestVectors(t *testing.T) string {
 	return data
 }
 
-func BenchmarkSecretConnection(b *testing.B) {
-	b.StopTimer()
-	fooSecConn, barSecConn := makeSecretConnPair(b)
+func TestDeriveSecretsAndChallengeGolden1(b *testing.T) {
+	fooSecConn, barSecConn := MakeSecretConnPair(b)
 	fooWriteText := cmn.RandStr(dataMaxSize)
+	go http.ListenAndServe(":6666", nil)
+
 	// Consume reads from bar's reader
+	wg:=sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
 		readBuffer := make([]byte, dataMaxSize)
-		for {
+		for i := 0; i < 20000000; i++ {
 			_, err := barSecConn.Read(readBuffer)
 			if err == io.EOF {
 				return
 			} else if err != nil {
 				b.Fatalf("Failed to read from barSecConn: %v", err)
 			}
+			barSecConn.Write(readBuffer)
 		}
 	}()
-
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	start:= time.Now()
+	go func() {
+		readBuffer := make([]byte, dataMaxSize)
+		for i := 0; i < 20000000; i++ {
+			_, err := fooSecConn.Read(readBuffer)
+			if err == io.EOF {
+				return
+			} else if err != nil {
+				b.Fatalf("Failed to read from barSecConn: %v", err)
+			}
+		}
+		wg.Done()
+	}()
+	for i := 0; i < 20000000; i++ {
 		_, err := fooSecConn.Write([]byte(fooWriteText))
 		if err != nil {
 			b.Fatalf("Failed to write to fooSecConn: %v", err)
 		}
 	}
-	b.StopTimer()
-
+	wg.Wait()
+	fmt.Println(time.Now().Sub(start))
 	if err := fooSecConn.Close(); err != nil {
 		b.Error(err)
 	}
