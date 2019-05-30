@@ -23,7 +23,7 @@ const (
 	maxTxSize  = maxMsgSize - 8 // account for amino overhead of TxMessage
 
 	MempoolPacketChannelSize   = 1024 * 200 // 200K messages can be queued
-	peerCatchupSleepIntervalMS = 100 		// If peer is behind, sleep this amount
+	peerCatchupSleepIntervalMS = 100        // If peer is behind, sleep this amount
 
 	// UnknownPeerID is the peer ID to use when running CheckTx when there is
 	// no peer (e.g. RPC)
@@ -193,9 +193,13 @@ func (memR *MempoolReactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte
 
 	switch msg := msg.(type) {
 	case *TxMessage:
+		memR.Mempool.metrics.ReceivedTx.With("peer_id", string(src.ID())).Add(1)
 		peerID := memR.ids.GetForPeer(src)
 		err := memR.Mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{PeerID: peerID})
 		if err != nil {
+			if err == ErrTxInCache {
+				memR.Mempool.metrics.DuplicateTx.With("peer_id", string(src.ID())).Add(1)
+			}
 			memR.Logger.Info("Could not check tx", "tx", TxID(msg.Tx), "err", err)
 		}
 		// broadcasting happens from go routines per peer

@@ -21,3 +21,16 @@ func IsVoteTypeValid(t SignedMsgType) bool {
 		return false
 	}
 }
+
+func (t SignedMsgType) String() string {
+	switch t {
+	case PrevoteType:
+		return "prevote"
+	case PrecommitType:
+		return "precommit"
+	case ProposalType:
+		return "proposal"
+	default:
+		return "unknow"
+	}
+}
