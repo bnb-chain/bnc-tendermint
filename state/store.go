@@ -218,14 +218,15 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
 		valInfo2 := loadValidatorsInfo(db, lastStoredHeight)
-		if valInfo2 == nil {
+		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
 			// TODO (melekes): remove the below if condition in the 0.33 major
 			// release and just panic. Old chains might panic otherwise if they
 			// haven't saved validators at intermediate (%valSetCheckpointInterval)
 			// height yet.
+			// https://github.com/tendermint/tendermint/issues/3543
 			valInfo2 = loadValidatorsInfo(db, valInfo.LastHeightChanged)
 			lastStoredHeight = valInfo.LastHeightChanged
-			if valInfo2 == nil {
+			if valInfo2 == nil || valInfo2.ValidatorSet == nil {
 				panic(
 					fmt.Sprintf("Couldn't find validators at height %d (height %d was originally requested)",
 						lastStoredHeight,
@@ -243,10 +244,7 @@ func LoadValidators(db dbm.DB, height int64) (*types.ValidatorSet, error) {
 
 func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 	checkpointHeight := height - height%valSetCheckpointInterval
-	if checkpointHeight > lastHeightChanged {
-		return checkpointHeight
-	}
-	return lastHeightChanged
+	return cmn.MaxInt64(checkpointHeight, lastHeightChanged)
 }
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
@@ -269,10 +267,10 @@ func loadValidatorsInfo(db dbm.DB, height int64) *ValidatorsInfo {
 }
 
 // saveValidatorsInfo persists the validator set.
-// `height` is the effective height for which the validator is responsible for signing.
-// It should be called from s.Save(), right before the state itself is persisted.
-// If the validator set did not change after processing the latest block,
-// only the last height for which the validators changed is persisted.
+//
+// `height` is the effective height for which the validator is responsible for
+// signing. It should be called from s.Save(), right before the state itself is
+// persisted.
 func saveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *types.ValidatorSet) {
 	if lastHeightChanged > height {
 		panic("LastHeightChanged cannot be greater than ValidatorsInfo height")
@@ -280,6 +278,8 @@ func saveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *type
 	valInfo := &ValidatorsInfo{
 		LastHeightChanged: lastHeightChanged,
 	}
+	// Only persist validator set if it was updated or checkpoint height (see
+	// valSetCheckpointInterval) is reached.
 	if height == lastHeightChanged || height%valSetCheckpointInterval == 0 {
 		valInfo.ValidatorSet = valSet
 	}

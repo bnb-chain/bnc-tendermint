@@ -85,10 +85,13 @@ fast_sync = {{ .BaseConfig.FastSync }}
 # As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
 state_sync_reactor = {{ .BaseConfig.StateSyncReactor }}
 
-# If this node is many days behind the tip of the chain, StateSync
+# If this node is many days behind the tip of the chain, StateSyncHeight
 # allows them to catchup quickly by downloading app state (without historical blocks)
 # in parallel and start syncing block afterwards
-state_sync = {{ .BaseConfig.StateSync }}
+# <0 - turn off state sync
+# =0 - sync from peer's latest height
+# >0 - sync from that height
+state_sync_height = {{ .BaseConfig.StateSyncHeight }}
 
 # Database backend: leveldb | memdb | cleveldb
 db_backend = "{{ .BaseConfig.DBBackend }}"
@@ -194,6 +197,33 @@ websocket_pool_queue_size = {{ .RPC.WebsocketPoolQueueSize }}
 # Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
 websocket_pool_spawn_size = {{ .RPC.WebsocketPoolSpawnSize }}
 
+# Maximum number of unique clientIDs that can /subscribe
+# If you're using /broadcast_tx_commit, set to the estimated maximum number
+# of broadcast_tx_commit calls per block.
+max_subscription_clients = {{ .RPC.MaxSubscriptionClients }}
+
+# Maximum number of unique queries a given client can /subscribe to
+# If you're using GRPC (or Local RPC client) and /broadcast_tx_commit, set to
+# the estimated # maximum number of broadcast_tx_commit calls per block.
+max_subscriptions_per_client = {{ .RPC.MaxSubscriptionsPerClient }}
+
+# How long to wait for a tx to be committed during /broadcast_tx_commit.
+# WARNING: Using a value larger than 10s will result in increasing the
+# global HTTP write timeout, which applies to all connections and endpoints.
+# See https://github.com/tendermint/tendermint/issues/3435
+timeout_broadcast_tx_commit = "{{ .RPC.TimeoutBroadcastTxCommit }}"
+
+# The name of a file containing certificate that is used to create the HTTPS server.
+# If the certificate is signed by a certificate authority,
+# the certFile should be the concatenation of the server's certificate, any intermediates,
+# and the CA's certificate.
+# NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+tls_cert_file = "{{ .RPC.TLSCertFile }}"
+
+# The name of a file containing matching private key that is used to create the HTTPS server.
+# NOTE: both tls_cert_file and tls_key_file must be present for Tendermint to create HTTPS server. Otherwise, HTTP server is run.
+tls_key_file = "{{ .RPC.TLSKeyFile }}"
+
 ##### peer to peer configuration options #####
 [p2p]
 
@@ -291,10 +321,15 @@ recheck = {{ .Mempool.Recheck }}
 broadcast = {{ .Mempool.Broadcast }}
 wal_dir = "{{ js .Mempool.WalPath }}"
 
-# size of the mempool
+# Maximum number of transactions in the mempool
 size = {{ .Mempool.Size }}
 
-# size of the cache (used to filter transactions we saw earlier)
+# Limit the total size of all txs in the mempool.
+# This only accounts for raw transactions (e.g. given 1MB transactions and
+# max_txs_bytes=5MB, mempool will only accept 5 transactions).
+max_txs_bytes = {{ .Mempool.MaxTxsBytes }}
+
+# Size of the cache (used to filter transactions we saw earlier) in transactions
 cache_size = {{ .Mempool.CacheSize }}
 
 ##### consensus configuration options #####

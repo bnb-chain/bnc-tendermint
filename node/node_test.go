@@ -42,11 +42,12 @@ func TestNodeStartStop(t *testing.T) {
 	t.Logf("Started node %v", n.sw.NodeInfo())
 
 	// wait for the node to produce a block
-	blockCh := make(chan interface{})
-	err = n.EventBus().Subscribe(context.Background(), "node_test", types.EventQueryNewBlock, blockCh)
+	blocksSub, err := n.EventBus().Subscribe(context.Background(), "node_test", types.EventQueryNewBlock)
 	require.NoError(t, err)
 	select {
-	case <-blockCh:
+	case <-blocksSub.Out():
+	case <-blocksSub.Cancelled():
+		t.Fatal("blocksSub was cancelled")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for the node to produce a block")
 	}
@@ -131,13 +132,13 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	config.BaseConfig.PrivValidatorListenAddr = addr
 
 	dialer := privval.DialTCPFn(addr, 100*time.Millisecond, ed25519.GenPrivKey())
-	pvsc := privval.NewRemoteSigner(
+	pvsc := privval.NewSignerServiceEndpoint(
 		log.TestingLogger(),
 		config.ChainID(),
 		types.NewMockPV(),
 		dialer,
 	)
-	privval.RemoteSignerConnDeadline(100 * time.Millisecond)(pvsc)
+	privval.SignerServiceEndpointTimeoutReadWrite(100 * time.Millisecond)(pvsc)
 
 	go func() {
 		err := pvsc.Start()
@@ -149,7 +150,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 
 	n, err := DefaultNewNode(config, log.TestingLogger())
 	require.NoError(t, err)
-	assert.IsType(t, &privval.SocketVal{}, n.PrivValidator())
+	assert.IsType(t, &privval.SignerValidatorEndpoint{}, n.PrivValidator())
 }
 
 // address without a protocol must result in error
@@ -173,13 +174,13 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	config.BaseConfig.PrivValidatorListenAddr = "unix://" + tmpfile
 
 	dialer := privval.DialUnixFn(tmpfile)
-	pvsc := privval.NewRemoteSigner(
+	pvsc := privval.NewSignerServiceEndpoint(
 		log.TestingLogger(),
 		config.ChainID(),
 		types.NewMockPV(),
 		dialer,
 	)
-	privval.RemoteSignerConnDeadline(100 * time.Millisecond)(pvsc)
+	privval.SignerServiceEndpointTimeoutReadWrite(100 * time.Millisecond)(pvsc)
 
 	go func() {
 		err := pvsc.Start()
@@ -189,7 +190,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 
 	n, err := DefaultNewNode(config, log.TestingLogger())
 	require.NoError(t, err)
-	assert.IsType(t, &privval.SocketVal{}, n.PrivValidator())
+	assert.IsType(t, &privval.SignerValidatorEndpoint{}, n.PrivValidator())
 
 }
 

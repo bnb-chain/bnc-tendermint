@@ -168,39 +168,18 @@ func (app *localClient) EndBlockAsync(req types.RequestEndBlock) *ReqRes {
 	)
 }
 
-func (app *localClient) LatestSnapshot() (height int64, numKeys []int64, err error) {
+func (app *localClient) StartRecovery(manifest *types.Manifest) error {
 	app.mtx.Lock()
 	defer app.mtx.Unlock()
 
-	return app.Application.LatestSnapshot()
+	return app.Application.StartRecovery(manifest)
 }
 
-func (app *localClient) ReadSnapshotChunk(height int64, startIndex, endIndex int64) (chunk [][]byte, err error) {
+func (app *localClient) WriteRecoveryChunk(hash types.SHA256Sum, chunk *types.AppStateChunk, isComplete bool) error {
 	app.mtx.Lock()
 	defer app.mtx.Unlock()
 
-	return app.Application.ReadSnapshotChunk(height, startIndex, endIndex)
-}
-
-func (app *localClient) StartRecovery(height int64, numKeys []int64) error {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
-	return app.Application.StartRecovery(height, numKeys)
-}
-
-func (app *localClient) WriteRecoveryChunk(chunk [][]byte) error {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
-	return app.Application.WriteRecoveryChunk(chunk)
-}
-
-func (app *localClient) EndRecovery(height int64) error {
-	app.mtx.Lock()
-	defer app.mtx.Unlock()
-
-	return app.Application.EndRecovery(height)
+	return app.Application.WriteRecoveryChunk(hash, chunk, isComplete)
 }
 
 //-------------------------------------------------------
