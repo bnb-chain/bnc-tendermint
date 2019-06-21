@@ -33,5 +33,6 @@
 * [rpc] [\#3686](https://github.com/tendermint/tendermint/pull/3686) `HTTPClient#Call` returns wrapped errors, so a caller could use `errors.Cause` to retrieve an error code.
 
 ### BUG FIXES:
-- [libs/db] Fixed the BoltDB backend's Batch.Delete implementation (@Yawning)
-- [libs/db] Fixed the BoltDB backend's Get and Iterator implementation (@Yawning)
+- [libs/db] \#3717 Fixed the BoltDB backend's Batch.Delete implementation (@Yawning)
+- [libs/db] \#3718 Fixed the BoltDB backend's Get and Iterator implementation (@Yawning)
+- [node] \#3716 Fix a bug where `nil` is recorded as node's address
