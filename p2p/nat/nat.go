@@ -10,6 +10,12 @@ import (
 	"time"
 
 	"github.com/jackpal/go-nat-pmp"
+	cmn "github.com/tendermint/tendermint/libs/common"
+)
+
+const (
+	mapTimeout        = 20 * time.Minute
+	mapUpdateInterval = 15 * time.Minute
 )
 
 // An implementation of nat.Interface can map local ports to ports
@@ -30,6 +36,59 @@ type Interface interface {
 
 	// Should return name of the method. This is used for logging.
 	String() string
+}
+
+type NatService struct {
+	cmn.BaseService
+	nat      Interface
+	protocol string
+	extPort  int
+	intPort  int
+	name     string
+}
+
+func NewNatService(nat Interface, protocol string, extPort, intPort int, name string) *NatService {
+	ns := &NatService{
+		nat:      nat,
+		protocol: protocol,
+		extPort:  extPort,
+		intPort:  intPort,
+	}
+	ns.BaseService = *cmn.NewBaseService(nil, "NatService", ns)
+	return ns
+}
+
+func (ns *NatService) OnStart() error {
+	if ns.nat == nil {
+		return nil
+	}
+	go ns.mapRoutine()
+	return nil
+}
+
+func (ns *NatService) mapRoutine() {
+	refresh := time.NewTicker(mapUpdateInterval)
+	defer func() {
+		ns.Logger.Info("deleting port mapping")
+		refresh.Stop()
+		ns.nat.DeleteMapping(ns.protocol, ns.extPort, ns.intPort)
+	}()
+	if err := ns.nat.AddMapping(ns.protocol, ns.extPort, ns.intPort, ns.name, mapTimeout); err != nil {
+		ns.Logger.Error("Couldn't add port mapping", "err", err)
+	} else {
+		ns.Logger.Info("Mapped network port")
+	}
+	for {
+		select {
+		case <-ns.Quit():
+			return
+		case <-refresh.C:
+			ns.Logger.Debug("Refreshing port mapping")
+			if err := ns.nat.AddMapping(ns.protocol, ns.extPort, ns.intPort, ns.name, mapTimeout); err != nil {
+				ns.Logger.Error("Couldn't add port mapping", "err", err)
+			}
+		}
+	}
 }
 
 // Parse parses a NAT interface description.
@@ -72,11 +131,6 @@ func Parse(spec string) (Interface, error) {
 		return nil, fmt.Errorf("unknown mechanism %q", parts[0])
 	}
 }
-
-const (
-	mapTimeout        = 20 * time.Minute
-	mapUpdateInterval = 15 * time.Minute
-)
 
 // Map adds a port mapping on m and keeps it alive until c is closed.
 // This function is typically invoked in its own goroutine.
