@@ -132,36 +132,6 @@ func Parse(spec string) (Interface, error) {
 	}
 }
 
-// Map adds a port mapping on m and keeps it alive until c is closed.
-// This function is typically invoked in its own goroutine.
-func Map(m Interface, c chan struct{}, protocol string, extport, intport int, name string) {
-	refresh := time.NewTimer(mapUpdateInterval)
-	defer func() {
-		refresh.Stop()
-		fmt.Println("Deleting port mapping")
-		m.DeleteMapping(protocol, extport, intport)
-	}()
-	if err := m.AddMapping(protocol, extport, intport, name, mapTimeout); err != nil {
-		fmt.Println("Couldn't add port mapping", "err", err)
-	} else {
-		fmt.Println("Mapped network port")
-	}
-	for {
-		select {
-		case _, ok := <-c:
-			if !ok {
-				return
-			}
-		case <-refresh.C:
-			fmt.Println("Refreshing port mapping")
-			if err := m.AddMapping(protocol, extport, intport, name, mapTimeout); err != nil {
-				fmt.Println("Couldn't add port mapping", "err", err)
-			}
-			refresh.Reset(mapUpdateInterval)
-		}
-	}
-}
-
 // ExtIP assumes that the local machine is reachable on the given
 // external IP address, and that any required ports were mapped manually.
 // Mapping operations will not return an error but won't actually do anything.

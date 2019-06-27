@@ -1,9 +1,12 @@
 package nat
 
 import (
+	"fmt"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // This test checks that autodisc doesn't hang and returns
@@ -44,4 +47,15 @@ func TestAutoDiscRace(t *testing.T) {
 			}
 		}
 	}
+}
+
+
+
+func TestAny(t *testing.T) {
+	n:=Any()
+	err:=n.AddMapping("tcp",27247,27247,"zjubfd",2*time.Second)
+	assert.NoError(t,err)
+	eIp,err:=n.ExternalIP()
+	assert.NoError(t,err)
+	fmt.Println(eIp)
 }
