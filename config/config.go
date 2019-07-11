@@ -2,13 +2,14 @@ package config
 
 import (
 	"fmt"
-	"github.com/tendermint/tendermint/libs/db"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
 	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
+
+	"github.com/tendermint/tendermint/libs/db"
 )
 
 const (
