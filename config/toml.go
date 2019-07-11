@@ -321,6 +321,9 @@ recheck = {{ .Mempool.Recheck }}
 broadcast = {{ .Mempool.Broadcast }}
 wal_dir = "{{ js .Mempool.WalPath }}"
 
+# If set true, will only broadcast transactions to persistent peers. 
+only_persistent = {{ .Mempool.OnlyPersistent }}
+
 # Maximum number of transactions in the mempool
 size = {{ .Mempool.Size }}
 
