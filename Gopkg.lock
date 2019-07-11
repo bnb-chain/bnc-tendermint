@@ -372,6 +372,14 @@
   revision = "6b91fda63f2e36186f1c9d0e48578defb69c5d43"
 
 [[projects]]
+  branch = "master"
+  digest = "1:5975e74ce1d29fb5ae2335cd95500a5b9a0492d6a05584a4623467130959d72c"
+  name = "github.com/tecbot/gorocksdb"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "025c3cf4ffb46a5c7c987cb28f44eb5073ef2a80"
+
+[[projects]]
   digest = "1:ad9c4c1a4e7875330b1f62906f2830f043a23edb5db997e3a5ac5d3e6eadf80a"
   name = "github.com/tendermint/go-amino"
   packages = ["."]
@@ -544,6 +552,7 @@
     "github.com/syndtr/goleveldb/leveldb/filter",
     "github.com/syndtr/goleveldb/leveldb/iterator",
     "github.com/syndtr/goleveldb/leveldb/opt",
+    "github.com/tecbot/gorocksdb",
     "github.com/tendermint/go-amino",
     "golang.org/x/crypto/bcrypt",
     "golang.org/x/crypto/chacha20poly1305",

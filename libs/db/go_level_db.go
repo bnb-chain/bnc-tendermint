@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb/filter"
 	"path/filepath"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -15,7 +16,7 @@ import (
 
 func init() {
 	dbCreator := func(name string, dir string, opt interface{}) (DB, error) {
-		if o, ok := opt.(*optPkg.Options); ok {
+		if o, ok := opt.(*Options); ok {
 			return NewGoLevelDBWithOpts(name, dir, o)
 		} else {
 			return NewGoLevelDB(name, dir)
@@ -35,9 +36,24 @@ func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
 	return NewGoLevelDBWithOpts(name, dir, nil)
 }
 
-func NewGoLevelDBWithOpts(name string, dir string, o *optPkg.Options) (*GoLevelDB, error) {
+func NewGoLevelDBWithOpts(name string, dir string, o *Options) (*GoLevelDB, error) {
+	var option *optPkg.Options = nil
+
+	if o != nil {
+		var fltr filter.Filter
+		if o.FilterBitsPerKey > 0 {
+			fltr = filter.NewBloomFilter(o.FilterBitsPerKey)
+		}
+		option = &optPkg.Options{
+			OpenFilesCacheCapacity: o.OpenFilesCacheSize,
+			BlockCacheCapacity:     o.BlockCacheSize,
+			WriteBuffer:            o.WriteBufferSize,
+			Filter:                 fltr,
+		}
+	}
+
 	dbPath := filepath.Join(dir, name+".db")
-	db, err := leveldb.OpenFile(dbPath, o)
+	db, err := leveldb.OpenFile(dbPath, option)
 	if err != nil {
 		return nil, err
 	}

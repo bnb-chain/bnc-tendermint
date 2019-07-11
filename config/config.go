@@ -2,12 +2,12 @@ package config
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/libs/db"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb/filter"
 	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
 )
 
@@ -677,8 +677,8 @@ type DBCacheConfig struct {
 func DefaultDBCacheConfig() *DBCacheConfig {
 	return &DBCacheConfig{
 		OpenFilesCacheCapacity: 1024,
-		BlockCacheCapacity:     8 * optPkg.MiB,
-		WriteBuffer:            4 * optPkg.MiB,
+		BlockCacheCapacity:     500 * optPkg.MiB,
+		WriteBuffer:            64 * optPkg.MiB,
 		BitsPerKey:             10,
 	}
 }
@@ -708,16 +708,12 @@ func (cfg *DBCacheConfig) ValidateBasic() error {
 	return nil
 }
 
-func (cfg *DBCacheConfig) ToGolevelDBOpt() *optPkg.Options {
-	var fltr filter.Filter
-	if cfg.BitsPerKey > 0 {
-		fltr = filter.NewBloomFilter(cfg.BitsPerKey)
-	}
-	return &optPkg.Options{
-		OpenFilesCacheCapacity: cfg.OpenFilesCacheCapacity,
-		BlockCacheCapacity:     cfg.BlockCacheCapacity,
-		WriteBuffer:            cfg.WriteBuffer,
-		Filter:                 fltr,
+func (cfg *DBCacheConfig) ToDBOpt() *db.Options {
+	return &db.Options{
+		OpenFilesCacheSize: cfg.OpenFilesCacheCapacity,
+		BlockCacheSize:     cfg.BlockCacheCapacity,
+		WriteBufferSize:    cfg.WriteBuffer,
+		FilterBitsPerKey:   cfg.BitsPerKey,
 	}
 }
 
