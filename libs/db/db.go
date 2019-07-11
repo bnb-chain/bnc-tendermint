@@ -11,8 +11,8 @@ import (
 type DBBackendType string
 
 const (
-	LevelDBBackend   DBBackendType = "leveldb" // legacy, defaults to goleveldb unless +gcc
-	RocksDBBackend   DBBackendType = "rocksdb" // legacy, defaults to goleveldb unless +gcc
+	LevelDBBackend   DBBackendType = "leveldb" // legacy, defaults to goleveldb unless +cleveldb
+	RocksDBBackend   DBBackendType = "rocksdb" // legacy, defaults to goleveldb unless +rocksdb
 	CLevelDBBackend  DBBackendType = "cleveldb"
 	GoLevelDBBackend DBBackendType = "goleveldb"
 	MemDBBackend     DBBackendType = "memdb"
