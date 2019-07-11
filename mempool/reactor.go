@@ -23,7 +23,7 @@ const (
 	maxTxSize  = maxMsgSize - 8 // account for amino overhead of TxMessage
 
 	MempoolPacketChannelSize   = 1024 * 200 // 200K messages can be queued
-	peerCatchupSleepIntervalMS = 100 		// If peer is behind, sleep this amount
+	peerCatchupSleepIntervalMS = 100        // If peer is behind, sleep this amount
 
 	// UnknownPeerID is the peer ID to use when running CheckTx when there is
 	// no peer (e.g. RPC)
@@ -211,7 +211,7 @@ type PeerState interface {
 
 // Send new mempool txs to peer.
 func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
-	if !memR.config.Broadcast {
+	if !memR.config.Broadcast || (memR.config.OnlyPersistent && !peer.IsPersistent()) {
 		return
 	}
 
