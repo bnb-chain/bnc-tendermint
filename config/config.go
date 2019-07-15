@@ -734,7 +734,7 @@ type MempoolConfig struct {
 	MaxTxsBytes                 int64  `mapstructure:"max_txs_bytes"`
 	CacheSize                   int    `mapstructure:"cache_size"`
 	OnlyPersistent              bool   `mapstructure:"only_persistent"`
-	BroadcastFromNonePersistent bool   `mapstructure:broadcast_from_none_persistent`
+	BroadcastFromNonePersistent bool   `mapstructure:"broadcast_from_none_persistent"`
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool
