@@ -194,7 +194,7 @@ func (memR *MempoolReactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte
 	switch msg := msg.(type) {
 	case *TxMessage:
 		peerID := memR.ids.GetForPeer(src)
-		err := memR.Mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{PeerID: peerID})
+		err := memR.Mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{PeerID: peerID, FromPersistent: src.IsPersistent()})
 		if err != nil {
 			memR.Logger.Info("Could not check tx", "tx", TxID(msg.Tx), "err", err)
 		}
@@ -237,8 +237,10 @@ func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
 				return
 			}
 		}
-
 		memTx := next.Value.(*mempoolTx)
+		if memR.config.BroadcastFromNonePersistent && memTx.fromPersistent {
+			continue
+		}
 
 		// make sure the peer is up to date
 		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
