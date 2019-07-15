@@ -12,7 +12,6 @@ import (
 
 func init() {
 	dbCreator := func(name string, dir string, opt interface{}) (DB, error) {
-		return NewRocksDB(name, dir)
 		if o, ok := opt.(*Options); ok {
 			return NewRocksDB(name, dir, o)
 		} else {
@@ -52,6 +51,8 @@ func NewRocksDB(name string, dir string, option *Options) (*RocksDB, error) {
 			opts.SetWriteBufferSize(option.WriteBufferSize)
 		}
 	}
+
+	opts.SetMaxBackgroundCompactions(4)
 
 	opts.SetCreateIfMissing(true)
 	db, err := gorocksdb.OpenDb(opts, dbPath)

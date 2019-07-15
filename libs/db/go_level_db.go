@@ -17,7 +17,7 @@ import (
 func init() {
 	dbCreator := func(name string, dir string, opt interface{}) (DB, error) {
 		if o, ok := opt.(*Options); ok {
-			return NewGoLevelDBWithOpts(name, dir, o)
+			return NewGoLevelDBWithCommonOpts(name, dir, o)
 		} else {
 			return NewGoLevelDB(name, dir)
 		}
@@ -33,10 +33,22 @@ type GoLevelDB struct {
 }
 
 func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
-	return NewGoLevelDBWithOpts(name, dir, nil)
+	return NewGoLevelDBWithCommonOpts(name, dir, nil)
 }
 
-func NewGoLevelDBWithOpts(name string, dir string, o *Options) (*GoLevelDB, error) {
+func NewGoLevelDBWithOpts(name string, dir string, o *optPkg.Options) (*GoLevelDB, error) {
+	dbPath := filepath.Join(dir, name+".db")
+	db, err := leveldb.OpenFile(dbPath, o)
+	if err != nil {
+		return nil, err
+	}
+	database := &GoLevelDB{
+		db: db,
+	}
+	return database, nil
+}
+
+func NewGoLevelDBWithCommonOpts(name string, dir string, o *Options) (*GoLevelDB, error) {
 	var option *optPkg.Options = nil
 
 	if o != nil {
