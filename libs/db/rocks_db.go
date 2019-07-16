@@ -45,7 +45,12 @@ func NewRocksDB(name string, dir string, option *Options) (*RocksDB, error) {
 			bbto.SetFilterPolicy(filter)
 		}
 
+		bbto.SetBlockSize(16 * 1024)
+		bbto.SetCacheIndexAndFilterBlocks(true)
+		bbto.SetPinL0FilterAndIndexBlocksInCache(true)
+
 		opts.SetBlockBasedTableFactory(bbto)
+		//opts.SetCompression(gorocksdb.LZ4Compression)
 
 		if option.WriteBufferSize > 0 {
 			opts.SetWriteBufferSize(option.WriteBufferSize)
@@ -53,6 +58,7 @@ func NewRocksDB(name string, dir string, option *Options) (*RocksDB, error) {
 	}
 
 	opts.SetMaxBackgroundCompactions(4)
+	opts.SetMaxBackgroundFlushes(2)
 
 	opts.SetCreateIfMissing(true)
 	db, err := gorocksdb.OpenDb(opts, dbPath)
