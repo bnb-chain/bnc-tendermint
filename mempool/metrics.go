@@ -24,6 +24,10 @@ type Metrics struct {
 	FailedTxs metrics.Counter
 	// Number of times transactions are rechecked in the mempool.
 	RecheckTimes metrics.Counter
+	// Number of tx transmitted by peer.
+	ReceivedTx metrics.Counter
+	// Number of duplicated tx transmitted by peer.
+	DuplicateTx metrics.Counter
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -60,6 +64,18 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "recheck_times",
 			Help:      "Number of times transactions are rechecked in the mempool.",
 		}, labels).With(labelsAndValues...),
+		ReceivedTx: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "received_tx",
+			Help:      "Number of tx transmitted by peer.",
+		}, append(labels, "peer_id")).With(labelsAndValues...),
+		DuplicateTx: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "duplicate_tx",
+			Help:      "Number of duplicate tx transmitted by peer.",
+		}, append(labels, "peer_id")).With(labelsAndValues...),
 	}
 }
 
@@ -70,5 +86,7 @@ func NopMetrics() *Metrics {
 		TxSizeBytes:  discard.NewHistogram(),
 		FailedTxs:    discard.NewCounter(),
 		RecheckTimes: discard.NewCounter(),
+		ReceivedTx:   discard.NewCounter(),
+		DuplicateTx:  discard.NewCounter(),
 	}
 }
