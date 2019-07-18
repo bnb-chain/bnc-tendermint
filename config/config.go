@@ -726,13 +726,14 @@ func (cfg *DBCacheConfig) ToGolevelDBOpt() *optPkg.Options {
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
 type MempoolConfig struct {
-	RootDir     string `mapstructure:"home"`
-	Recheck     bool   `mapstructure:"recheck"`
-	Broadcast   bool   `mapstructure:"broadcast"`
-	WalPath     string `mapstructure:"wal_dir"`
-	Size        int    `mapstructure:"size"`
-	MaxTxsBytes int64  `mapstructure:"max_txs_bytes"`
-	CacheSize   int    `mapstructure:"cache_size"`
+	RootDir        string `mapstructure:"home"`
+	Recheck        bool   `mapstructure:"recheck"`
+	Broadcast      bool   `mapstructure:"broadcast"`
+	WalPath        string `mapstructure:"wal_dir"`
+	Size           int    `mapstructure:"size"`
+	MaxTxsBytes    int64  `mapstructure:"max_txs_bytes"`
+	CacheSize      int    `mapstructure:"cache_size"`
+	OnlyPersistent bool   `mapstructure:"only_persistent"`
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool
@@ -743,9 +744,10 @@ func DefaultMempoolConfig() *MempoolConfig {
 		WalPath:   "",
 		// Each signature verification takes .5ms, Size reduced until we implement
 		// ABCI Recheck
-		Size:        5000,
-		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
-		CacheSize:   10000,
+		Size:           5000,
+		MaxTxsBytes:    1024 * 1024 * 1024, // 1GB
+		CacheSize:      10000,
+		OnlyPersistent: false,
 	}
 }
 
