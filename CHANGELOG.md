@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.31.5-binance.1
+*July 17th, 2019*
+
+### IMPROVEMENTS:
+- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool 
+- [metrics] [\#96](https://github.com/binance-chain/bnc-tendermint/pull/96) monitor: add more metrics about p2p
+
 ## v0.31.5
 
 *April 16th, 2019*

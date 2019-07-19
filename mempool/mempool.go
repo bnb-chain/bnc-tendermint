@@ -161,13 +161,13 @@ func txKey(tx types.Tx) [sha256.Size]byte {
 type Mempool struct {
 	config *cfg.MempoolConfig
 
-	proxyLowMtx          sync.Mutex
-	proxyNextMtx         sync.Mutex
-	proxyBlockingMtx     sync.Mutex
-	proxyAppConn         proxy.AppConnMempool
-	txs          *clist.CList // concurrent linked-list of good txs
-	preCheck     PreCheckFunc
-	postCheck    PostCheckFunc
+	proxyLowMtx      sync.Mutex
+	proxyNextMtx     sync.Mutex
+	proxyBlockingMtx sync.Mutex
+	proxyAppConn     proxy.AppConnMempool
+	txs              *clist.CList // concurrent linked-list of good txs
+	preCheck         PreCheckFunc
+	postCheck        PostCheckFunc
 
 	// Track whether we're rechecking txs.
 	// These are not protected by a mutex and are expected to be mutated
@@ -417,7 +417,6 @@ func (mem *Mempool) CheckTxWithInfo(tx types.Tx, cb func(*abci.Response), txInfo
 				// but they can spam the same tx with little cost to them atm.
 			}
 		}
-
 		return ErrTxInCache
 	}
 	// END CACHE
