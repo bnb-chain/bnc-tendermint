@@ -215,7 +215,7 @@ type PeerState interface {
 
 // Send new mempool txs to peer.
 func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
-	if !memR.config.Broadcast {
+	if !memR.config.Broadcast || (memR.config.OnlyPersistent && !memR.Switch.IsPersistent(peer)) {
 		return
 	}
 
