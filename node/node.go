@@ -37,8 +37,8 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/snapshot"
+	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/blockindex"
 	bkv "github.com/tendermint/tendermint/state/blockindex/kv"
 	nullblk "github.com/tendermint/tendermint/state/blockindex/null"
@@ -65,7 +65,7 @@ type DBProvider func(*DBContext) (dbm.DB, error)
 // specified in the ctx.Config.
 func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 	dbType := dbm.DBBackendType(ctx.Config.DBBackend)
-	return dbm.NewDBWithOpt(ctx.ID, dbType, ctx.Config.DBDir(), ctx.Config.DBCache.ToGolevelDBOpt()), nil
+	return dbm.NewDBWithOpt(ctx.ID, dbType, ctx.Config.DBDir(), ctx.Config.DBCache.ToDBOpt()), nil
 }
 
 // GenesisDocProvider returns a GenesisDoc.
@@ -160,21 +160,21 @@ type Node struct {
 	isListening bool
 
 	// services
-	eventBus         *types.EventBus // pub/sub for services
-	stateDB          dbm.DB
-	blockStore       *bc.BlockStore         // store the blockchain to disk
-	bcReactor        *bc.BlockchainReactor  // for fast-syncing
-	mempoolReactor   *mempl.MempoolReactor  // for gossipping transactions
-	consensusState   *cs.ConsensusState     // latest consensus state
-	consensusReactor *cs.ConsensusReactor   // for participating in the consensus
-	evidencePool     *evidence.EvidencePool // tracking evidence
-	proxyApp         proxy.AppConns         // connection to the application
-	rpcListeners     []net.Listener         // rpc servers
-	txIndexer        txindex.TxIndexer
-	blockIndexer     blockindex.BlockIndexer
-	indexerService   *txindex.IndexerService
+	eventBus          *types.EventBus // pub/sub for services
+	stateDB           dbm.DB
+	blockStore        *bc.BlockStore         // store the blockchain to disk
+	bcReactor         *bc.BlockchainReactor  // for fast-syncing
+	mempoolReactor    *mempl.MempoolReactor  // for gossipping transactions
+	consensusState    *cs.ConsensusState     // latest consensus state
+	consensusReactor  *cs.ConsensusReactor   // for participating in the consensus
+	evidencePool      *evidence.EvidencePool // tracking evidence
+	proxyApp          proxy.AppConns         // connection to the application
+	rpcListeners      []net.Listener         // rpc servers
+	txIndexer         txindex.TxIndexer
+	blockIndexer      blockindex.BlockIndexer
+	indexerService    *txindex.IndexerService
 	blockIndexService *blockindex.IndexerService
-	prometheusSrv    *http.Server
+	prometheusSrv     *http.Server
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -239,7 +239,7 @@ func NewNode(config *cfg.Config,
 
 	// Transaction indexing
 	var txIndexer txindex.TxIndexer
-	var txDB dbm.DB	// TODO: remove by refactor defaultdbprovider to cache the created db instaces
+	var txDB dbm.DB // TODO: remove by refactor defaultdbprovider to cache the created db instaces
 	switch config.TxIndex.Indexer {
 	case "kv":
 		store, err := dbProvider(&DBContext{"tx_index", config})
@@ -583,19 +583,19 @@ func NewNode(config *cfg.Config,
 		nodeInfo:  nodeInfo,
 		nodeKey:   nodeKey,
 
-		stateDB:          stateDB,
-		blockStore:       blockStore,
-		bcReactor:        bcReactor,
-		mempoolReactor:   mempoolReactor,
-		consensusState:   consensusState,
-		consensusReactor: consensusReactor,
-		evidencePool:     evidencePool,
-		proxyApp:         proxyApp,
-		txIndexer:        txIndexer,
-		blockIndexer:     blockIndexer,
-		indexerService:   txIndexerService,
+		stateDB:           stateDB,
+		blockStore:        blockStore,
+		bcReactor:         bcReactor,
+		mempoolReactor:    mempoolReactor,
+		consensusState:    consensusState,
+		consensusReactor:  consensusReactor,
+		evidencePool:      evidencePool,
+		proxyApp:          proxyApp,
+		txIndexer:         txIndexer,
+		blockIndexer:      blockIndexer,
+		indexerService:    txIndexerService,
 		blockIndexService: blockIndexerService,
-		eventBus:         eventBus,
+		eventBus:          eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
 	return node, nil
@@ -738,7 +738,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	// we may expose the rpc over both a unix and tcp socket
 	listeners := make([]net.Listener, len(listenAddrs))
 	var wsWorkerPool *gopool.Pool
-	if n.config.RPC.WebsocketPoolMaxSize > 1{
+	if n.config.RPC.WebsocketPoolMaxSize > 1 {
 		wsWorkerPool = gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
 		wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
 	}

@@ -242,34 +242,32 @@ func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
 			}
 		}
 		memTx := next.Value.(*mempoolTx)
-		if memR.config.BroadcastFromNonePersistent && memTx.fromPersistent {
-			continue
-		}
-
-		// make sure the peer is up to date
-		peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
-		if !ok {
-			// Peer does not have a state yet. We set it in the consensus reactor, but
-			// when we add peer in Switch, the order we call reactors#AddPeer is
-			// different every time due to us using a map. Sometimes other reactors
-			// will be initialized before the consensus reactor. We should wait a few
-			// milliseconds and retry.
-			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-			continue
-		}
-		if peerState.GetHeight() < memTx.Height()-1 { // Allow for a lag of 1 block
-			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-			continue
-		}
-
-		// ensure peer hasn't already sent us this tx
-		if _, ok := memTx.senders.Load(peerID); !ok {
-			// send memTx
-			msg := &TxMessage{Tx: memTx.tx}
-			success := peer.Send(MempoolChannel, cdc.MustMarshalBinaryBare(msg))
-			if !success {
+		if !memR.config.BroadcastFromNonePersistent || !memTx.fromPersistent {
+			// make sure the peer is up to date
+			peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
+			if !ok {
+				// Peer does not have a state yet. We set it in the consensus reactor, but
+				// when we add peer in Switch, the order we call reactors#AddPeer is
+				// different every time due to us using a map. Sometimes other reactors
+				// will be initialized before the consensus reactor. We should wait a few
+				// milliseconds and retry.
 				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
 				continue
+			}
+			if peerState.GetHeight() < memTx.Height()-1 { // Allow for a lag of 1 block
+				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+				continue
+			}
+
+			// ensure peer hasn't already sent us this tx
+			if _, ok := memTx.senders.Load(peerID); !ok {
+				// send memTx
+				msg := &TxMessage{Tx: memTx.tx}
+				success := peer.Send(MempoolChannel, cdc.MustMarshalBinaryBare(msg))
+				if !success {
+					time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
+					continue
+				}
 			}
 		}
 

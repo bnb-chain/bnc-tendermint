@@ -121,6 +121,13 @@ type Iterator interface {
 	Close()
 }
 
+type Options struct {
+	BlockCacheSize     int
+	OpenFilesCacheSize int
+	WriteBufferSize    int
+	FilterBitsPerKey   int
+}
+
 // For testing convenience.
 func bz(s string) []byte {
 	return []byte(s)

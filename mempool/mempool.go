@@ -532,6 +532,7 @@ func (mem *Mempool) resCbFirstTime(tx []byte, txInfo TxInfo, res *abci.Response)
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
 			memTx := &mempoolTx{
 				fromPersistent: txInfo.FromPersistent,
+				time:           time.Now(),
 				height:         mem.height,
 				gasWanted:      r.CheckTx.GasWanted,
 				tx:             tx,
@@ -747,16 +748,23 @@ func (mem *Mempool) removeTxs(txs types.Txs) []types.Tx {
 	}
 
 	txsLeft := make([]types.Tx, 0, mem.txs.Len())
+	var sum int64
+	var num int64
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		// Remove the tx if it's already in a block.
 		if _, ok := txsMap[string(memTx.tx)]; ok {
 			// NOTE: we don't remove committed txs from the cache.
 			mem.removeTx(memTx.tx, e, false)
-
+			sum += time.Now().Sub(memTx.time).Nanoseconds()
+			num++
 			continue
 		}
 		txsLeft = append(txsLeft, memTx.tx)
+	}
+	if num != 0 {
+		ave := float64(sum) / float64(num)
+		mem.metrics.Delay.Set(ave)
 	}
 	return txsLeft
 }
@@ -786,6 +794,7 @@ type mempoolTx struct {
 	height         int64    // height that this tx had been validated in
 	gasWanted      int64    // amount of gas this tx states it will require
 	tx             types.Tx //
+	time           time.Time
 
 	// ids of peers who've sent us this tx (as a map for quick lookups).
 	// senders: PeerID -> bool

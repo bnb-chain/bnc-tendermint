@@ -28,6 +28,8 @@ type Metrics struct {
 	ReceivedTx metrics.Counter
 	// Number of duplicated tx transmitted by peer.
 	DuplicateTx metrics.Counter
+
+	Delay metrics.Gauge
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -44,6 +46,12 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Subsystem: MetricsSubsystem,
 			Name:      "size",
 			Help:      "Size of the mempool (number of uncommitted transactions).",
+		}, labels).With(labelsAndValues...),
+		Delay: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "delay",
+			Help:      "delay of tx",
 		}, labels).With(labelsAndValues...),
 		TxSizeBytes: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
 			Namespace: namespace,
@@ -83,6 +91,7 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 func NopMetrics() *Metrics {
 	return &Metrics{
 		Size:         discard.NewGauge(),
+		Delay: discard.NewGauge(),
 		TxSizeBytes:  discard.NewHistogram(),
 		FailedTxs:    discard.NewCounter(),
 		RecheckTimes: discard.NewCounter(),

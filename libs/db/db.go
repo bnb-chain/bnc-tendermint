@@ -11,7 +11,8 @@ import (
 type DBBackendType string
 
 const (
-	LevelDBBackend   DBBackendType = "leveldb" // legacy, defaults to goleveldb unless +gcc
+	LevelDBBackend   DBBackendType = "leveldb" // legacy, defaults to goleveldb unless +cleveldb
+	RocksDBBackend   DBBackendType = "rocksdb" // legacy, defaults to goleveldb unless +rocksdb
 	CLevelDBBackend  DBBackendType = "cleveldb"
 	GoLevelDBBackend DBBackendType = "goleveldb"
 	MemDBBackend     DBBackendType = "memdb"
@@ -37,7 +38,6 @@ func registerDBCreator(backend DBBackendType, creator dbCreator, force bool) {
 func NewDB(name string, backend DBBackendType, dir string) DB {
 	return NewDBWithOpt(name, backend, dir, nil)
 }
-
 
 // NewDB creates a new database of type backend with the given name.
 // NOTE: function panics if:

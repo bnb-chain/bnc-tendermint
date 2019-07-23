@@ -7,6 +7,7 @@ import (
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
+	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
 
@@ -15,8 +16,8 @@ import (
 
 func init() {
 	dbCreator := func(name string, dir string, opt interface{}) (DB, error) {
-		if o, ok := opt.(*optPkg.Options); ok {
-			return NewGoLevelDBWithOpts(name, dir, o)
+		if o, ok := opt.(*Options); ok {
+			return NewGoLevelDBWithCommonOpts(name, dir, o)
 		} else {
 			return NewGoLevelDB(name, dir)
 		}
@@ -32,12 +33,39 @@ type GoLevelDB struct {
 }
 
 func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
-	return NewGoLevelDBWithOpts(name, dir, nil)
+	return NewGoLevelDBWithCommonOpts(name, dir, nil)
 }
 
 func NewGoLevelDBWithOpts(name string, dir string, o *optPkg.Options) (*GoLevelDB, error) {
 	dbPath := filepath.Join(dir, name+".db")
 	db, err := leveldb.OpenFile(dbPath, o)
+	if err != nil {
+		return nil, err
+	}
+	database := &GoLevelDB{
+		db: db,
+	}
+	return database, nil
+}
+
+func NewGoLevelDBWithCommonOpts(name string, dir string, o *Options) (*GoLevelDB, error) {
+	var option *optPkg.Options = nil
+
+	if o != nil {
+		var fltr filter.Filter
+		if o.FilterBitsPerKey > 0 {
+			fltr = filter.NewBloomFilter(o.FilterBitsPerKey)
+		}
+		option = &optPkg.Options{
+			OpenFilesCacheCapacity: o.OpenFilesCacheSize,
+			BlockCacheCapacity:     o.BlockCacheSize,
+			WriteBuffer:            o.WriteBufferSize,
+			Filter:                 fltr,
+		}
+	}
+
+	dbPath := filepath.Join(dir, name+".db")
+	db, err := leveldb.OpenFile(dbPath, option)
 	if err != nil {
 		return nil, err
 	}
