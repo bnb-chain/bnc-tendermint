@@ -51,6 +51,15 @@ type Metrics struct {
 
 	// Number of blockparts transmitted by peer.
 	BlockParts metrics.Counter
+
+	// Number of proposals transmitted by peer.
+	Proposals metrics.Counter
+
+	// Number of votes transmitted by peer.
+	Votes metrics.Counter
+
+	// Number of voteSetBits transmitted by peer.
+	VoteSetBits metrics.Counter
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -154,7 +163,25 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Subsystem: MetricsSubsystem,
 			Name:      "block_parts",
 			Help:      "Number of blockparts transmitted by peer.",
+		}, append(labels, "peer_id", "index")).With(labelsAndValues...),
+		Proposals: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "proposals",
+			Help:      "Number of proposals transmitted by peer.",
 		}, append(labels, "peer_id")).With(labelsAndValues...),
+		Votes: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "votes",
+			Help:      "Number of votes transmitted by peer.",
+		}, append(labels, "peer_id", "type")).With(labelsAndValues...),
+		VoteSetBits: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "vote_set_bits",
+			Help:      "Number of voteSetBits transmitted by peer.",
+		}, append(labels, "peer_id", "type")).With(labelsAndValues...),
 	}
 }
 
@@ -180,5 +207,8 @@ func NopMetrics() *Metrics {
 		CommittedHeight: discard.NewGauge(),
 		FastSyncing:     discard.NewGauge(),
 		BlockParts:      discard.NewCounter(),
+		Proposals:       discard.NewCounter(),
+		Votes:           discard.NewCounter(),
+		VoteSetBits:     discard.NewCounter(),
 	}
 }

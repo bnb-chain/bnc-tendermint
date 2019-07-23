@@ -726,6 +726,7 @@ func (cfg *DBCacheConfig) ToGolevelDBOpt() *optPkg.Options {
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
 type MempoolConfig struct {
+<<<<<<< HEAD
 	RootDir                     string `mapstructure:"home"`
 	Recheck                     bool   `mapstructure:"recheck"`
 	Broadcast                   bool   `mapstructure:"broadcast"`

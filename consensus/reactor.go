@@ -3,6 +3,7 @@ package consensus
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
@@ -285,12 +286,13 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		switch msg := msg.(type) {
 		case *ProposalMessage:
 			ps.SetHasProposal(msg.Proposal)
+			conR.metrics.Proposals.With("peer_id", string(src.ID())).Add(1)
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 		case *ProposalPOLMessage:
 			ps.ApplyProposalPOLMessage(msg)
 		case *BlockPartMessage:
 			ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index)
-			conR.metrics.BlockParts.With("peer_id", string(src.ID())).Add(1)
+			conR.metrics.BlockParts.With("peer_id", string(src.ID())).With("index", strconv.Itoa(msg.Part.Index)).Add(1)
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 		default:
 			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
@@ -310,7 +312,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			ps.EnsureVoteBitArrays(height, valSize)
 			ps.EnsureVoteBitArrays(height-1, lastCommitSize)
 			ps.SetHasVote(msg.Vote)
-
+			conR.metrics.Votes.With("peer_id", string(src.ID())).With("type", msg.Vote.Type.String()).Add(1)
 			cs.peerMsgQueue <- msgInfo{msg, src.ID()}
 
 		default:
@@ -329,7 +331,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			cs.mtx.Lock()
 			height, votes := cs.Height, cs.Votes
 			cs.mtx.Unlock()
-
+			conR.metrics.VoteSetBits.With("peer_id", string(src.ID())).With("type", msg.Type.String()).Add(1)
 			if height == msg.Height {
 				var ourVotes *cmn.BitArray
 				switch msg.Type {

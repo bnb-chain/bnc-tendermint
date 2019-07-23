@@ -419,7 +419,6 @@ func (mem *Mempool) CheckTxWithInfo(tx types.Tx, cb func(*abci.Response), txInfo
 				// but they can spam the same tx with little cost to them atm.
 			}
 		}
-
 		return ErrTxInCache
 	}
 	// END CACHE
