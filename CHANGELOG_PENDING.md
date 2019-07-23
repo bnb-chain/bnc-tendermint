@@ -20,3 +20,5 @@ program](https://hackerone.com/tendermint).
 ### IMPROVEMENTS:
 
 ### BUG FIXES:
+
+- [rpc] \#3813 Return err if page is incorrect (less than 0 or greater than total pages)
