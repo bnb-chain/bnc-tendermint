@@ -17,5 +17,6 @@
 ### FEATURES:
 
 ### IMPROVEMENTS:
+- [index] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/106) index service recover from data lost
 
 ### BUG FIXES:
