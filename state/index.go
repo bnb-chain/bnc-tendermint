@@ -90,6 +90,9 @@ func (ih *IndexHub) recoverIndex() {
 			}
 			abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
 			validatorUpdates, err := types.PB2TM.ValidatorUpdates(abciValUpdates)
+			if err != nil {
+				ih.Logger.Error("failed to load validatorUpdates, will use nil by default")
+			}
 			fireEvents(ih.Logger, ih.eventBus, block, abciResponses, validatorUpdates)
 		}
 	}
