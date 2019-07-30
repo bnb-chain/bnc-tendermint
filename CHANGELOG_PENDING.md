@@ -16,6 +16,10 @@ program](https://hackerone.com/tendermint).
 - Go API
 
 ### FEATURES:
+- [node] Allow replacing existing p2p.Reactor(s) using [`CustomReactors`
+  option](https://godoc.org/github.com/tendermint/tendermint/node#CustomReactors).
+  Warning: beware of accidental name clashes. Here is the list of existing
+  reactors: MEMPOOL, BLOCKCHAIN, CONSENSUS, EVIDENCE, PEX.
 
 ### IMPROVEMENTS:
 
