@@ -12,6 +12,8 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	db "github.com/tendermint/tendermint/libs/db"
 
+	abci "github.com/tendermint/tendermint/abci/types"
+	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/types"
@@ -89,6 +91,11 @@ func TestTxSearch(t *testing.T) {
 		{"account.number = 1 AND account.owner = 'Ivan'", 1},
 		// search by exact match (two tags)
 		{"account.number = 1 AND account.owner = 'Vlad'", 0},
+		{"account.owner = 'Vlad' AND account.number = 1", 0},
+		{"account.number >= 1 AND account.owner = 'Vlad'", 0},
+		{"account.owner = 'Vlad' AND account.number >= 1", 0},
+		{"account.number <= 0", 0},
+		{"account.number <= 0 AND account.owner = 'Ivan'", 0},
 		// search using a prefix of the stored value
 		{"account.owner = 'Iv'", 0},
 		// search by range
@@ -310,7 +317,7 @@ func benchmarkTxIndex(txsCount int64, b *testing.B) {
 	}
 	defer os.RemoveAll(dir) // nolint: errcheck
 
-	store := db.NewDB("tx_index", "leveldb", dir)
+	store := db.NewDB("tx_index", "goleveldb", dir)
 	indexer := NewTxIndex(store)
 
 	batch := txindex.NewBatch(txsCount)
