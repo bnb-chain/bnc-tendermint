@@ -71,7 +71,7 @@ func IndexHubWithMetrics(metrics *Metrics) IndexHubOption {
 
 func (ih *IndexHub) OnStart() error {
 	// start listen routine before recovering.
-	go ih.indexRoutine()
+	go ih.commitIndexRoutine()
 	ih.recoverIndex()
 	return nil
 }
@@ -98,7 +98,7 @@ func (ih *IndexHub) recoverIndex() {
 	}
 }
 
-func (ih *IndexHub) indexRoutine() {
+func (ih *IndexHub) commitIndexRoutine() {
 	for {
 		select {
 		case <-ih.Quit():
@@ -147,9 +147,10 @@ func (ih *IndexHub) CountDownAt(height int64) {
 func (ih *IndexHub) SetIndexedHeight(h int64) {
 	rawHeight, err := cdc.MarshalBinaryBare(h)
 	if err != nil {
-		panic(err)
+		ih.Logger.Error("failed to MarshalBinaryBare for indexed height", "error", err, "height", h)
+	} else {
+		ih.stateDB.Set(indexHeight, rawHeight)
 	}
-	ih.stateDB.Set(indexHeight, rawHeight)
 }
 
 // if never store `indexHeight` in index db, will return -1.
