@@ -947,7 +947,7 @@ func makeNodeInfo(
 		Channels: []byte{
 			snapshot.StateSyncChannel,
 			bc.BlockchainChannel,
-			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
+			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel, cs.BlockPartBitsChannel,
 			mempl.MempoolChannel,
 			evidence.EvidenceChannel,
 		},

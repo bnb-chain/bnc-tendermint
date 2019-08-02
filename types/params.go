@@ -11,7 +11,7 @@ const (
 	MaxBlockSizeBytes = 104857600 // 100MB
 
 	// BlockPartSizeBytes is the size of one block part.
-	BlockPartSizeBytes = 1024 * 1024 // 1MB
+	BlockPartSizeBytes = 1024 * 64 // 64KB
 
 	// MaxStateSizeBytes is the maximum permitted size of the snapshot chunk
 	// snapshot chunks:

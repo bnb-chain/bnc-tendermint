@@ -1,15 +1,15 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"reflect"
-	"strconv"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	cstypes "github.com/tendermint/tendermint/consensus/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	tmevents "github.com/tendermint/tendermint/libs/events"
@@ -21,15 +21,20 @@ import (
 )
 
 const (
-	StateChannel       = byte(0x20)
-	DataChannel        = byte(0x21)
-	VoteChannel        = byte(0x22)
-	VoteSetBitsChannel = byte(0x23)
+	StateChannel         = byte(0x20)
+	DataChannel          = byte(0x21)
+	VoteChannel          = byte(0x22)
+	VoteSetBitsChannel   = byte(0x23)
+	BlockPartBitsChannel = byte(0x24)
 
 	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
 
 	blocksToContributeToBecomeGoodPeer = 10000
 	votesToContributeToBecomeGoodPeer  = 10000
+
+	BlockPartSubCap = 1000
+
+	BlockPartsGossipGapMilliSecond = 500
 )
 
 //-----------------------------------------------------------------------------
@@ -153,6 +158,13 @@ func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 			RecvBufferCapacity:  1024,
 			RecvMessageCapacity: maxMsgSize,
 		},
+		{
+			ID:                  BlockPartBitsChannel,
+			Priority:            10,
+			SendQueueCapacity:   100,
+			RecvBufferCapacity:  100 * 100,
+			RecvMessageCapacity: maxMsgSize,
+		},
 	}
 }
 
@@ -172,6 +184,7 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 	go conR.gossipDataRoutine(peer, peerState)
 	go conR.gossipVotesRoutine(peer, peerState)
 	go conR.queryMaj23Routine(peer, peerState)
+	go conR.gossipBlockPartBitsRoutine(peer, peerState)
 
 	// Send our state to peer.
 	// If we're fast_syncing, broadcast a RoundStepMessage later upon SwitchToConsensus().
@@ -292,8 +305,14 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			ps.ApplyProposalPOLMessage(msg)
 		case *BlockPartMessage:
 			ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index)
-			conR.metrics.BlockParts.With("peer_id", string(src.ID())).With("index", strconv.Itoa(msg.Part.Index)).Add(1)
 			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
+		default:
+			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		}
+	case BlockPartBitsChannel:
+		switch msg := msg.(type) {
+		case *BlockPartBitsMessage:
+			ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Index)
 		default:
 			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
 		}
@@ -464,6 +483,47 @@ func (conR *ConsensusReactor) sendNewRoundStepMessage(peer p2p.Peer) {
 	peer.Send(StateChannel, cdc.MustMarshalBinaryBare(nrsMsg))
 }
 
+func (conR *ConsensusReactor) gossipBlockPartBitsRoutine(peer p2p.Peer, ps *PeerState) {
+	logger := conR.Logger.With("peer", peer)
+	peerSubscriber := fmt.Sprintf("%s-%d", peer.ID(), time.Now().UnixNano())
+	bpSubs, err := conR.eventBus.Subscribe(context.Background(), peerSubscriber, types.EventQueryAddBlockPart, BlockPartSubCap)
+	if err != nil {
+		logger.Error("failed to subscribe AddBlockPart event", "peer", peer.ID(), "err", err)
+		conR.Switch.StopPeerForError(peer, err)
+		return
+	}
+	defer conR.eventBus.Unsubscribe(context.Background(), peerSubscriber, types.EventQueryAddBlockPart)
+	for {
+		// Manage disconnects from self or peer.
+		if !peer.IsRunning() || !conR.IsRunning() {
+			logger.Info("Stopping gossipBlockPartBitsRoutine for peer")
+			return
+		}
+		select {
+		case msg := <-bpSubs.Out():
+			partEvent := msg.Data().(types.EventDataAddBlockPart)
+			prs := ps.GetRoundState()
+			if prs.Height == partEvent.Height && prs.Round == partEvent.Round && partEvent.From != peer.ID() {
+				bz := cdc.MustMarshalBinaryBare(&BlockPartBitsMessage{partEvent.Height, partEvent.Round, partEvent.Index})
+				// sent the message as soon as possible
+				if !peer.Send(BlockPartBitsChannel, bz) {
+					logger.Error("failed to send block part bits", "peer", peer.ID())
+				}
+			}
+		case <-bpSubs.Cancelled():
+			var reason string
+			if bpSubs.Err() == nil {
+				reason = "subscriber for AddBlockPart event closed unexpectedly"
+			} else {
+				reason = bpSubs.Err().Error()
+			}
+			logger.Error(reason, "peer", peer.ID())
+			conR.Switch.StopPeerForError(peer, reason)
+			return
+		}
+	}
+}
+
 func (conR *ConsensusReactor) gossipDataRoutine(peer p2p.Peer, ps *PeerState) {
 	logger := conR.Logger.With("peer", peer)
 
@@ -490,6 +550,7 @@ OUTER_LOOP:
 				if peer.Send(DataChannel, cdc.MustMarshalBinaryBare(msg)) {
 					ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				}
+				time.Sleep(time.Duration(BlockPartsGossipGapMilliSecond/rs.ProposalBlockParts.BitArray().Size()) * time.Millisecond)
 				continue OUTER_LOOP
 			}
 		}
@@ -1382,6 +1443,7 @@ func RegisterConsensusMessages(cdc *amino.Codec) {
 	cdc.RegisterConcrete(&HasVoteMessage{}, "tendermint/HasVote", nil)
 	cdc.RegisterConcrete(&VoteSetMaj23Message{}, "tendermint/VoteSetMaj23", nil)
 	cdc.RegisterConcrete(&VoteSetBitsMessage{}, "tendermint/VoteSetBits", nil)
+	cdc.RegisterConcrete(&BlockPartBitsMessage{}, "tendermint/BlockPartBits", nil)
 }
 
 func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
@@ -1540,6 +1602,32 @@ func (m *BlockPartMessage) ValidateBasic() error {
 // String returns a string representation.
 func (m *BlockPartMessage) String() string {
 	return fmt.Sprintf("[BlockPart H:%v R:%v P:%v]", m.Height, m.Round, m.Part)
+}
+
+//-------------------------------------
+type BlockPartBitsMessage struct {
+	Height int64
+	Round  int
+	Index  int
+}
+
+// ValidateBasic performs basic validation.
+func (m *BlockPartBitsMessage) ValidateBasic() error {
+	if m.Height < 0 {
+		return errors.New("Negative Height")
+	}
+	if m.Round < 0 {
+		return errors.New("Negative Round")
+	}
+	if m.Index < 0 {
+		return errors.New("Negative Index")
+	}
+	return nil
+}
+
+// String returns a string representation.
+func (m *BlockPartBitsMessage) String() string {
+	return fmt.Sprintf("[BlockPartBitsMessage H:%v R:%v I:%v]", m.Height, m.Round, m.Index)
 }
 
 //-------------------------------------

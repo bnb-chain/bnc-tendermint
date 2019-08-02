@@ -49,8 +49,8 @@ type Metrics struct {
 	// Whether or not a node is fast syncing. 1 if yes, 0 if no.
 	FastSyncing metrics.Gauge
 
-	// Number of blockparts transmitted by peer.
-	BlockParts metrics.Counter
+	// Number of duplicate blockparts transmitted by peer.
+	DuplicateBlockParts metrics.Counter
 
 	// Number of proposals transmitted by peer.
 	Proposals metrics.Counter
@@ -158,12 +158,12 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Name:      "fast_syncing",
 			Help:      "Whether or not a node is fast syncing. 1 if yes, 0 if no.",
 		}, labels).With(labelsAndValues...),
-		BlockParts: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		DuplicateBlockParts: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
-			Name:      "block_parts",
-			Help:      "Number of blockparts transmitted by peer.",
-		}, append(labels, "peer_id", "index")).With(labelsAndValues...),
+			Name:      "duplicate_block_parts",
+			Help:      "Number of duplicate blockparts transmitted by peer.",
+		}, append(labels, "peer_id")).With(labelsAndValues...),
 		Proposals: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
 			Namespace: namespace,
 			Subsystem: MetricsSubsystem,
@@ -201,14 +201,14 @@ func NopMetrics() *Metrics {
 
 		BlockIntervalSeconds: discard.NewGauge(),
 
-		NumTxs:          discard.NewGauge(),
-		BlockSizeBytes:  discard.NewGauge(),
-		TotalTxs:        discard.NewGauge(),
-		CommittedHeight: discard.NewGauge(),
-		FastSyncing:     discard.NewGauge(),
-		BlockParts:      discard.NewCounter(),
-		Proposals:       discard.NewCounter(),
-		Votes:           discard.NewCounter(),
-		VoteSetBits:     discard.NewCounter(),
+		NumTxs:              discard.NewGauge(),
+		BlockSizeBytes:      discard.NewGauge(),
+		TotalTxs:            discard.NewGauge(),
+		CommittedHeight:     discard.NewGauge(),
+		FastSyncing:         discard.NewGauge(),
+		DuplicateBlockParts: discard.NewCounter(),
+		Proposals:           discard.NewCounter(),
+		Votes:               discard.NewCounter(),
+		VoteSetBits:         discard.NewCounter(),
 	}
 }

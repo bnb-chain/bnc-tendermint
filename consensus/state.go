@@ -685,6 +685,8 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		added, err = cs.addProposalBlockPart(msg, peerID)
 		if added {
 			cs.statsMsgQueue <- mi
+		}else{
+			cs.metrics.DuplicateBlockParts.With("peer_id", string(peerID)).Add(1)
 		}
 
 		if err != nil && msg.Round != cs.Round {
@@ -1461,6 +1463,9 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 	added, err = cs.ProposalBlockParts.AddPart(part)
 	if err != nil {
 		return added, err
+	}
+	if added {
+		cs.eventBus.PublishAddBlockPart(types.EventDataAddBlockPart{Height: height, Round: round, Index: part.Index, From: peerID})
 	}
 	if added && cs.ProposalBlockParts.IsComplete() {
 		// Added and completed!
