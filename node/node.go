@@ -254,9 +254,10 @@ func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
 			return
 		}
 		indexOptions := make([]func(index *kv.TxIndex), 0)
-		if config.TxIndex.IndexTags != "" {
+		switch {
+		case config.TxIndex.IndexTags != "":
 			indexOptions = append(indexOptions, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
-		} else if config.TxIndex.IndexAllTags {
+		case config.TxIndex.IndexAllTags:
 			indexOptions = append(indexOptions, kv.IndexAllTags())
 		}
 		if config.TxIndex.EnableRangeQuery {
