@@ -189,6 +189,10 @@ func (b *EventBus) PublishEventCompleteProposal(data EventDataCompleteProposal) 
 	return b.Publish(EventCompleteProposal, data)
 }
 
+func (b *EventBus) PublishAddBlockPart(data EventDataAddBlockPart) error {
+	return b.Publish(EventAddBlockPart, data)
+}
+
 func (b *EventBus) PublishEventPolka(data EventDataRoundState) error {
 	return b.Publish(EventPolka, data)
 }

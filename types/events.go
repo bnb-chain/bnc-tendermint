@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"github.com/tendermint/tendermint/p2p"
 
 	amino "github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -35,6 +36,7 @@ const (
 	EventUnlock           = "Unlock"
 	EventValidBlock       = "ValidBlock"
 	EventVote             = "Vote"
+	EventAddBlockPart     = "AddBlockPart"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -110,6 +112,13 @@ type EventDataCompleteProposal struct {
 	BlockID BlockID `json:"block_id"`
 }
 
+type EventDataAddBlockPart struct {
+	Height int64  `json:"height"`
+	Round  int    `json:"round"`
+	Index  int    `json:"index"`
+	From   p2p.ID `json:"from"`
+}
+
 type EventDataVote struct {
 	Vote *Vote
 }
@@ -151,6 +160,7 @@ var (
 	EventQueryValidatorSetUpdates = QueryForEvent(EventValidatorSetUpdates)
 	EventQueryValidBlock          = QueryForEvent(EventValidBlock)
 	EventQueryVote                = QueryForEvent(EventVote)
+	EventQueryAddBlockPart        = QueryForEvent(EventAddBlockPart)
 )
 
 func EventQueryTxFor(tx Tx) tmpubsub.Query {

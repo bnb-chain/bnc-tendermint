@@ -1462,6 +1462,9 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 	if err != nil {
 		return added, err
 	}
+	if added {
+		cs.eventBus.PublishAddBlockPart(types.EventDataAddBlockPart{Height: height, Round: round, Index: part.Index, From: peerID})
+	}
 	if added && cs.ProposalBlockParts.IsComplete() {
 		// Added and completed!
 		_, err = cdc.UnmarshalBinaryLengthPrefixedReader(
