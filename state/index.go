@@ -6,6 +6,8 @@ import (
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/types"
+	abci "github.com/tendermint/tendermint/abci/types"
+
 )
 
 const (
@@ -87,6 +89,8 @@ func (ih *IndexHub) recoverIndex() {
 			if err != nil {
 				ih.Logger.Error("failed to load ABCIResponse, will use default")
 				abciResponses = NewABCIResponses(block)
+				abciResponses.EndBlock = &abci.ResponseEndBlock{}
+				abciResponses.BeginBlock = &abci.ResponseBeginBlock{}
 			}
 			abciValUpdates := abciResponses.EndBlock.ValidatorUpdates
 			validatorUpdates, err := types.PB2TM.ValidatorUpdates(abciValUpdates)
