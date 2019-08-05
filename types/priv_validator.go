@@ -11,7 +11,7 @@ import (
 // PrivValidator defines the functionality of a local Tendermint validator
 // that signs votes and proposals, and never double signs.
 type PrivValidator interface {
-	GetAddress() Address
+	// TODO: Extend the interface to return errors too. Issue: https://github.com/tendermint/tendermint/issues/3602
 	GetPubKey() crypto.PubKey
 
 	SignVote(chainID string, vote *Vote) error
@@ -28,7 +28,7 @@ func (pvs PrivValidatorsByAddress) Len() int {
 }
 
 func (pvs PrivValidatorsByAddress) Less(i, j int) bool {
-	return bytes.Compare(pvs[i].GetAddress(), pvs[j].GetAddress()) == -1
+	return bytes.Compare(pvs[i].GetPubKey().Address(), pvs[j].GetPubKey().Address()) == -1
 }
 
 func (pvs PrivValidatorsByAddress) Swap(i, j int) {
