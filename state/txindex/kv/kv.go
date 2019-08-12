@@ -102,8 +102,10 @@ func (txi *TxIndex) AddBatch(b *txindex.Batch) error {
 		}
 		storeBatch.Set(hash, rawBytes)
 	}
-
+	fmt.Println("before write", time.Now())
 	storeBatch.Write()
+	fmt.Println("after write", time.Now())
+
 	return nil
 }
 

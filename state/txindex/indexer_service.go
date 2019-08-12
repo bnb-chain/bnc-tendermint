@@ -2,7 +2,6 @@ package txindex
 
 import (
 	"context"
-
 	cmn "github.com/tendermint/tendermint/libs/common"
 
 	"github.com/tendermint/tendermint/types"
@@ -55,6 +54,7 @@ func (is *IndexerService) OnStart() error {
 		for {
 			msg := <-blockHeadersSub.Out()
 			header := msg.Data().(types.EventDataNewBlockHeader).Header
+			is.Logger.Info("get block", "height", header.Height)
 			batch := NewBatch(header.NumTxs)
 			for i := int64(0); i < header.NumTxs; i++ {
 				msg2 := <-txsSub.Out()
@@ -66,6 +66,7 @@ func (is *IndexerService) OnStart() error {
 						"err", err)
 				}
 			}
+			is.Logger.Info("Before add batch", "height", header.Height)
 			if err = is.idr.AddBatch(batch); err != nil {
 				is.Logger.Error("Failed to index txs for block", "height", header.Height, "err", err)
 			} else {
@@ -74,6 +75,8 @@ func (is *IndexerService) OnStart() error {
 			if is.onIndex != nil {
 				is.onIndex(header.Height)
 			}
+			is.Logger.Info("After add batch", "height", header.Height)
+
 		}
 	}()
 	return nil
