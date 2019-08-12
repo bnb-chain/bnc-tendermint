@@ -14,7 +14,7 @@ const (
 	MaxIndexLag = 100
 )
 
-var indexHeight = []byte("indexHeight")
+var IndexHeightKey = []byte("IndexHeightKey")
 
 type IndexService interface {
 	SetOnIndex(callback func(int64))
@@ -153,13 +153,13 @@ func (ih *IndexHub) SetIndexedHeight(h int64) {
 	if err != nil {
 		ih.Logger.Error("failed to MarshalBinaryBare for indexed height", "error", err, "height", h)
 	} else {
-		ih.stateDB.Set(indexHeight, rawHeight)
+		ih.stateDB.Set(IndexHeightKey, rawHeight)
 	}
 }
 
-// if never store `indexHeight` in index db, will return -1.
+// if never store `IndexHeightKey` in index db, will return -1.
 func (ih *IndexHub) GetIndexedHeight() int64 {
-	rawHeight := ih.stateDB.Get(indexHeight)
+	rawHeight := ih.stateDB.Get(IndexHeightKey)
 	if rawHeight == nil {
 		return -1
 	} else {
