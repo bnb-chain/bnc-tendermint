@@ -535,12 +535,12 @@ func (mem *Mempool) resCbFirstTime(tx []byte, peerID uint16, res *abci.Response)
 			}
 			memTx.senders.Store(peerID, true)
 			mem.addTx(memTx)
-			mem.logger.Info("Added good transaction",
-				"tx", TxID(tx),
-				"res", r,
-				"height", memTx.height,
-				"total", mem.Size(),
-			)
+			// mem.logger.Info("Added good transaction",
+			//	"tx", TxID(tx),
+			//	"res", r,
+			//	"height", memTx.height,
+			//	"total", mem.Size(),
+			//)
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction

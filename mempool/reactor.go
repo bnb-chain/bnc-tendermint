@@ -193,14 +193,15 @@ func (memR *MempoolReactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte
 
 	switch msg := msg.(type) {
 	case *TxMessage:
-		memR.Mempool.metrics.ReceivedTx.With("peer_id", string(src.ID())).Add(1)
 		peerID := memR.ids.GetForPeer(src)
 		err := memR.Mempool.CheckTxWithInfo(msg.Tx, nil, TxInfo{PeerID: peerID})
 		if err != nil {
+			// TxID(msg.Tx) is costly
 			if err == ErrTxInCache {
-				memR.Mempool.metrics.DuplicateTx.With("peer_id", string(src.ID())).Add(1)
+				memR.Logger.Debug("Could not check tx", "tx", "err", err)
+			} else {
+				memR.Logger.Info("Could not check tx", "tx", TxID(msg.Tx), "err", err)
 			}
-			memR.Logger.Info("Could not check tx", "tx", TxID(msg.Tx), "err", err)
 		}
 		// broadcasting happens from go routines per peer
 	default:
