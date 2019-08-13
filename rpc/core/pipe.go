@@ -75,6 +75,7 @@ var (
 	consensusReactor *consensus.ConsensusReactor
 	eventBus         *types.EventBus // thread safe
 	mempool          *mempl.Mempool
+	indexerHub       *sm.IndexHub
 
 	logger log.Logger
 
@@ -131,6 +132,10 @@ func SetTxIndexer(indexer txindex.TxIndexer) {
 
 func SetBlockIndexer(indexer blockindex.BlockIndexer) {
 	blockIndexer = indexer
+}
+
+func SetIndexHub(hub *sm.IndexHub) {
+	indexerHub = hub
 }
 
 func SetConsensusReactor(conR *consensus.ConsensusReactor) {

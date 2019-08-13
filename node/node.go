@@ -37,8 +37,8 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/snapshot"
+	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/blockindex"
 	bkv "github.com/tendermint/tendermint/state/blockindex/kv"
 	nullblk "github.com/tendermint/tendermint/state/blockindex/null"
@@ -160,21 +160,22 @@ type Node struct {
 	isListening bool
 
 	// services
-	eventBus         *types.EventBus // pub/sub for services
-	stateDB          dbm.DB
-	blockStore       *bc.BlockStore         // store the blockchain to disk
-	bcReactor        *bc.BlockchainReactor  // for fast-syncing
-	mempoolReactor   *mempl.MempoolReactor  // for gossipping transactions
-	consensusState   *cs.ConsensusState     // latest consensus state
-	consensusReactor *cs.ConsensusReactor   // for participating in the consensus
-	evidencePool     *evidence.EvidencePool // tracking evidence
-	proxyApp         proxy.AppConns         // connection to the application
-	rpcListeners     []net.Listener         // rpc servers
-	txIndexer        txindex.TxIndexer
-	blockIndexer     blockindex.BlockIndexer
-	indexerService   *txindex.IndexerService
+	eventBus          *types.EventBus // pub/sub for services
+	stateDB           dbm.DB
+	blockStore        *bc.BlockStore         // store the blockchain to disk
+	bcReactor         *bc.BlockchainReactor  // for fast-syncing
+	mempoolReactor    *mempl.MempoolReactor  // for gossipping transactions
+	consensusState    *cs.ConsensusState     // latest consensus state
+	consensusReactor  *cs.ConsensusReactor   // for participating in the consensus
+	evidencePool      *evidence.EvidencePool // tracking evidence
+	proxyApp          proxy.AppConns         // connection to the application
+	rpcListeners      []net.Listener         // rpc servers
+	txIndexer         txindex.TxIndexer
+	blockIndexer      blockindex.BlockIndexer
+	indexerService    *txindex.IndexerService
 	blockIndexService *blockindex.IndexerService
-	prometheusSrv    *http.Server
+	indexHub          *sm.IndexHub
+	prometheusSrv     *http.Server
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -239,7 +240,7 @@ func NewNode(config *cfg.Config,
 
 	// Transaction indexing
 	var txIndexer txindex.TxIndexer
-	var txDB dbm.DB	// TODO: remove by refactor defaultdbprovider to cache the created db instaces
+	var txDB dbm.DB // TODO: remove by refactor defaultdbprovider to cache the created db instaces
 	switch config.TxIndex.Indexer {
 	case "kv":
 		store, err := dbProvider(&DBContext{"tx_index", config})
@@ -282,6 +283,17 @@ func NewNode(config *cfg.Config,
 	blockIndexerService.SetLogger(logger.With("module", "blockindex"))
 
 	err = blockIndexerService.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
+
+	indexHub := sm.NewIndexHub(state.LastBlockHeight, stateDB, blockStore, eventBus, sm.IndexHubWithMetrics(smMetrics))
+	indexHub.RegisterIndexSvc(blockIndexerService)
+	indexHub.RegisterIndexSvc(txIndexerService)
+	indexHub.SetLogger(logger.With("module", "indexer_hub"))
+	err = indexHub.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -345,8 +357,6 @@ func NewNode(config *cfg.Config,
 	} else {
 		consensusLogger.Info("This node is not a validator", "addr", addr, "pubKey", pubKey)
 	}
-
-	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
 	mempool := mempl.NewMempool(
@@ -583,19 +593,20 @@ func NewNode(config *cfg.Config,
 		nodeInfo:  nodeInfo,
 		nodeKey:   nodeKey,
 
-		stateDB:          stateDB,
-		blockStore:       blockStore,
-		bcReactor:        bcReactor,
-		mempoolReactor:   mempoolReactor,
-		consensusState:   consensusState,
-		consensusReactor: consensusReactor,
-		evidencePool:     evidencePool,
-		proxyApp:         proxyApp,
-		txIndexer:        txIndexer,
-		blockIndexer:     blockIndexer,
-		indexerService:   txIndexerService,
+		stateDB:           stateDB,
+		blockStore:        blockStore,
+		bcReactor:         bcReactor,
+		mempoolReactor:    mempoolReactor,
+		consensusState:    consensusState,
+		consensusReactor:  consensusReactor,
+		evidencePool:      evidencePool,
+		proxyApp:          proxyApp,
+		txIndexer:         txIndexer,
+		blockIndexer:      blockIndexer,
+		indexerService:    txIndexerService,
 		blockIndexService: blockIndexerService,
-		eventBus:         eventBus,
+		indexHub:          indexHub,
+		eventBus:          eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
 	return node, nil
@@ -666,6 +677,7 @@ func (n *Node) OnStop() {
 	n.eventBus.Stop()
 	n.indexerService.Stop()
 	n.blockIndexService.Stop()
+	n.indexHub.Stop()
 
 	// now stop the reactors
 	// TODO: gracefully disconnect from peers.
@@ -719,6 +731,7 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetTxIndexer(n.txIndexer)
 	rpccore.SetBlockIndexer(n.blockIndexer)
+	rpccore.SetIndexHub(n.indexHub)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetEventBus(n.eventBus)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
@@ -738,7 +751,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	// we may expose the rpc over both a unix and tcp socket
 	listeners := make([]net.Listener, len(listenAddrs))
 	var wsWorkerPool *gopool.Pool
-	if n.config.RPC.WebsocketPoolMaxSize > 1{
+	if n.config.RPC.WebsocketPoolMaxSize > 1 {
 		wsWorkerPool = gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
 		wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
 	}
