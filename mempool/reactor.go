@@ -240,7 +240,7 @@ func (memR *MempoolReactor) broadcastTxRoutine(peer p2p.Peer) {
 			}
 		}
 		memTx := next.Value.(*mempoolTx)
-		if !memR.config.OnlyFromNonePersistent || !memTx.fromPersistent {
+		if !memR.config.SkipTxFromPersistent || !memTx.fromPersistent {
 			// make sure the peer is up to date
 			peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
 			if !ok {

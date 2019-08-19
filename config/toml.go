@@ -325,7 +325,7 @@ wal_dir = "{{ js .Mempool.WalPath }}"
 only_to_persistent = {{ .Mempool.OnlyToPersistent }}
 
 # If set true, only the transaction from none persistent peer will broadcast.
-only_from_none_persistent = {{ .Mempool.OnlyFromNonePersistent }}
+skip_tx_from_persistent = {{ .Mempool.SkipTxFromPersistent }}
 
 # Maximum number of transactions in the mempool
 size = {{ .Mempool.Size }}
