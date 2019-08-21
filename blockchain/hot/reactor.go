@@ -112,6 +112,7 @@ func (hbcR *BlockchainReactor) OnStart() error {
 		return err
 	}
 	go hbcR.poolRoutine()
+	go hbcR.switchRoutine()
 	return nil
 }
 
@@ -186,9 +187,32 @@ func (hbcR *BlockchainReactor) SwitchToConsensusSync(state sm.State) {
 	hbcR.pool.SwitchToConsensusSync(&state)
 }
 
-func (hbcR *BlockchainReactor) poolRoutine() {
+func (hbcR *BlockchainReactor) switchRoutine() {
 	switchToConsensusTicker := time.NewTicker(switchToConsensusIntervalSeconds * time.Second)
 	defer switchToConsensusTicker.Stop()
+	for {
+		select {
+		case <-hbcR.Quit():
+			return
+		case <-hbcR.pool.Quit():
+			return
+		case <-switchToConsensusTicker.C:
+			if hbcR.pool.getSyncPattern() == Hot && hbcR.privValidator != nil && hbcR.pool.state.Validators.HasAddress(hbcR.privValidator.GetAddress()) {
+				hbcR.Logger.Info("hot sync switching to consensus sync")
+				conR, ok := hbcR.Switch.Reactor("CONSENSUS").(consensusReactor)
+				if ok {
+					hbcR.pool.SwitchToConsensusSync(nil)
+					conR.SwitchToConsensus(hbcR.pool.state, int(hbcR.pool.getBlockSynced()))
+					return
+				} else {
+					// should only happen during testing
+				}
+			}
+		}
+	}
+}
+
+func (hbcR *BlockchainReactor) poolRoutine() {
 	for {
 		select {
 		case <-hbcR.Quit():
@@ -205,17 +229,6 @@ func (hbcR *BlockchainReactor) poolRoutine() {
 			queued := peer.TrySend(HotBlockchainChannel, msgBytes)
 			if !queued {
 				hbcR.Logger.Debug("Send queue is full or no hot sync channel, drop blockChainMessage request", "peer", peer.ID())
-			}
-		case <-switchToConsensusTicker.C:
-			if hbcR.pool.getSyncPattern() == Hot && hbcR.privValidator != nil && hbcR.pool.state.Validators.HasAddress(hbcR.privValidator.GetAddress()) {
-				hbcR.Logger.Info("hot sync switching to consensus sync")
-				conR, ok := hbcR.Switch.Reactor("CONSENSUS").(consensusReactor)
-				if ok {
-					hbcR.pool.SwitchToConsensusSync(nil)
-					conR.SwitchToConsensus(hbcR.pool.state, int(hbcR.pool.getBlockSynced()))
-				} else {
-					// should only happen during testing
-				}
 			}
 		}
 	}
