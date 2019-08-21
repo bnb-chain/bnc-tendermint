@@ -431,7 +431,7 @@ func NewNode(config *cfg.Config,
 	var hotSyncReactor *hot.BlockchainReactor
 	if config.HotSyncReactor {
 		hotSyncLogger := logger.With("module", "hotsync")
-		hotSyncReactor = hot.NewBlockChainReactor(state.Copy(), blockExec, blockStore, config.HotSync, fastSync, config.HotSyncTimeout, hot.WithMetrics(hotMetrics), hot.WithEventBus(eventBus))
+		hotSyncReactor = hot.NewBlockChainReactor(state.Copy(), blockExec, blockStore, config.HotSync, fastSync || config.StateSyncHeight >= 0, config.HotSyncTimeout, hot.WithMetrics(hotMetrics), hot.WithEventBus(eventBus))
 		hotSyncReactor.SetLogger(hotSyncLogger)
 		if privValidator != nil {
 			hotSyncReactor.SetPrivValidator(privValidator)
@@ -978,7 +978,7 @@ func makeNodeInfo(
 	}
 
 	if config.HotSyncReactor {
-		nodeInfo.Channels = append(nodeInfo.Channels,hot.HotBlockchainChannel)
+		nodeInfo.Channels = append(nodeInfo.Channels, hot.HotBlockchainChannel)
 	}
 
 	lAddr := config.P2P.ExternalAddress

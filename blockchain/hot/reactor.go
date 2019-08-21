@@ -27,7 +27,7 @@ const (
 	// NOTE: keep up to date with blockCommitResponseMessage
 	blockCommitResponseMessagePrefixSize = 4
 	blockCommitMessageFieldKeySize       = 2
-	// the size of commit is dynamic, assume no more than 1M.
+	// TODO, the size of commit is dynamic, assume no more than 1M.
 	commitSizeBytes = 1024 * 1024
 	maxMsgSize      = types.MaxBlockSizeBytes +
 		blockCommitResponseMessagePrefixSize +

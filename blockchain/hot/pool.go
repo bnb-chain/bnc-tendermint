@@ -46,6 +46,8 @@ const (
 	// should greater than maxSubscribeForesight.
 	maxPublishForesight = 80
 
+	maxCapPubFromStore = 1000
+
 	eventBusSubscribeCap = 1000
 
 	subscriber = "HotSyncService"
@@ -77,7 +79,8 @@ type BlockPool struct {
 	blockStateSealCh     chan *blockState
 	publisherStateSealCh chan *publisherState
 	decayedPeers         chan decayedPeer
-	messagesCh           chan<- Message
+	sendCh               chan<- Message
+	pubFromStoreCh       chan subFromStoreMsg
 
 	//--- peer metrics ---
 	candidatePool *CandidatePool
@@ -91,7 +94,7 @@ type BlockPool struct {
 	switchWg sync.WaitGroup
 }
 
-func NewBlockPool(store *blockchain.BlockStore, blockExec *st.BlockExecutor, state st.State, messagesCh chan<- Message, st SyncPattern, blockTimeout time.Duration) *BlockPool {
+func NewBlockPool(store *blockchain.BlockStore, blockExec *st.BlockExecutor, state st.State, sendCh chan<- Message, st SyncPattern, blockTimeout time.Duration) *BlockPool {
 	const capacity = 1000
 	sampleStream := make(chan metricsEvent, capacity)
 	candidates := NewCandidatePool(sampleStream)
@@ -104,7 +107,7 @@ func NewBlockPool(store *blockchain.BlockStore, blockExec *st.BlockExecutor, sta
 		blockStates:          make(map[int64]*blockState, maxCachedSealedBlock),
 		subscriberPeerSets:   make(map[int64]map[p2p.ID]struct{}, 0),
 		publisherStateSealCh: make(chan *publisherState, capacity),
-		messagesCh:           messagesCh,
+		sendCh:               sendCh,
 		candidatePool:        candidates,
 		sampleStream:         sampleStream,
 		switchCh:             make(chan struct{}, 1),
@@ -113,6 +116,7 @@ func NewBlockPool(store *blockchain.BlockStore, blockExec *st.BlockExecutor, sta
 		blockTimeout:         blockTimeout,
 		st:                   st,
 		metrics:              NopMetrics(),
+		pubFromStoreCh:       make(chan subFromStoreMsg, maxCapPubFromStore),
 	}
 	bp.BaseService = *cmn.NewBaseService(nil, "HotBlockPool", bp)
 	return bp
@@ -140,6 +144,7 @@ func (pool *BlockPool) OnStart() error {
 	} else {
 		pool.Logger.Info("block pool start in mute pattern")
 	}
+	go pool.pubFromStoreRoutine()
 	return nil
 }
 
@@ -158,14 +163,14 @@ func (pool *BlockPool) AddPeer(peer p2p.Peer) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 	// no matter what sync pattern now, need maintain candidatePool.
-	pool.candidatePool.AddPeer(peer.ID())
+	pool.candidatePool.addPeer(peer.ID())
 }
 
 func (pool *BlockPool) RemovePeer(peer p2p.Peer) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 	// no matter what sync pattern now, need maintain candidatePool.
-	pool.candidatePool.RemovePeer(peer.ID())
+	pool.candidatePool.removePeer(peer.ID())
 	if pool.st == Hot {
 		pool.decayedPeers <- decayedPeer{peerId: peer.ID()}
 	}
@@ -179,7 +184,7 @@ func (pool *BlockPool) SwitchToHotSync(state st.State, blockSynced int32) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 	if pool.st != Mute {
-		panic(fmt.Sprintf("can't switch to hotsync pattern, current sync pattern is %d", pool.st))
+		panic(fmt.Errorf("can't switch to hotsync pattern, current sync pattern is %d", pool.st))
 	}
 	pool.Logger.Info("switch to hot sync pattern")
 	pool.st = Hot
@@ -231,7 +236,12 @@ func (pool *BlockPool) handleSubscribeBlock(fromHeight, toHeight int64, src p2p.
 	if pool.st == Mute {
 		for height := fromHeight; height <= toHeight; height++ {
 			if height < pool.store.Height() {
-				pool.sendBlockFromStore(height, src)
+				select {
+				case pool.pubFromStoreCh <- subFromStoreMsg{height: height, src: src}:
+				default:
+					pool.Logger.Error("the pubFromStoreCh channel is full, skip loading block from store", "peer", src.ID(), "height", height)
+					return
+				}
 			} else {
 				// Won't answer no block message immediately.
 				// Afraid of the peer will subscribe again immediately, which
@@ -246,8 +256,12 @@ func (pool *BlockPool) handleSubscribeBlock(fromHeight, toHeight int64, src p2p.
 		if blockState != nil && blockState.isSealed() {
 			pool.sendMessages(src.ID(), &blockCommitResponseMessage{blockState.block, blockState.commit})
 		} else if height <= pool.currentHeight() {
-			// Todo: load blockChainMessage from store takes time, should we introduce go pool and do asynchronously?
-			pool.sendBlockFromStore(height, src)
+			select {
+			case pool.pubFromStoreCh <- subFromStoreMsg{height: height, src: src}:
+			default:
+				pool.Logger.Error("the pubFromStoreCh channel is full, skip loading block from store", "peer", src.ID(), "height", height)
+				return
+			}
 		} else if height < pool.currentHeight()+maxPublishForesight {
 			// even if the peer have subscribe at the height before, in consideration of
 			// network/protocol robustness, still sent what we have again.
@@ -391,6 +405,17 @@ func (pool *BlockPool) hotSyncRoutine() {
 	}
 }
 
+func (pool *BlockPool) pubFromStoreRoutine() {
+	for {
+		select {
+		case <-pool.Quit():
+			return
+		case subMsg := <-pool.pubFromStoreCh:
+			pool.sendBlockFromStore(subMsg.height, subMsg.src)
+		}
+	}
+}
+
 func (pool *BlockPool) consensusSyncRoutine() {
 	blockSub, err := pool.eventBus.Subscribe(context.Background(), subscriber, types.EventQueryCompleteProposal, eventBusSubscribeCap)
 	if err != nil {
@@ -510,6 +535,11 @@ func (pool *BlockPool) wakeupNextBlockState() {
 }
 
 func (pool *BlockPool) sendBlockFromStore(height int64, src p2p.Peer) {
+	// skip load block when the peer is already stopped.
+	if !src.IsRunning() {
+		return
+	}
+	pool.Logger.Debug("send block from store", "peer", src.ID(), "height", height)
 	block := pool.store.LoadBlock(height)
 	if block == nil {
 		pool.sendMessages(src.ID(), &noBlockResponseMessage{height})
@@ -602,15 +632,11 @@ func (pool *BlockPool) subscribeBlockAtHeight(height int64, peers []*p2p.ID) {
 		pool.Logger.Error("no peers is available", "height", pool.currentHeight())
 		return
 	}
-	messages := make([]Message, 0, len(peers))
 	bc := pool.newBlockStateAtHeight(height)
 	for _, peer := range peers {
 		ps := NewPeerPublisherState(bc, *peer, pool.Logger, pool.blockTimeout, pool)
 		bc.pubStates[*peer] = ps
-		messages = append(messages, Message{&blockSubscribeMessage{height, height}, *peer})
-	}
-	for _, m := range messages {
-		pool.sendMessages(m.peerId, m.blockChainMessage)
+		pool.sendMessages(*peer, &blockSubscribeMessage{height, height})
 	}
 }
 
@@ -682,14 +708,14 @@ func (pool *BlockPool) currentHeight() int64 {
 
 func (pool *BlockPool) incCurrentHeight() {
 	pool.mtx.Lock()
-	defer pool.mtx.Unlock()
 	pool.height++
+	pool.mtx.Unlock()
 }
 
 func (pool *BlockPool) setCurrentHeight(height int64) {
 	pool.mtx.Lock()
-	defer pool.mtx.Unlock()
 	pool.height = height
+	pool.mtx.Unlock()
 }
 
 // most of the usage have locked. Only newBlockStateAtHeight do not, but the usage can't
@@ -719,7 +745,7 @@ func (pool *BlockPool) verifyCommit(blockID types.BlockID, commit *types.Commit)
 func (pool *BlockPool) sendMessages(pid p2p.ID, msgs ...BlockchainMessage) {
 	for _, msg := range msgs {
 		select {
-		case pool.messagesCh <- Message{msg, pid}:
+		case pool.sendCh <- Message{msg, pid}:
 		default:
 			pool.Logger.Error("Failed to send commit/blockChainMessage since messagesCh is full", "peer", pid)
 		}
@@ -972,11 +998,9 @@ func (ps *publisherState) tryLaterSeal() {
 	// no strong need to do so since we only used to judge if the peer is good or not.
 	if blockId.Equals(ps.commit.BlockID) && blockId.Equals(*ps.bs.blockId) {
 		ps.seal()
-		return
 	} else {
 		// maybe blockChainMessage is late, won't seal.
 		ps.logger.Info("received inconsistent blockChainMessage/commit", "peer", ps.pid, "height", ps.bs.height)
-		return
 	}
 }
 
@@ -1033,6 +1057,11 @@ type Message struct {
 type decayedPeer struct {
 	peerId     p2p.ID
 	fromHeight int64
+}
+
+type subFromStoreMsg struct {
+	src    p2p.Peer
+	height int64
 }
 
 func makeBlockID(block *types.Block) *types.BlockID {

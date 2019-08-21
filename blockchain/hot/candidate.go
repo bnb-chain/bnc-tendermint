@@ -35,7 +35,8 @@ type eventType uint
 
 type CandidatePool struct {
 	cmn.BaseService
-	mtx sync.RWMutex
+	mtx    sync.RWMutex
+	random *rand.Rand
 
 	pickSequence int64
 
@@ -53,10 +54,12 @@ type CandidatePool struct {
 }
 
 func NewCandidatePool(eventStream <-chan metricsEvent) *CandidatePool {
+	random := rand.New(rand.NewSource(time.Now().Unix()))
 	c := &CandidatePool{
 		eventStream: eventStream,
+		random:      random,
 		// a random init value to avoid network resource race.
-		pickSequence: rand.Int63n(pickDecayPeerInterval),
+		pickSequence: random.Int63n(pickDecayPeerInterval),
 		freshSet:     make(map[p2p.ID]struct{}, 0),
 		decayedSet:   make(map[p2p.ID]struct{}, 0),
 		permanentSet: make(map[p2p.ID]*peerMetrics, maxPermanentSetSize),
@@ -74,13 +77,13 @@ func (c *CandidatePool) OnStart() error {
 	return nil
 }
 
-func (c *CandidatePool) AddPeer(pid p2p.ID) {
+func (c *CandidatePool) addPeer(pid p2p.ID) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	c.freshSet[pid] = struct{}{}
 }
 
-func (c *CandidatePool) RemovePeer(pid p2p.ID) {
+func (c *CandidatePool) removePeer(pid p2p.ID) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	delete(c.freshSet, pid)
@@ -168,7 +171,7 @@ func (c *CandidatePool) handleMetricsEvent(e metricsEvent) {
 	defer c.mtx.Unlock()
 	pid := e.pid
 	if !c.exist(pid) {
-		c.Logger.Debug("receive a tryExpire metrics event, the peer is already removed", "peer", e.pid, "type", e.et)
+		c.Logger.Debug("the peer is already removed", "peer", e.pid, "type", e.et)
 		return
 	}
 	if e.et == Bad {
@@ -264,7 +267,7 @@ func (c *CandidatePool) pickFromDecayedSet(broadcast bool) []*p2p.ID {
 	}
 	if !broadcast {
 		if c.pickSequence%pickDecayPeerInterval == 0 {
-			index := rand.Intn(len(peers))
+			index := c.random.Intn(len(peers))
 			return []*p2p.ID{peers[index]}
 		}
 		return []*p2p.ID{}
