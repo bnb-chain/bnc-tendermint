@@ -150,6 +150,8 @@ func (c *CandidatePool) compensatePeerRoutine() {
 						delete(c.freshSet, p)
 					}
 				}
+				c.metrics.DecayPeerSetSize.Set(float64(len(c.decayedSet)))
+				c.metrics.PermanentPeerSetSize.Set(float64(len(c.permanentSet)))
 			}()
 		}
 	}
@@ -254,8 +256,15 @@ func (c *CandidatePool) pickFromFreshSet() []*p2p.ID {
 	for peer := range c.freshSet {
 		// use a temp var to avoid append a same point.
 		tmpPeer := peer
+		// move to decayed once picked
+		if _, exist := c.decayedSet[tmpPeer]; !exist {
+			c.decayedSet[tmpPeer] = struct{}{}
+			c.metrics.DecayPeerSetSize.Add(float64(1))
+		}
 		peers = append(peers, &tmpPeer)
 	}
+	// clean fresh set
+	c.freshSet = make(map[p2p.ID]struct{}, 0)
 	return peers
 }
 

@@ -1044,7 +1044,7 @@ func (ps *publisherState) seal() {
 		ps.timeout.Stop()
 	}
 	ps.sealed = true
-	ps.logger.Debug("publisher state sealing", "peer", ps.pid, "height", ps.bs.height)
+	ps.logger.Debug("publisher state sealing", "peer", ps.pid, "height", ps.bs.height, "broken", ps.broken)
 	ps.pool.publisherStateSealCh <- ps
 }
 
