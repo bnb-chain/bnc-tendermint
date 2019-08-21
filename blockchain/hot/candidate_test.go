@@ -95,7 +95,7 @@ func TestCandidatePoolBasic(t *testing.T) {
 
 	testPids := makeTestPeerId(totalPidNum)
 	for _, p := range testPids {
-		candidatePool.AddPeer(p)
+		candidatePool.addPeer(p)
 	}
 	// peers stay in fresh set until an event come in
 	for i := 0; i < 2; i++ {
@@ -131,8 +131,8 @@ func TestCandidatePoolPickDecayPeriodically(t *testing.T) {
 	candidatePool.Start()
 	defer candidatePool.Stop()
 	testPids := makeTestPeerId(2)
-	candidatePool.AddPeer(testPids[0])
-	candidatePool.AddPeer(testPids[1])
+	candidatePool.addPeer(testPids[0])
+	candidatePool.addPeer(testPids[1])
 	sampleStream <- metricsEvent{Good, testPids[0], 1 * time.Millisecond.Nanoseconds()}
 	sampleStream <- metricsEvent{Bad, testPids[1], 0}
 
@@ -157,7 +157,7 @@ func TestCandidatePoolNoDuplicatePeer(t *testing.T) {
 	totalPidNum := 1000
 	testPids := makeTestPeerId(totalPidNum)
 	for _, p := range testPids {
-		candidatePool.AddPeer(p)
+		candidatePool.addPeer(p)
 	}
 	for i := 0; i < 100000; i++ {
 		dur := rand.Int63()
@@ -177,7 +177,7 @@ func TestCandidatePoolPickInScore(t *testing.T) {
 	totalPidNum := maxPermanentSetSize
 	testPids := makeTestPeerId(totalPidNum)
 	for i, p := range testPids {
-		candidatePool.AddPeer(p)
+		candidatePool.addPeer(p)
 		sampleStream <- metricsEvent{Good, p, int64(i+1) * time.Millisecond.Nanoseconds()}
 	}
 	time.Sleep(10 * time.Millisecond)
