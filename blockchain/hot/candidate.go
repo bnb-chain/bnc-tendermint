@@ -252,7 +252,9 @@ func (c *CandidatePool) tryAddPermanentPeer(pid p2p.ID, metrics peerMetrics) (bo
 func (c *CandidatePool) pickFromFreshSet() []*p2p.ID {
 	peers := make([]*p2p.ID, 0, len(c.freshSet))
 	for peer := range c.freshSet {
-		peers = append(peers, &peer)
+		// use a temp var to avoid append a same point.
+		tmpPeer := peer
+		peers = append(peers, &tmpPeer)
 	}
 	return peers
 }
@@ -263,7 +265,9 @@ func (c *CandidatePool) pickFromDecayedSet(broadcast bool) []*p2p.ID {
 	}
 	peers := make([]*p2p.ID, 0, len(c.decayedSet))
 	for peer := range c.decayedSet {
-		peers = append(peers, &peer)
+		// use a temp var to avoid append a same point.
+		tmpPeer := peer
+		peers = append(peers, &tmpPeer)
 	}
 	if !broadcast {
 		if c.pickSequence%pickDecayPeerInterval == 0 {

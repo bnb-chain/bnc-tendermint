@@ -196,3 +196,57 @@ func TestCandidatePoolPickInScore(t *testing.T) {
 		assert.True(t, pickRate[testPids[i]] > pickRate[testPids[i+1]])
 	}
 }
+
+
+func TestPickFromFreshSet(t *testing.T){
+	sampleStream := make(chan metricsEvent)
+	candidatePool := NewCandidatePool(sampleStream)
+	candidatePool.Start()
+	defer candidatePool.Stop()
+	testPids := makeTestPeerId(100)
+	for _, p := range testPids {
+		candidatePool.addPeer(p)
+	}
+	candidates:=candidatePool.pickFromFreshSet()
+	for _,c:= range candidates{
+		for idx,tpid:= range testPids{
+			if *c ==  tpid{
+				if len(testPids)>1{
+					testPids = append(testPids[:idx],testPids[idx+1:]...)
+					break
+				}else{
+					testPids = nil
+					break
+				}
+			}
+		}
+	}
+	assert.Nil(t,testPids)
+}
+
+func TestPickFromDecayedSet(t *testing.T){
+	sampleStream := make(chan metricsEvent)
+	candidatePool := NewCandidatePool(sampleStream)
+	candidatePool.Start()
+	defer candidatePool.Stop()
+	testPids := makeTestPeerId(100)
+	for _, p := range testPids {
+		candidatePool.addPeer(p)
+		sampleStream <- metricsEvent{Bad, p, 0}
+	}
+	candidates:=candidatePool.pickFromDecayedSet(true)
+	for _,c:= range candidates{
+		for idx,tpid:= range testPids{
+			if *c ==  tpid{
+				if len(testPids)>1{
+					testPids = append(testPids[:idx],testPids[idx+1:]...)
+					break
+				}else{
+					testPids = nil
+					break
+				}
+			}
+		}
+	}
+	assert.Nil(t,testPids)
+}

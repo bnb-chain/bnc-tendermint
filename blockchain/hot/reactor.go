@@ -228,7 +228,7 @@ func (hbcR *BlockchainReactor) poolRoutine() {
 			hbcR.Logger.Debug(fmt.Sprintf("send message %s", message.blockChainMessage.String()), "peer", peer.ID())
 			queued := peer.TrySend(HotBlockchainChannel, msgBytes)
 			if !queued {
-				hbcR.Logger.Debug("Send queue is full or no hot sync channel, drop blockChainMessage request", "peer", peer.ID())
+				hbcR.Logger.Debug("Send queue is full or no hot sync channel, drop blockChainMessage", "peer", peer.ID())
 			}
 		}
 	}
