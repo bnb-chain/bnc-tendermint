@@ -690,6 +690,9 @@ func (pool *BlockPool) trimStaleState() {
 }
 
 func (pool *BlockPool) updatePeerState(pid p2p.ID) {
+	if pool.candidatePool.swh == nil || pool.candidatePool.swh.Peers() == nil {
+		return
+	}
 	if p := pool.candidatePool.swh.Peers().Get(pid); p != nil {
 		peerState, ok := p.Get(types.PeerStateKey).(peerState)
 		if !ok {
