@@ -392,6 +392,8 @@ func (pool *BlockPool) hotSyncRoutine() {
 			pool.updatePeerMetrics(ps)
 			if ps.broken {
 				pool.decayedPeers <- decayedPeer{ps.pid, ps.bs.height}
+			} else {
+				pool.updatePeerState(ps.pid)
 			}
 		case peer := <-pool.decayedPeers:
 			pool.tryReschedule(peer)
@@ -684,6 +686,17 @@ func (pool *BlockPool) trimStaleState() {
 			}
 		}
 		delete(pool.blockStates, trimHeight)
+	}
+}
+
+func (pool *BlockPool) updatePeerState(pid p2p.ID) {
+	if p := pool.candidatePool.swh.Peers().Get(pid); p != nil {
+		peerState, ok := p.Get(types.PeerStateKey).(peerState)
+		if !ok {
+			// Peer does not have a state yet. It is set in the consensus reactor.
+			return
+		}
+		peerState.SetHeight(pool.expectingHeight())
 	}
 }
 
@@ -1068,4 +1081,8 @@ func makeBlockID(block *types.Block) *types.BlockID {
 	blockParts := block.MakePartSet(types.BlockPartSizeBytes)
 	blockPartsHeader := blockParts.Header()
 	return &types.BlockID{Hash: block.Hash(), PartsHeader: blockPartsHeader}
+}
+
+type peerState interface {
+	SetHeight(height int64)
 }
