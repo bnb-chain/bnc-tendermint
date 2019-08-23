@@ -196,7 +196,7 @@ func (c *CandidatePool) handleMetricsEvent(e metricsEvent) {
 			if isDecayed {
 				c.tryRemoveFromDecayed(pid)
 			}
-			metrics := newPeerMetrics()
+			metrics := newPeerMetrics(c.random)
 			metrics.addSample(e.dur)
 			added, kickPeer := c.tryAddPermanentPeer(pid, metrics)
 			if added {
@@ -315,7 +315,7 @@ func (c *CandidatePool) pickFromPermanentPeer() *p2p.ID {
 		section = section + (1 - float64(m.average)/total)
 		diceSection = append(diceSection, section)
 	}
-	diceValue := rand.Float64() * diceSection[len(diceSection)-1]
+	diceValue := c.random.Float64() * diceSection[len(diceSection)-1]
 	choose := sort.SearchFloat64s(diceSection, diceValue)
 	return &peers[choose]
 }
@@ -375,10 +375,10 @@ type peerMetrics struct {
 	average int64 // nano second
 }
 
-func newPeerMetrics() peerMetrics {
+func newPeerMetrics(random *rand.Rand) peerMetrics {
 	return peerMetrics{
 		samples:        list.New(),
-		sampleSequence: rand.Int63n(recalculateInterval),
+		sampleSequence: random.Int63n(recalculateInterval),
 	}
 }
 
