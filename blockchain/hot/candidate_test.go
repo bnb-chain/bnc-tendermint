@@ -29,7 +29,7 @@ func randomEvent() eventType {
 	}
 }
 func TestPeerMetricsBasic(t *testing.T) {
-	pm := newPeerMetrics()
+	pm := newPeerMetrics(rand.New(rand.NewSource(time.Now().Unix())))
 	seq := pm.sampleSequence
 	sample := rand.Int63()
 	pm.addSample(sample)
@@ -40,7 +40,7 @@ func TestPeerMetricsBasic(t *testing.T) {
 }
 
 func TestPeerMetricsNoOverflow(t *testing.T) {
-	pm := newPeerMetrics()
+	pm := newPeerMetrics(rand.New(rand.NewSource(time.Now().Unix())))
 	for i := 0; i < 10000; i++ {
 		// make sure it will not cause math overflow.
 		sample := rand.Int63n(math.MaxInt64 / maxMetricsSampleSize)
@@ -51,7 +51,7 @@ func TestPeerMetricsNoOverflow(t *testing.T) {
 
 func TestPeerMetricsParamResonableInMillisecondLevel(t *testing.T) {
 	var sum int64
-	pm := newPeerMetrics()
+	pm := newPeerMetrics(rand.New(rand.NewSource(time.Now().Unix())))
 	for i := 0; i < recalculateInterval-1; i++ {
 		sample := rand.Int63n(recalculateInterval-1) * time.Millisecond.Nanoseconds()
 		sum += sample
@@ -65,7 +65,7 @@ func TestPeerMetricsParamResonableInMillisecondLevel(t *testing.T) {
 }
 
 func TestPeerMetricsNoErrorAccumulate(t *testing.T) {
-	pm := newPeerMetrics()
+	pm := newPeerMetrics(rand.New(rand.NewSource(time.Now().Unix())))
 	for i := 0; i < 10000; i++ {
 		sample := rand.Int63n(math.MaxInt64 / maxMetricsSampleSize)
 		pm.addSample(sample)
@@ -197,8 +197,7 @@ func TestCandidatePoolPickInScore(t *testing.T) {
 	}
 }
 
-
-func TestPickFromFreshSet(t *testing.T){
+func TestPickFromFreshSet(t *testing.T) {
 	sampleStream := make(chan metricsEvent)
 	candidatePool := NewCandidatePool(sampleStream)
 	candidatePool.Start()
@@ -207,24 +206,24 @@ func TestPickFromFreshSet(t *testing.T){
 	for _, p := range testPids {
 		candidatePool.addPeer(p)
 	}
-	candidates:=candidatePool.pickFromFreshSet()
-	for _,c:= range candidates{
-		for idx,tpid:= range testPids{
-			if *c ==  tpid{
-				if len(testPids)>1{
-					testPids = append(testPids[:idx],testPids[idx+1:]...)
+	candidates := candidatePool.pickFromFreshSet()
+	for _, c := range candidates {
+		for idx, tpid := range testPids {
+			if *c == tpid {
+				if len(testPids) > 1 {
+					testPids = append(testPids[:idx], testPids[idx+1:]...)
 					break
-				}else{
+				} else {
 					testPids = nil
 					break
 				}
 			}
 		}
 	}
-	assert.Nil(t,testPids)
+	assert.Nil(t, testPids)
 }
 
-func TestPickFromDecayedSet(t *testing.T){
+func TestPickFromDecayedSet(t *testing.T) {
 	sampleStream := make(chan metricsEvent)
 	candidatePool := NewCandidatePool(sampleStream)
 	candidatePool.Start()
@@ -234,19 +233,19 @@ func TestPickFromDecayedSet(t *testing.T){
 		candidatePool.addPeer(p)
 		sampleStream <- metricsEvent{Bad, p, 0}
 	}
-	candidates:=candidatePool.pickFromDecayedSet(true)
-	for _,c:= range candidates{
-		for idx,tpid:= range testPids{
-			if *c ==  tpid{
-				if len(testPids)>1{
-					testPids = append(testPids[:idx],testPids[idx+1:]...)
+	candidates := candidatePool.pickFromDecayedSet(true)
+	for _, c := range candidates {
+		for idx, tpid := range testPids {
+			if *c == tpid {
+				if len(testPids) > 1 {
+					testPids = append(testPids[:idx], testPids[idx+1:]...)
 					break
-				}else{
+				} else {
 					testPids = nil
 					break
 				}
 			}
 		}
 	}
-	assert.Nil(t,testPids)
+	assert.Nil(t, testPids)
 }
