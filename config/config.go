@@ -164,6 +164,18 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSync bool `mapstructure:"fast_sync"`
 
+	// it is for fullnode/witness who do not need consensus to sync block.
+	HotSyncReactor bool `mapstructure:"hot_sync_reactor"`
+
+	// only take effect when HotSyncReactor is true.
+	// If true, will sync blocks use hot sync protocol
+	// If false, still use tendermint consensus protocol, but can still handle other peers sync request.
+	HotSync bool `mapstructure:"hot_sync"`
+
+	// the max wait time for subscribe a block.
+	// only take effect when hot_sync is true
+	HotSyncTimeout time.Duration `mapstructure:"hot_sync_timeout"`
+
 	// As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
 	StateSyncReactor bool `mapstructure:"state_sync_reactor"`
 
@@ -232,6 +244,9 @@ func DefaultBaseConfig() BaseConfig {
 		ProfListenAddress:  "",
 		FastSync:           true,
 		StateSyncReactor:   true,
+		HotSync:            false,
+		HotSyncReactor:     false,
+		HotSyncTimeout:     3 * time.Second,
 		StateSyncHeight:    -1,
 		FilterPeers:        false,
 		DBBackend:          "leveldb",
@@ -292,6 +307,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	case LogFormatPlain, LogFormatJSON:
 	default:
 		return errors.New("unknown log_format (must be 'plain' or 'json')")
+	}
+	if !cfg.HotSyncReactor && cfg.HotSync {
+		return errors.New("config hot_sync can't be true while hot_sync_reactor is false")
 	}
 	return nil
 }

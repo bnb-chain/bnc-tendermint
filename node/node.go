@@ -16,9 +16,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
 	bc "github.com/tendermint/tendermint/blockchain"
+	"github.com/tendermint/tendermint/blockchain/hot"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -123,19 +124,20 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 }
 
 // MetricsProvider returns a consensus, p2p and mempool Metrics.
-type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics)
+type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *hot.Metrics)
 
 // DefaultMetricsProvider returns Metrics build using Prometheus client library
 // if Prometheus is enabled. Otherwise, it returns no-op Metrics.
 func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
-	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics) {
+	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *hot.Metrics) {
 		if config.Prometheus {
 			return cs.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				mempl.PrometheusMetrics(config.Namespace, "chain_id", chainID),
-				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID)
+				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				hot.PrometheusMetrics(config.Namespace, "chain_id", chainID)
 		}
-		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics()
+		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), hot.NopMetrics()
 	}
 }
 
@@ -287,7 +289,7 @@ func NewNode(config *cfg.Config,
 		return nil, err
 	}
 
-	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
+	csMetrics, p2pMetrics, memplMetrics, smMetrics, hotMetrics := metricsProvider(genDoc.ChainID)
 
 	indexHub := sm.NewIndexHub(state.LastBlockHeight, stateDB, blockStore, eventBus, sm.IndexHubWithMetrics(smMetrics))
 	indexHub.RegisterIndexSvc(blockIndexerService)
@@ -423,8 +425,18 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Make BlockchainReactor
-	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && (config.StateSyncHeight < 0))
+	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && (config.StateSyncHeight < 0), config.HotSyncReactor, config.HotSync)
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
+
+	var hotSyncReactor *hot.BlockchainReactor
+	if config.HotSyncReactor {
+		hotSyncLogger := logger.With("module", "hotsync")
+		hotSyncReactor = hot.NewBlockChainReactor(state.Copy(), blockExec, blockStore, config.HotSync, fastSync || config.StateSyncHeight >= 0, config.HotSyncTimeout, hot.WithMetrics(hotMetrics), hot.WithEventBus(eventBus))
+		hotSyncReactor.SetLogger(hotSyncLogger)
+		if privValidator != nil {
+			hotSyncReactor.SetPrivValidator(privValidator)
+		}
+	}
 
 	// Make ConsensusReactor
 	consensusState := cs.NewConsensusState(
@@ -440,7 +452,7 @@ func NewNode(config *cfg.Config,
 	if privValidator != nil {
 		consensusState.SetPrivValidator(privValidator)
 	}
-	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || (config.StateSyncHeight >= 0), cs.ReactorMetrics(csMetrics))
+	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || (config.StateSyncHeight >= 0) || config.HotSync, cs.ReactorMetrics(csMetrics))
 	consensusReactor.SetLogger(consensusLogger)
 
 	// services which will be publishing and/or subscribing for messages (events)
@@ -528,6 +540,9 @@ func NewNode(config *cfg.Config,
 	sw.AddReactor("MEMPOOL", mempoolReactor)
 	if config.StateSyncReactor {
 		sw.AddReactor("STATE", stateReactor)
+	}
+	if config.HotSyncReactor {
+		sw.AddReactor("HOT", hotSyncReactor)
 	}
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
@@ -960,6 +975,10 @@ func makeNodeInfo(
 
 	if config.P2P.PexReactor {
 		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
+	}
+
+	if config.HotSyncReactor {
+		nodeInfo.Channels = append(nodeInfo.Channels, hot.HotBlockchainChannel)
 	}
 
 	lAddr := config.P2P.ExternalAddress
