@@ -212,7 +212,6 @@ message ConsensusParams {
   ValidatorParams validator = 3;
 }
 
-// BlockSize contains limits on the block size.
 message BlockSizeParams {
   // Note: must be greater than 0
   int64 max_bytes = 1;

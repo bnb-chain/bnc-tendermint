@@ -96,7 +96,7 @@ func (state State) Copy() State {
 
 		NextValidators:              state.NextValidators.Copy(),
 		Validators:                  state.Validators.Copy(),
-		LastValidators:              state.LastValidators.Copy(),
+		/**/LastValidators:              state.LastValidators.Copy(),
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
 
 		ConsensusParams:                  state.ConsensusParams,

@@ -11,13 +11,15 @@ import (
 
 	"github.com/tendermint/tendermint/abci/example/code"
 	abci "github.com/tendermint/tendermint/abci/types"
+	dbm "github.com/tendermint/tendermint/libs/db"
+	mempl "github.com/tendermint/tendermint/mempool"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
 
 // for testing
-func assertMempool(txn txNotifier) sm.Mempool {
-	return txn.(sm.Mempool)
+func assertMempool(txn txNotifier) mempl.Mempool {
+	return txn.(mempl.Mempool)
 }
 
 func TestMempoolNoProgressUntilTxsAvailable(t *testing.T) {
@@ -110,7 +112,9 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 	// to the counter sequence
 	app := NewCounterApplication()
 	app.serial = false
-	cs := newConsensusState(state, privVals[0], app)
+	blockDB := dbm.NewMemDB()
+	cs := newConsensusStateWithConfigAndBlockStore(config, state, privVals[0], app, blockDB)
+	sm.SaveState(blockDB, state)
 	height, round := cs.Height, cs.Round
 	newBlockCh := subscribe(cs.eventBus, types.EventQueryNewBlock)
 
@@ -133,7 +137,9 @@ func TestMempoolTxConcurrentWithCommit(t *testing.T) {
 func TestMempoolRmBadTx(t *testing.T) {
 	state, privVals := randGenesisState(1, false, 10)
 	app := NewCounterApplication()
-	cs := newConsensusState(state, privVals[0], app)
+	blockDB := dbm.NewMemDB()
+	cs := newConsensusStateWithConfigAndBlockStore(config, state, privVals[0], app, blockDB)
+	sm.SaveState(blockDB, state)
 
 	// increment the counter by 1
 	txBytes := make([]byte, 8)

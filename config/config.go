@@ -187,7 +187,18 @@ type BaseConfig struct {
 	// >0 - sync from that height
 	StateSyncHeight int64 `mapstructure:"state_sync_height"`
 
-	// Database backend: leveldb | memdb | cleveldb
+	// Database backend: goleveldb | cleveldb | boltdb
+	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
+	//   - pure go
+	//   - stable
+	// * cleveldb (uses levigo wrapper)
+	//   - fast
+	//   - requires gcc
+	//   - use cleveldb build tag (go build -tags cleveldb)
+	// * boltdb (uses etcd's fork of bolt - github.com/etcd-io/bbolt)
+	//   - EXPERIMENTAL
+	//   - may be faster is some use-cases (random reads - indexer)
+	//   - use boltdb build tag (go build -tags boltdb)
 	DBBackend string `mapstructure:"db_backend"`
 
 	// Database directory
@@ -249,7 +260,7 @@ func DefaultBaseConfig() BaseConfig {
 		HotSyncTimeout:     3 * time.Second,
 		StateSyncHeight:    -1,
 		FilterPeers:        false,
-		DBBackend:          "leveldb",
+		DBBackend:          "goleveldb",
 		DBPath:             "data",
 		WithAppStat:        true,
 	}

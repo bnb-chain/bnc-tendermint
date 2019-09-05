@@ -45,7 +45,8 @@ type transport interface {
 }
 
 type peers interface {
-	DialPeersAsync(p2p.AddrBook, []string, bool) error
+	AddPersistentPeers([]string) error
+	DialPeersAsync([]string) error
 	NumPeers() (outbound, inbound, dialig int)
 	Peers() p2p.IPeerSet
 }
@@ -74,8 +75,8 @@ var (
 	blockIndexer     blockindex.BlockIndexer
 	consensusReactor *consensus.ConsensusReactor
 	eventBus         *types.EventBus // thread safe
-	mempool          *mempl.Mempool
 	indexerHub       *sm.IndexHub
+	mempool          mempl.Mempool
 
 	logger log.Logger
 
@@ -90,7 +91,7 @@ func SetBlockStore(bs sm.BlockStore) {
 	blockStore = bs
 }
 
-func SetMempool(mem *mempl.Mempool) {
+func SetMempool(mem mempl.Mempool) {
 	mempool = mem
 }
 
