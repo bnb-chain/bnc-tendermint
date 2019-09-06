@@ -3,11 +3,10 @@ package state
 import (
 	"sync"
 
+	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/types"
-	abci "github.com/tendermint/tendermint/abci/types"
-
 )
 
 const (

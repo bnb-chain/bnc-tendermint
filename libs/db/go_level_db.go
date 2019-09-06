@@ -19,7 +19,6 @@ func init() {
 			return NewGoLevelDB(name, dir)
 		}
 	}
-	registerDBCreator(LevelDBBackend, dbCreator, false)
 	registerDBCreator(GoLevelDBBackend, dbCreator, false)
 }
 

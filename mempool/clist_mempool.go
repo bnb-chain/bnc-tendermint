@@ -369,9 +369,9 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, txInfo TxInfo, res *abci.Resp
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
 			memTx := &mempoolTx{
 				fromPersistent: txInfo.FromPersistent,
-				height:    mem.height,
-				gasWanted: r.CheckTx.GasWanted,
-				tx:        tx,
+				height:         mem.height,
+				gasWanted:      r.CheckTx.GasWanted,
+				tx:             tx,
 			}
 			memTx.senders.Store(txInfo.SenderID, true)
 			mem.addTx(memTx)

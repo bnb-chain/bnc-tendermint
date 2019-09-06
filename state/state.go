@@ -94,9 +94,9 @@ func (state State) Copy() State {
 		LastBlockID:      state.LastBlockID,
 		LastBlockTime:    state.LastBlockTime,
 
-		NextValidators:              state.NextValidators.Copy(),
-		Validators:                  state.Validators.Copy(),
-		/**/LastValidators:              state.LastValidators.Copy(),
+		NextValidators: state.NextValidators.Copy(),
+		Validators:     state.Validators.Copy(),
+		/**/ LastValidators:         state.LastValidators.Copy(),
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
 
 		ConsensusParams:                  state.ConsensusParams,
