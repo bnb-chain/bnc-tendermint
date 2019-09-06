@@ -37,6 +37,8 @@ type TxInfo struct {
 	// We don't use p2p.ID here because it's too big. The gain is to store max 2
 	// bytes with each tx to identify the sender rather than 20 bytes.
 	PeerID uint16
+	// whether the tx comes from a persistent peer.
+	FromPersistent bool
 }
 
 /*
@@ -368,7 +370,7 @@ func (mem *Mempool) TxsWaitChan() <-chan struct{} {
 //     It gets called from another goroutine.
 // CONTRACT: Either cb will get called, or err returned.
 func (mem *Mempool) CheckTx(tx types.Tx, cb func(*abci.Response)) (err error) {
-	return mem.CheckTxWithInfo(tx, cb, TxInfo{PeerID: UnknownPeerID})
+	return mem.CheckTxWithInfo(tx, cb, TxInfo{PeerID: UnknownPeerID, FromPersistent: false})
 }
 
 // CheckTxWithInfo performs the same operation as CheckTx, but with extra meta data about the tx.
@@ -441,7 +443,7 @@ func (mem *Mempool) CheckTxWithInfo(tx types.Tx, cb func(*abci.Response), txInfo
 	}
 
 	reqRes := mem.proxyAppConn.CheckTxAsync(tx)
-	reqRes.SetCallback(mem.reqResCb(tx, txInfo.PeerID, cb))
+	reqRes.SetCallback(mem.reqResCb(tx, txInfo, cb))
 
 	return nil
 }
@@ -474,14 +476,14 @@ func (mem *Mempool) globalCb(req *abci.Request, res *abci.Response) {
 // when all other response processing is complete.
 //
 // Used in CheckTxWithInfo to record PeerID who sent us the tx.
-func (mem *Mempool) reqResCb(tx []byte, peerID uint16, externalCb func(*abci.Response)) func(res *abci.Response) {
+func (mem *Mempool) reqResCb(tx []byte, txInfo TxInfo, externalCb func(*abci.Response)) func(res *abci.Response) {
 	return func(res *abci.Response) {
 		if mem.recheckCursor != nil {
 			// this should never happen
 			panic("recheck cursor is not nil in reqResCb")
 		}
 
-		mem.resCbFirstTime(tx, peerID, res)
+		mem.resCbFirstTime(tx, txInfo, res)
 
 		// update metrics
 		mem.metrics.Size.Set(float64(mem.Size()))
@@ -520,7 +522,7 @@ func (mem *Mempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromCache 
 //
 // The case where the app checks the tx for the second and subsequent times is
 // handled by the resCbRecheck callback.
-func (mem *Mempool) resCbFirstTime(tx []byte, peerID uint16, res *abci.Response) {
+func (mem *Mempool) resCbFirstTime(tx []byte, txInfo TxInfo, res *abci.Response) {
 	switch r := res.Value.(type) {
 	case *abci.Response_CheckTx:
 		var postCheckErr error
@@ -529,17 +531,19 @@ func (mem *Mempool) resCbFirstTime(tx []byte, peerID uint16, res *abci.Response)
 		}
 		if (r.CheckTx.Code == abci.CodeTypeOK) && postCheckErr == nil {
 			memTx := &mempoolTx{
-				height:    mem.height,
-				gasWanted: r.CheckTx.GasWanted,
-				tx:        tx,
+				fromPersistent: txInfo.FromPersistent,
+				height:         mem.height,
+				gasWanted:      r.CheckTx.GasWanted,
+				tx:             tx,
 			}
-			memTx.senders.Store(peerID, true)
+			memTx.senders.Store(txInfo.PeerID, true)
 			mem.addTx(memTx)
 			mem.logger.Info("Added good transaction",
 				"tx", TxID(tx),
 				"res", r,
 				"height", memTx.height,
 				"total", mem.Size(),
+				"fromPersistent", memTx.fromPersistent,
 			)
 			mem.notifyTxsAvailable()
 		} else {
@@ -778,9 +782,10 @@ func (mem *Mempool) recheckTxs(txs []types.Tx) {
 
 // mempoolTx is a transaction that successfully ran
 type mempoolTx struct {
-	height    int64    // height that this tx had been validated in
-	gasWanted int64    // amount of gas this tx states it will require
-	tx        types.Tx //
+	fromPersistent bool     // whether the tx come from a persistent peer
+	height         int64    // height that this tx had been validated in
+	gasWanted      int64    // amount of gas this tx states it will require
+	tx             types.Tx //
 
 	// ids of peers who've sent us this tx (as a map for quick lookups).
 	// senders: PeerID -> bool

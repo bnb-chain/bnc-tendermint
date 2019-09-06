@@ -58,7 +58,8 @@ import (
 //   		"latest_app_hash": "0000000000000000",
 //   		"latest_block_height": "18",
 //   		"latest_block_time": "2018-09-17T11:42:19.149920551Z",
-//   		"catching_up": false
+//   		"catching_up": false,
+//   		"index_height": "18"
 //   	},
 //   	"validator_info": {
 //   		"address": "D9F56456D7C5793815D0E9AF07C3A355D0FC64FD",
@@ -106,6 +107,7 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 			LatestBlockHeight: latestHeight,
 			LatestBlockTime:   latestBlockTime,
 			CatchingUp:        consensusReactor.FastSync(),
+			IndexHeight:       indexerHub.GetHeight(),
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
 			Address:     pubKey.Address(),
