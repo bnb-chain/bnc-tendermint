@@ -250,13 +250,16 @@ func NewNode(config *cfg.Config,
 		if err != nil {
 			return nil, err
 		}
+		indexOptions := make([]func(index *kv.TxIndex), 0)
 		if config.TxIndex.IndexTags != "" {
-			txIndexer = kv.NewTxIndex(store, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
+			indexOptions = append(indexOptions, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
 		} else if config.TxIndex.IndexAllTags {
-			txIndexer = kv.NewTxIndex(store, kv.IndexAllTags())
-		} else {
-			txIndexer = kv.NewTxIndex(store)
+			indexOptions = append(indexOptions, kv.IndexAllTags())
 		}
+		if config.TxIndex.EnableRangeQuery {
+			indexOptions = append(indexOptions, kv.EnableRangeQuery())
+		}
+		txIndexer = kv.NewTxIndex(store, indexOptions...)
 	default:
 		txIndexer = &null.TxIndex{}
 	}
@@ -783,7 +786,11 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 				}
 			}), rpcserver.SetWorkerPool(wsWorkerPool))
 		wm.SetLogger(wmLogger)
-		mux.HandleFunc("/websocket", wm.WebsocketHandler)
+		if n.config.RPC.DisableWebsocket {
+			mux.HandleFunc("/websocket", wm.WebsocketDisabledHandler)
+		} else {
+			mux.HandleFunc("/websocket", wm.WebsocketHandler)
+		}
 		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, coreCodec, rpcLogger)
 
 		config := rpcserver.DefaultConfig()

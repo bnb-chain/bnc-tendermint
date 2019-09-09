@@ -49,7 +49,7 @@ func TestTxIndex(t *testing.T) {
 
 func TestTxSearch(t *testing.T) {
 	allowedTags := []string{"account.number", "account.owner", "account.date"}
-	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags))
+	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	txResult := txResultWithTags([]cmn.KVPair{
 		{Key: []byte("account.number"), Value: []byte("1")},
@@ -110,7 +110,7 @@ func TestTxSearch(t *testing.T) {
 
 func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 	allowedTags := []string{"account.number"}
-	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags))
+	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	txResult := txResultWithTags([]cmn.KVPair{
 		{Key: []byte("account.number"), Value: []byte("1")},
@@ -129,7 +129,7 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 
 func TestTxSearchMultipleTxs(t *testing.T) {
 	allowedTags := []string{"account.number", "account.number.id"}
-	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags))
+	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	// indexed first, but bigger height (to test the order of transactions)
 	txResult := txResultWithTags([]cmn.KVPair{
@@ -181,7 +181,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 }
 
 func TestIndexAllTags(t *testing.T) {
-	indexer := NewTxIndex(db.NewMemDB(), IndexAllTags())
+	indexer := NewTxIndex(db.NewMemDB(), IndexAllTags(), EnableRangeQuery())
 
 	txResult := txResultWithTags([]cmn.KVPair{
 		{Key: []byte("account.owner"), Value: []byte("Ivan")},
@@ -200,6 +200,15 @@ func TestIndexAllTags(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Equal(t, []*types.TxResult{txResult}, results)
+}
+
+func TestDisableRangeQuery(t *testing.T) {
+	indexer := NewTxIndex(db.NewMemDB(), IndexAllTags())
+
+	_, err := indexer.Search(query.MustParse("account.number >= 1"))
+	assert.EqualError(t, err, "range query is not supported by this node, detected invalid operators in the query statement: [>=]")
+	_, err = indexer.Search(query.MustParse("account.number >= 1 AND account.sequence < 100 AND tx.height > 200 AND tx.height <= 300"))
+	assert.Error(t, err)
 }
 
 func txResultWithTags(tags []cmn.KVPair) *types.TxResult {
