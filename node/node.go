@@ -53,6 +53,10 @@ import (
 	"github.com/tendermint/tendermint/version"
 )
 
+// CustomReactorNamePrefix is a prefix for all custom reactors to prevent
+// clashes with built-in reactors.
+const CustomReactorNamePrefix = "CUSTOM_"
+
 //------------------------------------------------------------------------------
 
 // DBContext specifies config information for loading a new DB.
@@ -143,6 +147,18 @@ func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
 	}
 }
 
+// Option sets a parameter for the node.
+type Option func(*Node)
+
+// CustomReactors allows you to add custom reactors to the node's Switch.
+func CustomReactors(reactors map[string]p2p.Reactor) Option {
+	return func(n *Node) {
+		for name, reactor := range reactors {
+			n.sw.AddReactor(CustomReactorNamePrefix+name, reactor)
+		}
+	}
+}
+
 //------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
@@ -219,7 +235,8 @@ func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
 	eventBus *types.EventBus, lastBlockHeight int64, stateDB dbm.DB, blockStore sm.BlockStore, metrics *sm.Metrics, logger log.Logger) (txDB dbm.DB, txIndexerService *txindex.IndexerService, txIndexer txindex.TxIndexer, blockIndexerService *blockindex.IndexerService, blockIndexer blockindex.BlockIndexer, indexHub *sm.IndexHub, err error) {
 	switch config.TxIndex.Indexer {
 	case "kv":
-		store, err := dbProvider(&DBContext{"tx_index", config})
+		var store dbm.DB
+		store, err = dbProvider(&DBContext{"tx_index", config})
 		txDB = store
 		if err != nil {
 			return
@@ -246,7 +263,8 @@ func createAndStartIndexerService(config *cfg.Config, dbProvider DBProvider,
 	// Block indexing
 	switch config.BlockIndex.Indexer {
 	case "kv":
-		store, err := dbProvider(&DBContext{"block_index", config})
+		var store dbm.DB
+		store, err = dbProvider(&DBContext{"block_index", config})
 		if err != nil {
 			return
 		}
@@ -466,6 +484,7 @@ func createSwitch(config *cfg.Config,
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
 	sw.AddReactor("EVIDENCE", evidenceReactor)
+
 	sw.SetNodeInfo(nodeInfo)
 	sw.SetNodeKey(nodeKey)
 
@@ -549,7 +568,8 @@ func NewNode(config *cfg.Config,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
 	metricsProvider MetricsProvider,
-	logger log.Logger) (*Node, error) {
+	logger log.Logger,
+	options ...Option) (*Node, error) {
 
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
@@ -732,6 +752,11 @@ func NewNode(config *cfg.Config,
 		eventBus:          eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
+
+	for _, option := range options {
+		option(node)
+	}
+
 	return node, nil
 }
 

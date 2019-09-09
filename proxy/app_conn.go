@@ -15,7 +15,7 @@ type AppConnConsensus interface {
 	InitChainSync(types.RequestInitChain) (*types.ResponseInitChain, error)
 
 	BeginBlockSync(types.RequestBeginBlock) (*types.ResponseBeginBlock, error)
-	DeliverTxAsync(tx []byte) *abcicli.ReqRes
+	DeliverTxAsync(types.RequestDeliverTx) *abcicli.ReqRes
 	EndBlockSync(types.RequestEndBlock) (*types.ResponseEndBlock, error)
 	CommitSync() (*types.ResponseCommit, error)
 }
@@ -24,8 +24,8 @@ type AppConnMempool interface {
 	SetResponseCallback(abcicli.Callback)
 	Error() error
 
-	CheckTxAsync(tx []byte) *abcicli.ReqRes
-	ReCheckTxAsync(tx []byte) *abcicli.ReqRes
+	ReCheckTxAsync(types.RequestCheckTx) *abcicli.ReqRes
+	CheckTxAsync(types.RequestCheckTx) *abcicli.ReqRes
 
 	FlushAsync() *abcicli.ReqRes
 	FlushSync() error
@@ -107,8 +107,8 @@ func (app *appConnConsensus) BeginBlockSync(req types.RequestBeginBlock) (*types
 	return app.appConn.BeginBlockSync(req)
 }
 
-func (app *appConnConsensus) DeliverTxAsync(tx []byte) *abcicli.ReqRes {
-	return app.appConn.DeliverTxAsync(tx)
+func (app *appConnConsensus) DeliverTxAsync(req types.RequestDeliverTx) *abcicli.ReqRes {
+	return app.appConn.DeliverTxAsync(req)
 }
 
 func (app *appConnConsensus) EndBlockSync(req types.RequestEndBlock) (*types.ResponseEndBlock, error) {
@@ -148,12 +148,12 @@ func (app *appConnMempool) FlushSync() error {
 	return app.appConn.FlushSync()
 }
 
-func (app *appConnMempool) CheckTxAsync(tx []byte) *abcicli.ReqRes {
-	return app.appConn.CheckTxAsync(tx)
+func (app *appConnMempool) CheckTxAsync(req types.RequestCheckTx) *abcicli.ReqRes {
+	return app.appConn.CheckTxAsync(req)
 }
 
-func (app *appConnMempool) ReCheckTxAsync(tx []byte) *abcicli.ReqRes {
-	return app.appConn.ReCheckTxAsync(tx)
+func (app *appConnMempool) ReCheckTxAsync(req types.RequestCheckTx) *abcicli.ReqRes {
+	return app.appConn.ReCheckTxAsync(req)
 }
 
 //------------------------------------------------
