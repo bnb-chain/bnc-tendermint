@@ -206,7 +206,7 @@ func TestDisableRangeQuery(t *testing.T) {
 	indexer := NewTxIndex(db.NewMemDB(), IndexAllTags())
 
 	_, err := indexer.Search(query.MustParse("account.number >= 1"))
-	assert.EqualError(t, err, "range query is not supported by this node, detected invalid operators in the query statement: [>=]")
+	assert.Error(t, err)
 	_, err = indexer.Search(query.MustParse("account.number >= 1 AND account.sequence < 100 AND tx.height > 200 AND tx.height <= 300"))
 	assert.Error(t, err)
 }

@@ -178,15 +178,7 @@ func (txi *TxIndex) Search(q *query.Query) ([]*types.TxResult, error) {
 	// no iterate over kvs that are not within range.
 	ranges, rangeIndexes := lookForRanges(conditions)
 	if !txi.enableRangeQuery && len(rangeIndexes) > 0 {
-		ops := make(map[query.Operator]bool, 0)
-		for _, idx := range rangeIndexes {
-			ops[conditions[idx].Op] = true
-		}
-		opSlice := make([]string, 0, len(ops))
-		for op := range ops {
-			opSlice = append(opSlice, op.String())
-		}
-		return nil, fmt.Errorf("range query is not supported by this node, detected invalid operators in the query statement: %v", opSlice)
+		return nil, fmt.Errorf("range query is not supported by this node, detected invalid operators['>', '<', '<=', '>='] in the query statement")
 	}
 
 	if len(ranges) > 0 {
