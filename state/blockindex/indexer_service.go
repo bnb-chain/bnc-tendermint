@@ -19,8 +19,6 @@ type IndexerService struct {
 
 	idr      BlockIndexer
 	eventBus *types.EventBus
-
-	onIndex func(int64)
 }
 
 // NewIndexerService returns a new service instance.
@@ -28,10 +26,6 @@ func NewIndexerService(idr BlockIndexer, eventBus *types.EventBus) *IndexerServi
 	is := &IndexerService{idr: idr, eventBus: eventBus}
 	is.BaseService = *cmn.NewBaseService(nil, "BlockIndexerService", is)
 	return is
-}
-
-func (is *IndexerService) SetOnIndex(callback func(int64)) {
-	is.onIndex = callback
 }
 
 // OnStart implements cmn.Service by subscribing for blocks and indexing them by hash.
@@ -50,9 +44,6 @@ func (is *IndexerService) OnStart() error {
 				is.Logger.Error("Failed to index block", "height", header.Height, "err", err)
 			} else {
 				is.Logger.Info("Indexed block", "height", header.Height, "hash", header.LastBlockID.Hash)
-			}
-			if is.onIndex != nil {
-				is.onIndex(header.Height)
 			}
 		}
 	}()

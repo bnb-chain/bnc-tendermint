@@ -405,7 +405,6 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	defer rp.Stop()
 	addr := *rp.Addr()
 	sw.config.PersistentPeers = addr.String()
-	sw.initPersistentPeers()
 
 	p, err := sw.transport.Dial(addr, peerConfig{
 		chDescs:      sw.chDescs,
@@ -449,7 +448,6 @@ func TestSwitchReconnectsToPersistentPeer(t *testing.T) {
 	conf := config.DefaultP2PConfig()
 	conf.TestDialFail = true
 	sw.config.PersistentPeers = fmt.Sprintf("%s,%s", sw.config.PersistentPeers, rp.Addr().String())
-	sw.initPersistentPeers()
 	err = sw.addOutboundPeerWithConfig(rp.Addr(), conf, true)
 	require.NotNil(err)
 

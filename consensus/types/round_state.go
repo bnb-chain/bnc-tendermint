@@ -143,7 +143,6 @@ func (rs *RoundState) CompleteProposalEvent() types.EventDataCompleteProposal {
 		Round:   rs.Round,
 		Step:    rs.Step.String(),
 		BlockID: blockId,
-		Block:   *rs.ProposalBlock,
 	}
 }
 

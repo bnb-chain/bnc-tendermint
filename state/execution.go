@@ -54,13 +54,13 @@ func BlockExecutorWithMetrics(metrics *Metrics) BlockExecutorOption {
 func NewBlockExecutor(db dbm.DB, logger log.Logger, proxyApp proxy.AppConnConsensus,
 	mempool Mempool, evpool EvidencePool, withAppState bool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
-		db:           db,
-		proxyApp:     proxyApp,
-		eventBus:     types.NopEventBus{},
-		mempool:      mempool,
-		evpool:       evpool,
-		logger:       logger,
-		metrics:      NopMetrics(),
+		db:       db,
+		proxyApp: proxyApp,
+		eventBus: types.NopEventBus{},
+		mempool:  mempool,
+		evpool:   evpool,
+		logger:   logger,
+		metrics:  NopMetrics(),
 		withAppState: withAppState,
 	}
 

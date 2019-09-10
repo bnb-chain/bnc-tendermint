@@ -22,7 +22,7 @@ const (
 const latestStateToKeep int64 = 1 << 20
 
 func calcStateKey(height int64) []byte {
-	return []byte(fmt.Sprintf("stateKey:%v", height%latestStateToKeep))
+	return []byte(fmt.Sprintf("stateKey:%v", height % latestStateToKeep))
 }
 
 func calcValidatorsKey(height int64) []byte {

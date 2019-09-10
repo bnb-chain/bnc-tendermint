@@ -322,6 +322,8 @@ func (c *MConnection) Send(chID byte, msgBytes []byte) bool {
 		return false
 	}
 
+	c.Logger.Debug("Send", "channel", chID, "conn", c, "msgBytes", fmt.Sprintf("%X", msgBytes))
+
 	// Send message to channel.
 	channel, ok := c.channelsIdx[chID]
 	if !ok {
@@ -592,6 +594,7 @@ FOR_LOOP:
 				break FOR_LOOP
 			}
 			if msgBytes != nil {
+				c.Logger.Debug("Received bytes", "chID", pkt.ChannelID, "msgBytes", fmt.Sprintf("%X", msgBytes))
 				// NOTE: This means the reactor.Receive runs in the same thread as the p2p recv routine
 				// except the mempool actually is using an asynchronus Receive() to prevent jamming requests
 				// stopping block producing (tested via )

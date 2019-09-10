@@ -69,17 +69,16 @@ type PeerFilterFunc func(IPeerSet, Peer) error
 type Switch struct {
 	cmn.BaseService
 
-	config          *config.P2PConfig
-	reactors        map[string]Reactor
-	chDescs         []*conn.ChannelDescriptor
-	reactorsByCh    map[byte]Reactor
-	peers           *PeerSet
-	dialing         *cmn.CMap
-	reconnecting    *cmn.CMap
-	nodeInfo        NodeInfo // our node info
-	nodeKey         *NodeKey // our node privkey
-	addrBook        AddrBook
-	persistentPeers map[ID]bool
+	config       *config.P2PConfig
+	reactors     map[string]Reactor
+	chDescs      []*conn.ChannelDescriptor
+	reactorsByCh map[byte]Reactor
+	peers        *PeerSet
+	dialing      *cmn.CMap
+	reconnecting *cmn.CMap
+	nodeInfo     NodeInfo // our node info
+	nodeKey      *NodeKey // our node privkey
+	addrBook     AddrBook
 
 	transport Transport
 
@@ -121,7 +120,7 @@ func NewSwitch(
 
 	// Ensure we have a completely undeterministic PRNG.
 	sw.rng = cmn.NewRand()
-	sw.initPersistentPeers()
+
 	sw.BaseService = *cmn.NewBaseService(nil, "P2P Switch", sw)
 
 	for _, option := range options {
@@ -198,19 +197,18 @@ func (sw *Switch) SetNodeKey(nodeKey *NodeKey) {
 	sw.nodeKey = nodeKey
 }
 
-func (sw *Switch) initPersistentPeers() {
-	sw.persistentPeers = make(map[ID]bool, 0)
-	if sw.config.PersistentPeers != "" {
-		peers := cmn.SplitAndTrim(sw.config.PersistentPeers, ",", " ")
-		netAddrs, _ := NewNetAddressStrings(peers)
-		for _, addr := range netAddrs {
-			sw.persistentPeers[addr.ID] = true
+func (sw *Switch) IsPersistent(peer Peer) bool {
+	if sw.config.PersistentPeers == "" {
+		return false
+	}
+	peers := cmn.SplitAndTrim(sw.config.PersistentPeers, ",", " ")
+	netAddrs, _ := NewNetAddressStrings(peers)
+	for _, addr := range netAddrs {
+		if addr.ID == peer.ID() {
+			return true
 		}
 	}
-}
-
-func (sw *Switch) IsPersistent(peer Peer) bool {
-	return sw.persistentPeers[peer.ID()]
+	return false
 }
 
 //---------------------------------------------------------------------
