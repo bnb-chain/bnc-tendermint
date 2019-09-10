@@ -1,14 +1,5 @@
 # Changelog
 
-## v0.31.5-binance.2
-*Sep 6th, 2019*
-### FEATURES:
-- [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor 
-
-### IMPROVEMENTS:
-- [index] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/106) index service recover from data lost
-- [P2P] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/107) introduce skip_tx_from_persistent config and other basic p2p improvement 
-
 ## v0.31.5-binance.1
 *July 17th, 2019*
 

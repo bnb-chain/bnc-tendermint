@@ -17,8 +17,6 @@ const (
 type Metrics struct {
 	// Time between BeginBlock and EndBlock.
 	BlockProcessingTime metrics.Histogram
-	// The latest height of block that have been indexed
-	IndexHeight metrics.Gauge
 }
 
 // PrometheusMetrics returns Metrics build using Prometheus client library.
@@ -37,12 +35,6 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 			Help:      "Time between BeginBlock and EndBlock in ms.",
 			Buckets:   stdprometheus.LinearBuckets(1, 10, 10),
 		}, labels).With(labelsAndValues...),
-		IndexHeight: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: MetricsSubsystem,
-			Name:      "index_height",
-			Help:      "The latest height of block that have been indexed",
-		}, append(labels)).With(labelsAndValues...),
 	}
 }
 
@@ -50,6 +42,5 @@ func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
 func NopMetrics() *Metrics {
 	return &Metrics{
 		BlockProcessingTime: discard.NewHistogram(),
-		IndexHeight:         discard.NewGauge(),
 	}
 }

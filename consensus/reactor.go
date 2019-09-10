@@ -971,13 +971,6 @@ func (ps *PeerState) GetHeight() int64 {
 	return ps.PRS.Height
 }
 
-// use by hotsync to ensure mempool can broadcast tx to it's peer
-func (ps *PeerState) SetHeight(height int64) {
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-	ps.PRS.Height = height
-}
-
 // SetHasProposal sets the given proposal as known for the peer.
 func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.mtx.Lock()

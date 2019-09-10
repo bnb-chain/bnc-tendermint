@@ -6,7 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/tendermint/go-amino"
+	amino "github.com/tendermint/go-amino"
+
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	sm "github.com/tendermint/tendermint/state"
@@ -14,7 +15,7 @@ import (
 )
 
 const (
-	// BlockchainChannel is a channel for blocks and status updates (`BlockStore` height) under fast sync mode.
+	// BlockchainChannel is a channel for blocks and status updates (`BlockStore` height)
 	BlockchainChannel = byte(0x40)
 
 	trySyncIntervalMS = 10
@@ -42,11 +43,6 @@ type consensusReactor interface {
 	SwitchToConsensus(sm.State, int)
 }
 
-type hotsyncReactor interface {
-	SwitchToHotSync(sm.State, int32)
-	SwitchToConsensusSync(sm.State)
-}
-
 type peerError struct {
 	err    error
 	peerID p2p.ID
@@ -63,12 +59,10 @@ type BlockchainReactor struct {
 	// immutable
 	initialState sm.State
 
-	blockExec      *sm.BlockExecutor
-	store          *BlockStore
-	pool           *BlockPool
-	fastSync       bool
-	hotSyncReactor bool
-	hotsync        bool
+	blockExec *sm.BlockExecutor
+	store     *BlockStore
+	pool      *BlockPool
+	fastSync  bool
 
 	requestsCh <-chan BlockRequest
 	errorsCh   <-chan peerError
@@ -76,7 +70,7 @@ type BlockchainReactor struct {
 
 // NewBlockchainReactor returns new reactor instance.
 func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *BlockStore,
-	fastSync, hotSyncReactor, hotSync bool) *BlockchainReactor {
+	fastSync bool) *BlockchainReactor {
 
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
@@ -95,15 +89,13 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *Bl
 	)
 
 	bcR := &BlockchainReactor{
-		initialState:   state,
-		blockExec:      blockExec,
-		store:          store,
-		pool:           pool,
-		fastSync:       fastSync,
-		requestsCh:     requestsCh,
-		errorsCh:       errorsCh,
-		hotSyncReactor: hotSyncReactor,
-		hotsync:        hotSync,
+		initialState: state,
+		blockExec:    blockExec,
+		store:        store,
+		pool:         pool,
+		fastSync:     fastSync,
+		requestsCh:   requestsCh,
+		errorsCh:     errorsCh,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("BlockchainReactor", bcR)
 	return bcR
@@ -301,33 +293,13 @@ FOR_LOOP:
 			// we need make sure blockstore has a block because when switch to consensus, it will verify the commit between block and state
 			// refer to `cs.blockStore.LoadSeenCommit(state.LastBlockHeight)`
 			if bcR.pool.IsCaughtUp() && (height == bcR.pool.initHeight || blocksSynced > 0) {
+				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
-				if bcR.hotSyncReactor && bcR.hotsync {
-					bcR.Logger.Info("Time to switch to hot sync reactor!", "height", height)
-					hotR, ok := bcR.Switch.Reactor("HOT").(hotsyncReactor)
-					if ok {
-						hotR.SwitchToHotSync(state, int32(blocksSynced))
-					} else {
-						// should only happen during testing
-					}
-
+				conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
+				if ok {
+					conR.SwitchToConsensus(state, blocksSynced)
 				} else {
-					if bcR.hotSyncReactor {
-						bcR.Logger.Info("Time to switch hot sync reactor to consensus sync pattern!", "height", height)
-						hotR, ok := bcR.Switch.Reactor("HOT").(hotsyncReactor)
-						if ok {
-							hotR.SwitchToConsensusSync(state)
-						} else {
-							// should only happen during testing
-						}
-					}
-					bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
-					conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
-					if ok {
-						conR.SwitchToConsensus(state, blocksSynced)
-					} else {
-						// should only happen during testing
-					}
+					// should only happen during testing
 				}
 
 				break FOR_LOOP

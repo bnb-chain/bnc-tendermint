@@ -27,10 +27,10 @@ const (
 	StateSyncChannel = byte(0x36)
 
 	// ====== move to config ======
-	stateSyncPriority          = 10 // channel priority of state sync
-	tryManifestFinalizeSeconds = 10 // how often to check whether we collect enough manifests
-	maxTriedManifestFinalist   = 3  // max round of try finalize manifest
-	leastPeersToSync           = 3  // how many peers with same manifest hash before we can start state sync
+	stateSyncPriority = 10			// channel priority of state sync
+	tryManifestFinalizeSeconds = 10	// how often to check whether we collect enough manifests
+	maxTriedManifestFinalist = 3	// max round of try finalize manifest
+	leastPeersToSync = 3	// how many peers with same manifest hash before we can start state sync
 
 	// NOTE: keep up to date with bcChunkResponseMessage
 	// TODO: REVIEW before final merge
@@ -39,7 +39,7 @@ const (
 	maxStateMsgSize                    = types.MaxStateSizeBytes +
 		bcStateResponseMessagePrefixSize +
 		bcStateResponseMessageFieldKeySize
-	maxInFlightRequesters = 600
+	maxInFlightRequesters        	   = 600
 
 	maxInflightRequestPerPeer = 20
 
@@ -88,11 +88,11 @@ func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config)
 	}
 
 	bcSR := &StateReactor{
-		config:     config,
-		pool:       pool,
-		stateSync:  config.StateSyncHeight,
-		requestsCh: requestsCh,
-		errorsCh:   errorsCh,
+		config: 	  config,
+		pool:         pool,
+		stateSync:    config.StateSyncHeight,
+		requestsCh:   requestsCh,
+		errorsCh:     errorsCh,
 	}
 	bcSR.BaseReactor = *p2p.NewBaseReactor("StateSyncReactor", bcSR)
 	return bcSR
@@ -290,7 +290,7 @@ func (bcSR *StateReactor) poolRoutine() {
 	go func() {
 		for {
 			select {
-			case <-bcSR.pool.Quit():
+			case <- bcSR.pool.Quit():
 				return
 
 			case <-bcSR.Quit():
@@ -332,7 +332,7 @@ func (bcSR *StateReactor) poolRoutine() {
 			// always broadcast state status request to get more potential trusted peers even pool already inited
 			bcSR.BroadcastStateStatusRequest()
 
-		case <-bcSR.pool.Quit():
+		case <- bcSR.pool.Quit():
 			return
 
 		case <-bcSR.Quit():
@@ -382,7 +382,7 @@ func (bcSR *StateReactor) decodeMsg(bz []byte) (msg BlockchainStateMessage, err 
 
 type bcChunkRequestMessage struct {
 	Height int64
-	Hash   abci.SHA256Sum
+	Hash abci.SHA256Sum
 }
 
 func (m *bcChunkRequestMessage) String() string {
@@ -391,7 +391,7 @@ func (m *bcChunkRequestMessage) String() string {
 
 type bcNoChunkResponseMessage struct {
 	Height int64
-	Hash   abci.SHA256Sum
+	Hash abci.SHA256Sum
 }
 
 func (m *bcNoChunkResponseMessage) String() string {
