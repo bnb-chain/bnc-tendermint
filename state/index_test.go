@@ -43,7 +43,7 @@ func TestCountDown(t *testing.T) {
 	indexDb := db.NewMemDB()
 
 	// start tx index
-	txIndexer := kv.NewTxIndex(indexDb, kv.IndexAllTags())
+	txIndexer := kv.NewTxIndex(indexDb, kv.IndexAllTags(), kv.EnableRangeQuery())
 	txIndexSvc := txindex.NewIndexerService(txIndexer, eventBus)
 	txIndexSvc.SetLogger(log.TestingLogger())
 	err = txIndexSvc.Start()

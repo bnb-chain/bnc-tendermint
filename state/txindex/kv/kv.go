@@ -26,9 +26,10 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store        dbm.DB
-	tagsToIndex  []string
-	indexAllTags bool
+	store            dbm.DB
+	tagsToIndex      []string
+	indexAllTags     bool
+	enableRangeQuery bool
 }
 
 // NewTxIndex creates new KV indexer.
@@ -51,6 +52,13 @@ func IndexTags(tags []string) func(*TxIndex) {
 func IndexAllTags() func(*TxIndex) {
 	return func(txi *TxIndex) {
 		txi.indexAllTags = true
+	}
+}
+
+// EnableRangeQuery is an option for enable range query.
+func EnableRangeQuery() func(*TxIndex) {
+	return func(txi *TxIndex) {
+		txi.enableRangeQuery = true
 	}
 }
 
@@ -169,6 +177,10 @@ func (txi *TxIndex) Search(q *query.Query) ([]*types.TxResult, error) {
 	// if both upper and lower bounds exist, it's better to get them in order not
 	// no iterate over kvs that are not within range.
 	ranges, rangeIndexes := lookForRanges(conditions)
+	if !txi.enableRangeQuery && len(rangeIndexes) > 0 {
+		return nil, fmt.Errorf("range query is not supported by this node, detected invalid operators['>', '<', '<=', '>='] in the query statement")
+	}
+
 	if len(ranges) > 0 {
 		skipIndexes = append(skipIndexes, rangeIndexes...)
 
