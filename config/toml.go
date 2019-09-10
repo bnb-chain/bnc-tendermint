@@ -203,6 +203,8 @@ unsafe = {{ .RPC.Unsafe }}
 # 1024 - 40 - 10 - 50 = 924 = ~900
 max_open_connections = {{ .RPC.MaxOpenConnections }}
 
+# Websocket handler will be disabled if set true
+disable_websocket = {{ .RPC.DisableWebsocket }}
 
 # Maximum number of go routine to process websocket request.
 # 1 - process websocket request synchronously.
@@ -416,6 +418,10 @@ blocktime_iota = "{{ .Consensus.BlockTimeIota }}"
 #   1) "null"
 #   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
 indexer = "{{ .TxIndex.Indexer }}"
+
+# Operator ["<", ">", ">=", "<="] belongs to range query operator.
+# Notice: only enable it in trust environment.
+enable_range_query = {{ .TxIndex.EnableRangeQuery }}
 
 # Comma-separated list of tags to index (by default the only tag is "tx.hash")
 #

@@ -831,6 +831,11 @@ func (wm *WebsocketManager) WebsocketHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+func (wm *WebsocketManager) WebsocketDisabledHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte("websocket disabled"))
+}
+
 // rpc.websocket
 //-----------------------------------------------------------------------------
 

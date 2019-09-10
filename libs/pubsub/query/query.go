@@ -75,6 +75,25 @@ const (
 	OpContains
 )
 
+func (o Operator) String() string {
+	switch o {
+	case OpLessEqual:
+		return "<="
+	case OpGreaterEqual:
+		return ">="
+	case OpLess:
+		return "<"
+	case OpGreater:
+		return ">"
+	case OpEqual:
+		return "="
+	case OpContains:
+		return "CONTAINS"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 const (
 	// DateLayout defines a layout for all dates (`DATE date`)
 	DateLayout = "2006-01-02"

@@ -153,6 +153,7 @@ func StopTendermint(node *nm.Node) {
 func NewTendermint(app abci.Application, opts *Options) *nm.Node {
 	// Create & start node
 	config := GetConfig(opts.recreateConfig)
+	config.TxIndex.EnableRangeQuery = true
 	var logger log.Logger
 	if opts.suppressStdout {
 		logger = log.NewNopLogger()

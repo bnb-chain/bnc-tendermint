@@ -387,6 +387,9 @@ type RPCConfig struct {
 	// 1024 - 40 - 10 - 50 = 924 = ~900
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
 
+	// Websocket handler will be disabled if set true
+	DisableWebsocket bool `mapstructure:"disable_websocket"`
+
 	// Maximum number of go routine to process websocket request.
 	// 1 - process websocket request synchronously.
 	// 10 - default size.
@@ -453,6 +456,7 @@ func DefaultRPCConfig() *RPCConfig {
 		GRPCMaxOpenConnections: 900,
 
 		Unsafe:                 false,
+		DisableWebsocket:       false,
 		MaxOpenConnections:     900,
 		WebsocketPoolMaxSize:   10,
 		WebsocketPoolQueueSize: 10,
@@ -1055,6 +1059,10 @@ type TxIndexConfig struct {
 	//   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
 	Indexer string `mapstructure:"indexer"`
 
+	// Operator ["<", ">", ">=", "<="] belongs to range query operator.
+	// Notice: only enable it in trust environment.
+	EnableRangeQuery bool `mapstructure:"enable_range_query"`
+
 	// Comma-separated list of tags to index (by default the only tag is "tx.hash")
 	//
 	// You can also index transactions by height by adding "tx.height" tag here.
@@ -1088,9 +1096,10 @@ type BlockIndexConfig struct {
 // DefaultTxIndexConfig returns a default configuration for the transaction indexer.
 func DefaultTxIndexConfig() *TxIndexConfig {
 	return &TxIndexConfig{
-		Indexer:      "kv",
-		IndexTags:    "",
-		IndexAllTags: false,
+		Indexer:          "kv",
+		EnableRangeQuery: false,
+		IndexTags:        "",
+		IndexAllTags:     false,
 	}
 }
 

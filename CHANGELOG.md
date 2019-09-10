@@ -223,7 +223,9 @@ that were valid (ie. `ResponseDeliverTx.Code == 0`)
 - [networks] fixes ansible integration script (@carlosflrs)
 
 ## v0.31.5-binance.2
+*Sep 6th, 2019*
 ### FEATURES:
+- [config] [\#115](https://github.com/binance-chain/bnc-tendermint/pull/115) add option to enable range query for tx indexer;add option to disable websocket
 - [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor 
 
 ### IMPROVEMENTS:

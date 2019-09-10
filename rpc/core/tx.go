@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	cmn "github.com/tendermint/tendermint/libs/common"
-
-	tmquery "github.com/tendermint/tendermint/libs/pubsub/query"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	rpctypes "github.com/tendermint/tendermint/rpc/lib/types"
 	"github.com/tendermint/tendermint/state/txindex/null"
@@ -186,16 +184,14 @@ func Tx(ctx *rpctypes.Context, hash []byte, prove bool) (*ctypes.ResultTx, error
 // - `hash`: `[]byte` - hash of the transaction
 func TxSearch(ctx *rpctypes.Context, query string, prove bool, page, perPage int) (*ctypes.ResultTxSearch, error) {
 	// if index is disabled, return error
+	if len(query) > MaxTxSearchQueryLength {
+		return nil, fmt.Errorf("query length %d exceed the max lenght %d", len(query), MaxTxSearchQueryLength)
+	}
 	if _, ok := txIndexer.(*null.TxIndex); ok {
 		return nil, fmt.Errorf("Transaction indexing is disabled")
 	}
 
-	q, err := tmquery.New(query)
-	if err != nil {
-		return nil, err
-	}
-
-	results, err := txIndexer.Search(q)
+	results, err := txIndexer.Search(query)
 	if err != nil {
 		return nil, err
 	}
