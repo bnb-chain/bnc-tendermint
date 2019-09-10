@@ -3,7 +3,6 @@ package null
 import (
 	"errors"
 
-	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/state/txindex"
 	"github.com/tendermint/tendermint/types"
 )
@@ -28,6 +27,6 @@ func (txi *TxIndex) Index(result *types.TxResult) error {
 	return nil
 }
 
-func (txi *TxIndex) Search(q *query.Query) ([]*types.TxResult, error) {
+func (txi *TxIndex) Search(q string) ([]*types.TxResult, error) {
 	return []*types.TxResult{}, nil
 }
