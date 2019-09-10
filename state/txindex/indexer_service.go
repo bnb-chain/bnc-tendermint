@@ -19,6 +19,8 @@ type IndexerService struct {
 
 	idr      TxIndexer
 	eventBus *types.EventBus
+
+	onIndex func(int64)
 }
 
 // NewIndexerService returns a new service instance.
@@ -26,6 +28,10 @@ func NewIndexerService(idr TxIndexer, eventBus *types.EventBus) *IndexerService 
 	is := &IndexerService{idr: idr, eventBus: eventBus}
 	is.BaseService = *cmn.NewBaseService(nil, "TxIndexerService", is)
 	return is
+}
+
+func (is *IndexerService) SetOnIndex(callback func(int64)) {
+	is.onIndex = callback
 }
 
 // OnStart implements cmn.Service by subscribing for all transactions
@@ -64,6 +70,9 @@ func (is *IndexerService) OnStart() error {
 				is.Logger.Error("Failed to index txs for block", "height", header.Height, "err", err)
 			} else {
 				is.Logger.Info("Indexed txs for block", "height", header.Height)
+			}
+			if is.onIndex != nil {
+				is.onIndex(header.Height)
 			}
 		}
 	}()

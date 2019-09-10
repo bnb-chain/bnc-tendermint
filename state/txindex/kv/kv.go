@@ -26,9 +26,10 @@ var _ txindex.TxIndexer = (*TxIndex)(nil)
 
 // TxIndex is the simplest possible indexer, backed by key-value storage (levelDB).
 type TxIndex struct {
-	store        dbm.DB
-	tagsToIndex  []string
-	indexAllTags bool
+	store            dbm.DB
+	tagsToIndex      []string
+	indexAllTags     bool
+	enableRangeQuery bool
 }
 
 // NewTxIndex creates new KV indexer.
@@ -51,6 +52,13 @@ func IndexTags(tags []string) func(*TxIndex) {
 func IndexAllTags() func(*TxIndex) {
 	return func(txi *TxIndex) {
 		txi.indexAllTags = true
+	}
+}
+
+// EnableRangeQuery is an option for enable range query.
+func EnableRangeQuery() func(*TxIndex) {
+	return func(txi *TxIndex) {
+		txi.enableRangeQuery = true
 	}
 }
 
@@ -143,7 +151,15 @@ func (txi *TxIndex) Index(result *types.TxResult) error {
 // result for it (2) for range queries it is better for the client to provide
 // both lower and upper bounds, so we are not performing a full scan. Results
 // from querying indexes are then intersected and returned to the caller.
-func (txi *TxIndex) Search(q *query.Query) ([]*types.TxResult, error) {
+func (txi *TxIndex) Search(queryStr string) ([]*types.TxResult, error) {
+	if !txi.enableRangeQuery && strings.ContainsAny(queryStr, "<>") {
+		return nil, fmt.Errorf("range query is not supported by this node, detected invalid operators['>', '<', '<=', '>='] in the query statement")
+	}
+
+	q, err := query.New(queryStr)
+	if err != nil {
+		return nil, err
+	}
 	var hashes [][]byte
 	var hashesInitialized bool
 
@@ -169,6 +185,7 @@ func (txi *TxIndex) Search(q *query.Query) ([]*types.TxResult, error) {
 	// if both upper and lower bounds exist, it's better to get them in order not
 	// no iterate over kvs that are not within range.
 	ranges, rangeIndexes := lookForRanges(conditions)
+
 	if len(ranges) > 0 {
 		skipIndexes = append(skipIndexes, rangeIndexes...)
 

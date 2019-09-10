@@ -164,6 +164,18 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSync bool `mapstructure:"fast_sync"`
 
+	// it is for fullnode/witness who do not need consensus to sync block.
+	HotSyncReactor bool `mapstructure:"hot_sync_reactor"`
+
+	// only take effect when HotSyncReactor is true.
+	// If true, will sync blocks use hot sync protocol
+	// If false, still use tendermint consensus protocol, but can still handle other peers sync request.
+	HotSync bool `mapstructure:"hot_sync"`
+
+	// the max wait time for subscribe a block.
+	// only take effect when hot_sync is true
+	HotSyncTimeout time.Duration `mapstructure:"hot_sync_timeout"`
+
 	// As state sync is an experimental feature, this switch can totally disable it on core network nodes (validator, witness)
 	StateSyncReactor bool `mapstructure:"state_sync_reactor"`
 
@@ -232,6 +244,9 @@ func DefaultBaseConfig() BaseConfig {
 		ProfListenAddress:  "",
 		FastSync:           true,
 		StateSyncReactor:   true,
+		HotSync:            false,
+		HotSyncReactor:     false,
+		HotSyncTimeout:     3 * time.Second,
 		StateSyncHeight:    -1,
 		FilterPeers:        false,
 		DBBackend:          "leveldb",
@@ -293,6 +308,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	default:
 		return errors.New("unknown log_format (must be 'plain' or 'json')")
 	}
+	if !cfg.HotSyncReactor && cfg.HotSync {
+		return errors.New("config hot_sync can't be true while hot_sync_reactor is false")
+	}
 	return nil
 }
 
@@ -352,6 +370,9 @@ type RPCConfig struct {
 	// 1024 - 40 - 10 - 50 = 924 = ~900
 	MaxOpenConnections int `mapstructure:"max_open_connections"`
 
+	// Websocket handler will be disabled if set true
+	DisableWebsocket bool `mapstructure:"disable_websocket"`
+
 	// Maximum number of go routine to process websocket request.
 	// 1 - process websocket request synchronously.
 	// 10 - default size.
@@ -410,6 +431,7 @@ func DefaultRPCConfig() *RPCConfig {
 		GRPCMaxOpenConnections: 900,
 
 		Unsafe:                 false,
+		DisableWebsocket:       false,
 		MaxOpenConnections:     900,
 		WebsocketPoolMaxSize:   10,
 		WebsocketPoolQueueSize: 10,
@@ -726,14 +748,15 @@ func (cfg *DBCacheConfig) ToGolevelDBOpt() *optPkg.Options {
 
 // MempoolConfig defines the configuration options for the Tendermint mempool
 type MempoolConfig struct {
-	RootDir        string `mapstructure:"home"`
-	Recheck        bool   `mapstructure:"recheck"`
-	Broadcast      bool   `mapstructure:"broadcast"`
-	WalPath        string `mapstructure:"wal_dir"`
-	Size           int    `mapstructure:"size"`
-	MaxTxsBytes    int64  `mapstructure:"max_txs_bytes"`
-	CacheSize      int    `mapstructure:"cache_size"`
-	OnlyPersistent bool   `mapstructure:"only_persistent"`
+	RootDir              string `mapstructure:"home"`
+	Recheck              bool   `mapstructure:"recheck"`
+	Broadcast            bool   `mapstructure:"broadcast"`
+	WalPath              string `mapstructure:"wal_dir"`
+	Size                 int    `mapstructure:"size"`
+	MaxTxsBytes          int64  `mapstructure:"max_txs_bytes"`
+	CacheSize            int    `mapstructure:"cache_size"`
+	OnlyToPersistent     bool   `mapstructure:"only_to_persistent"`
+	SkipTxFromPersistent bool   `mapstructure:"skip_tx_from_persistent"`
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool
@@ -744,10 +767,11 @@ func DefaultMempoolConfig() *MempoolConfig {
 		WalPath:   "",
 		// Each signature verification takes .5ms, Size reduced until we implement
 		// ABCI Recheck
-		Size:           5000,
-		MaxTxsBytes:    1024 * 1024 * 1024, // 1GB
-		CacheSize:      10000,
-		OnlyPersistent: false,
+		Size:                 5000,
+		MaxTxsBytes:          1024 * 1024 * 1024, // 1GB
+		CacheSize:            10000,
+		OnlyToPersistent:     false,
+		SkipTxFromPersistent: false,
 	}
 }
 
@@ -955,6 +979,10 @@ type TxIndexConfig struct {
 	//   2) "kv" (default) - the simplest possible indexer, backed by key-value storage (defaults to levelDB; see DBBackend).
 	Indexer string `mapstructure:"indexer"`
 
+	// Operator ["<", ">", ">=", "<="] belongs to range query operator.
+	// Notice: only enable it in trust environment.
+	EnableRangeQuery bool `mapstructure:"enable_range_query"`
+
 	// Comma-separated list of tags to index (by default the only tag is "tx.hash")
 	//
 	// You can also index transactions by height by adding "tx.height" tag here.
@@ -988,9 +1016,10 @@ type BlockIndexConfig struct {
 // DefaultTxIndexConfig returns a default configuration for the transaction indexer.
 func DefaultTxIndexConfig() *TxIndexConfig {
 	return &TxIndexConfig{
-		Indexer:      "kv",
-		IndexTags:    "",
-		IndexAllTags: false,
+		Indexer:          "kv",
+		EnableRangeQuery: false,
+		IndexTags:        "",
+		IndexAllTags:     false,
 	}
 }
 

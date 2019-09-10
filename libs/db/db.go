@@ -38,7 +38,6 @@ func NewDB(name string, backend DBBackendType, dir string) DB {
 	return NewDBWithOpt(name, backend, dir, nil)
 }
 
-
 // NewDB creates a new database of type backend with the given name.
 // NOTE: function panics if:
 //   - backend is unknown (not registered)

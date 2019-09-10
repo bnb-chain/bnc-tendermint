@@ -16,9 +16,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 
-	amino "github.com/tendermint/go-amino"
+	"github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
 	bc "github.com/tendermint/tendermint/blockchain"
+	"github.com/tendermint/tendermint/blockchain/hot"
 	cfg "github.com/tendermint/tendermint/config"
 	cs "github.com/tendermint/tendermint/consensus"
 	"github.com/tendermint/tendermint/crypto/ed25519"
@@ -37,8 +38,8 @@ import (
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	grpccore "github.com/tendermint/tendermint/rpc/grpc"
 	rpcserver "github.com/tendermint/tendermint/rpc/lib/server"
-	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/snapshot"
+	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/state/blockindex"
 	bkv "github.com/tendermint/tendermint/state/blockindex/kv"
 	nullblk "github.com/tendermint/tendermint/state/blockindex/null"
@@ -123,19 +124,20 @@ func DefaultNewNode(config *cfg.Config, logger log.Logger) (*Node, error) {
 }
 
 // MetricsProvider returns a consensus, p2p and mempool Metrics.
-type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics)
+type MetricsProvider func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *hot.Metrics)
 
 // DefaultMetricsProvider returns Metrics build using Prometheus client library
 // if Prometheus is enabled. Otherwise, it returns no-op Metrics.
 func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
-	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics) {
+	return func(chainID string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *hot.Metrics) {
 		if config.Prometheus {
 			return cs.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				p2p.PrometheusMetrics(config.Namespace, "chain_id", chainID),
 				mempl.PrometheusMetrics(config.Namespace, "chain_id", chainID),
-				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID)
+				sm.PrometheusMetrics(config.Namespace, "chain_id", chainID),
+				hot.PrometheusMetrics(config.Namespace, "chain_id", chainID)
 		}
-		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics()
+		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), hot.NopMetrics()
 	}
 }
 
@@ -160,21 +162,22 @@ type Node struct {
 	isListening bool
 
 	// services
-	eventBus         *types.EventBus // pub/sub for services
-	stateDB          dbm.DB
-	blockStore       *bc.BlockStore         // store the blockchain to disk
-	bcReactor        *bc.BlockchainReactor  // for fast-syncing
-	mempoolReactor   *mempl.MempoolReactor  // for gossipping transactions
-	consensusState   *cs.ConsensusState     // latest consensus state
-	consensusReactor *cs.ConsensusReactor   // for participating in the consensus
-	evidencePool     *evidence.EvidencePool // tracking evidence
-	proxyApp         proxy.AppConns         // connection to the application
-	rpcListeners     []net.Listener         // rpc servers
-	txIndexer        txindex.TxIndexer
-	blockIndexer     blockindex.BlockIndexer
-	indexerService   *txindex.IndexerService
+	eventBus          *types.EventBus // pub/sub for services
+	stateDB           dbm.DB
+	blockStore        *bc.BlockStore         // store the blockchain to disk
+	bcReactor         *bc.BlockchainReactor  // for fast-syncing
+	mempoolReactor    *mempl.MempoolReactor  // for gossipping transactions
+	consensusState    *cs.ConsensusState     // latest consensus state
+	consensusReactor  *cs.ConsensusReactor   // for participating in the consensus
+	evidencePool      *evidence.EvidencePool // tracking evidence
+	proxyApp          proxy.AppConns         // connection to the application
+	rpcListeners      []net.Listener         // rpc servers
+	txIndexer         txindex.TxIndexer
+	blockIndexer      blockindex.BlockIndexer
+	indexerService    *txindex.IndexerService
 	blockIndexService *blockindex.IndexerService
-	prometheusSrv    *http.Server
+	indexHub          *sm.IndexHub
+	prometheusSrv     *http.Server
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -239,7 +242,7 @@ func NewNode(config *cfg.Config,
 
 	// Transaction indexing
 	var txIndexer txindex.TxIndexer
-	var txDB dbm.DB	// TODO: remove by refactor defaultdbprovider to cache the created db instaces
+	var txDB dbm.DB // TODO: remove by refactor defaultdbprovider to cache the created db instaces
 	switch config.TxIndex.Indexer {
 	case "kv":
 		store, err := dbProvider(&DBContext{"tx_index", config})
@@ -247,13 +250,16 @@ func NewNode(config *cfg.Config,
 		if err != nil {
 			return nil, err
 		}
+		indexOptions := make([]func(index *kv.TxIndex), 0)
 		if config.TxIndex.IndexTags != "" {
-			txIndexer = kv.NewTxIndex(store, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
+			indexOptions = append(indexOptions, kv.IndexTags(splitAndTrimEmpty(config.TxIndex.IndexTags, ",", " ")))
 		} else if config.TxIndex.IndexAllTags {
-			txIndexer = kv.NewTxIndex(store, kv.IndexAllTags())
-		} else {
-			txIndexer = kv.NewTxIndex(store)
+			indexOptions = append(indexOptions, kv.IndexAllTags())
 		}
+		if config.TxIndex.EnableRangeQuery {
+			indexOptions = append(indexOptions, kv.EnableRangeQuery())
+		}
+		txIndexer = kv.NewTxIndex(store, indexOptions...)
 	default:
 		txIndexer = &null.TxIndex{}
 	}
@@ -282,6 +288,17 @@ func NewNode(config *cfg.Config,
 	blockIndexerService.SetLogger(logger.With("module", "blockindex"))
 
 	err = blockIndexerService.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	csMetrics, p2pMetrics, memplMetrics, smMetrics, hotMetrics := metricsProvider(genDoc.ChainID)
+
+	indexHub := sm.NewIndexHub(state.LastBlockHeight, stateDB, blockStore, eventBus, sm.IndexHubWithMetrics(smMetrics))
+	indexHub.RegisterIndexSvc(blockIndexerService)
+	indexHub.RegisterIndexSvc(txIndexerService)
+	indexHub.SetLogger(logger.With("module", "indexer_hub"))
+	err = indexHub.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -345,8 +362,6 @@ func NewNode(config *cfg.Config,
 	} else {
 		consensusLogger.Info("This node is not a validator", "addr", addr, "pubKey", pubKey)
 	}
-
-	csMetrics, p2pMetrics, memplMetrics, smMetrics := metricsProvider(genDoc.ChainID)
 
 	// Make MempoolReactor
 	mempool := mempl.NewMempool(
@@ -413,8 +428,18 @@ func NewNode(config *cfg.Config,
 	)
 
 	// Make BlockchainReactor
-	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && (config.StateSyncHeight < 0))
+	bcReactor := bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync && (config.StateSyncHeight < 0), config.HotSyncReactor, config.HotSync)
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
+
+	var hotSyncReactor *hot.BlockchainReactor
+	if config.HotSyncReactor {
+		hotSyncLogger := logger.With("module", "hotsync")
+		hotSyncReactor = hot.NewBlockChainReactor(state.Copy(), blockExec, blockStore, config.HotSync, fastSync || config.StateSyncHeight >= 0, config.HotSyncTimeout, hot.WithMetrics(hotMetrics), hot.WithEventBus(eventBus))
+		hotSyncReactor.SetLogger(hotSyncLogger)
+		if privValidator != nil {
+			hotSyncReactor.SetPrivValidator(privValidator)
+		}
+	}
 
 	// Make ConsensusReactor
 	consensusState := cs.NewConsensusState(
@@ -430,7 +455,7 @@ func NewNode(config *cfg.Config,
 	if privValidator != nil {
 		consensusState.SetPrivValidator(privValidator)
 	}
-	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || (config.StateSyncHeight >= 0), cs.ReactorMetrics(csMetrics))
+	consensusReactor := cs.NewConsensusReactor(consensusState, fastSync || (config.StateSyncHeight >= 0) || config.HotSync, cs.ReactorMetrics(csMetrics))
 	consensusReactor.SetLogger(consensusLogger)
 
 	// services which will be publishing and/or subscribing for messages (events)
@@ -519,6 +544,9 @@ func NewNode(config *cfg.Config,
 	if config.StateSyncReactor {
 		sw.AddReactor("STATE", stateReactor)
 	}
+	if config.HotSyncReactor {
+		sw.AddReactor("HOT", hotSyncReactor)
+	}
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
 	sw.AddReactor("EVIDENCE", evidenceReactor)
@@ -583,19 +611,20 @@ func NewNode(config *cfg.Config,
 		nodeInfo:  nodeInfo,
 		nodeKey:   nodeKey,
 
-		stateDB:          stateDB,
-		blockStore:       blockStore,
-		bcReactor:        bcReactor,
-		mempoolReactor:   mempoolReactor,
-		consensusState:   consensusState,
-		consensusReactor: consensusReactor,
-		evidencePool:     evidencePool,
-		proxyApp:         proxyApp,
-		txIndexer:        txIndexer,
-		blockIndexer:     blockIndexer,
-		indexerService:   txIndexerService,
+		stateDB:           stateDB,
+		blockStore:        blockStore,
+		bcReactor:         bcReactor,
+		mempoolReactor:    mempoolReactor,
+		consensusState:    consensusState,
+		consensusReactor:  consensusReactor,
+		evidencePool:      evidencePool,
+		proxyApp:          proxyApp,
+		txIndexer:         txIndexer,
+		blockIndexer:      blockIndexer,
+		indexerService:    txIndexerService,
 		blockIndexService: blockIndexerService,
-		eventBus:         eventBus,
+		indexHub:          indexHub,
+		eventBus:          eventBus,
 	}
 	node.BaseService = *cmn.NewBaseService(logger, "Node", node)
 	return node, nil
@@ -666,6 +695,7 @@ func (n *Node) OnStop() {
 	n.eventBus.Stop()
 	n.indexerService.Stop()
 	n.blockIndexService.Stop()
+	n.indexHub.Stop()
 
 	// now stop the reactors
 	// TODO: gracefully disconnect from peers.
@@ -719,6 +749,7 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetProxyAppQuery(n.proxyApp.Query())
 	rpccore.SetTxIndexer(n.txIndexer)
 	rpccore.SetBlockIndexer(n.blockIndexer)
+	rpccore.SetIndexHub(n.indexHub)
 	rpccore.SetConsensusReactor(n.consensusReactor)
 	rpccore.SetEventBus(n.eventBus)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
@@ -738,7 +769,7 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 	// we may expose the rpc over both a unix and tcp socket
 	listeners := make([]net.Listener, len(listenAddrs))
 	var wsWorkerPool *gopool.Pool
-	if n.config.RPC.WebsocketPoolMaxSize > 1{
+	if n.config.RPC.WebsocketPoolMaxSize > 1 {
 		wsWorkerPool = gopool.NewPool(n.config.RPC.WebsocketPoolMaxSize, n.config.RPC.WebsocketPoolQueueSize, n.config.RPC.WebsocketPoolSpawnSize)
 		wsWorkerPool.SetLogger(n.Logger.With("module", "routine-pool"))
 	}
@@ -755,7 +786,11 @@ func (n *Node) startRPC() ([]net.Listener, error) {
 				}
 			}), rpcserver.SetWorkerPool(wsWorkerPool))
 		wm.SetLogger(wmLogger)
-		mux.HandleFunc("/websocket", wm.WebsocketHandler)
+		if n.config.RPC.DisableWebsocket {
+			mux.HandleFunc("/websocket", wm.WebsocketDisabledHandler)
+		} else {
+			mux.HandleFunc("/websocket", wm.WebsocketHandler)
+		}
 		rpcserver.RegisterRPCFuncs(mux, rpccore.Routes, coreCodec, rpcLogger)
 
 		config := rpcserver.DefaultConfig()
@@ -947,6 +982,10 @@ func makeNodeInfo(
 
 	if config.P2P.PexReactor {
 		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
+	}
+
+	if config.HotSyncReactor {
+		nodeInfo.Channels = append(nodeInfo.Channels, hot.HotBlockchainChannel)
 	}
 
 	lAddr := config.P2P.ExternalAddress

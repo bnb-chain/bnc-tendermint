@@ -131,6 +131,8 @@ func StopTendermint(node *nm.Node) {
 func NewTendermint(app abci.Application) *nm.Node {
 	// Create & start node
 	config := GetConfig()
+	// change default config for test
+	config.TxIndex.EnableRangeQuery = true
 	logger := log.NewTMLogger(log.NewSyncWriter(os.Stdout))
 	logger = log.NewFilter(logger, log.AllowError())
 	pvKeyFile := config.PrivValidatorKeyFile()

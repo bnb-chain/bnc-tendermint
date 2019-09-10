@@ -25,6 +25,8 @@ const (
 	// SubscribeTimeout is the maximum time we wait to subscribe for an event.
 	// must be less than the server's write timeout (see rpcserver.DefaultConfig)
 	SubscribeTimeout = 5 * time.Second
+
+	MaxTxSearchQueryLength = 1024
 )
 
 //----------------------------------------------
@@ -75,6 +77,7 @@ var (
 	consensusReactor *consensus.ConsensusReactor
 	eventBus         *types.EventBus // thread safe
 	mempool          *mempl.Mempool
+	indexerHub       *sm.IndexHub
 
 	logger log.Logger
 
@@ -131,6 +134,10 @@ func SetTxIndexer(indexer txindex.TxIndexer) {
 
 func SetBlockIndexer(indexer blockindex.BlockIndexer) {
 	blockIndexer = indexer
+}
+
+func SetIndexHub(hub *sm.IndexHub) {
+	indexerHub = hub
 }
 
 func SetConsensusReactor(conR *consensus.ConsensusReactor) {
