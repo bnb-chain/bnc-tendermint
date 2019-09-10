@@ -259,7 +259,7 @@ func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest,
 		return err
 	}
 
-	for peer, _ := range peers {
+	for peer := range peers {
 		pool.addPeerGuarded(peer, hash)
 	}
 

@@ -3,7 +3,6 @@ module github.com/tendermint/tendermint
 go 1.12
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973 // indirect
 	github.com/btcsuite/btcd v0.0.0-20190115013929-ed77733ec07d
@@ -14,7 +13,6 @@ require (
 	github.com/go-logfmt/logfmt v0.3.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/protobuf v1.2.1
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.3.0
 	github.com/golang/snappy v0.0.1
 	github.com/google/gofuzz v1.0.0 // indirect
@@ -45,8 +43,8 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20190318030020-c3a204f8e965
 	github.com/tendermint/go-amino v0.14.1
 	go.etcd.io/bbolt v1.3.3 // indirect
-	golang.org/x/crypto v0.0.0-20190228161510-8dd112bcdc25
-	golang.org/x/net v0.0.0-20180906233101-161cd47e91fd
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/net v0.0.0-20190311183353-d8887717615a
 	google.golang.org/genproto v0.0.0-20181029155118-b69ba1387ce2 // indirect
-	google.golang.org/grpc v1.13.0
+	google.golang.org/grpc v1.23.0
 )

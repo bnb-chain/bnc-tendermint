@@ -8,11 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tendermint/tendermint/blockchain"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	st "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -61,7 +61,7 @@ type BlockPool struct {
 	mtx       sync.Mutex
 	st        SyncPattern
 	eventBus  *types.EventBus
-	store     *blockchain.BlockStore
+	store     *store.BlockStore
 	blockExec *st.BlockExecutor
 
 	blockTimeout time.Duration
@@ -94,7 +94,7 @@ type BlockPool struct {
 	switchWg sync.WaitGroup
 }
 
-func NewBlockPool(store *blockchain.BlockStore, blockExec *st.BlockExecutor, state st.State, sendCh chan<- Message, st SyncPattern, blockTimeout time.Duration) *BlockPool {
+func NewBlockPool(store *store.BlockStore, blockExec *st.BlockExecutor, state st.State, sendCh chan<- Message, st SyncPattern, blockTimeout time.Duration) *BlockPool {
 	const capacity = 1000
 	sampleStream := make(chan metricsEvent, capacity)
 	candidates := NewCandidatePool(sampleStream)

@@ -67,6 +67,7 @@ type Config struct {
 	P2P             *P2PConfig             `mapstructure:"p2p"`
 	DBCache         *DBCacheConfig         `mapstructure:"dbcache"`
 	Mempool         *MempoolConfig         `mapstructure:"mempool"`
+	FastSync        *FastSyncConfig        `mapstructure:"fastsync"`
 	Consensus       *ConsensusConfig       `mapstructure:"consensus"`
 	TxIndex         *TxIndexConfig         `mapstructure:"tx_index"`
 	BlockIndex      *BlockIndexConfig      `mapstructure:"block_index"`
@@ -81,6 +82,7 @@ func DefaultConfig() *Config {
 		P2P:             DefaultP2PConfig(),
 		DBCache:         DefaultDBCacheConfig(),
 		Mempool:         DefaultMempoolConfig(),
+		FastSync:        DefaultFastSyncConfig(),
 		Consensus:       DefaultConsensusConfig(),
 		TxIndex:         DefaultTxIndexConfig(),
 		BlockIndex:      DefaultBlockIndexConfig(),
@@ -96,6 +98,7 @@ func TestConfig() *Config {
 		P2P:             TestP2PConfig(),
 		DBCache:         TestDBCacheConfig(),
 		Mempool:         TestMempoolConfig(),
+		FastSync:        TestFastSyncConfig(),
 		Consensus:       TestConsensusConfig(),
 		TxIndex:         TestTxIndexConfig(),
 		BlockIndex:      TestBlockIndexConfig(),
@@ -131,6 +134,9 @@ func (cfg *Config) ValidateBasic() error {
 	if err := cfg.Mempool.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [mempool] section")
 	}
+	if err := cfg.FastSync.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "Error in [fastsync] section")
+	}
 	if err := cfg.Consensus.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "Error in [consensus] section")
 	}
@@ -162,7 +168,7 @@ type BaseConfig struct {
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSync bool `mapstructure:"fast_sync"`
+	FastSyncMode bool `mapstructure:"fast_sync"`
 
 	// it is for fullnode/witness who do not need consensus to sync block.
 	HotSyncReactor bool `mapstructure:"hot_sync_reactor"`
@@ -253,7 +259,7 @@ func DefaultBaseConfig() BaseConfig {
 		LogLevel:           DefaultPackageLogLevels(),
 		LogFormat:          LogFormatPlain,
 		ProfListenAddress:  "",
-		FastSync:           true,
+		FastSyncMode:           true,
 		StateSyncReactor:   true,
 		HotSync:            false,
 		HotSyncReactor:     false,
@@ -271,7 +277,7 @@ func TestBaseConfig() BaseConfig {
 	cfg := DefaultBaseConfig()
 	cfg.chainID = "tendermint_test"
 	cfg.ProxyApp = "kvstore"
-	cfg.FastSync = false
+	cfg.FastSyncMode = false
 	cfg.DBBackend = "memdb"
 	return cfg
 }
@@ -413,6 +419,12 @@ type RPCConfig struct {
 	// See https://github.com/tendermint/tendermint/issues/3435
 	TimeoutBroadcastTxCommit time.Duration `mapstructure:"timeout_broadcast_tx_commit"`
 
+	// Maximum size of request body, in bytes
+	MaxBodyBytes int64 `mapstructure:"max_body_bytes"`
+
+	// Maximum size of request header, in bytes
+	MaxHeaderBytes int `mapstructure:"max_header_bytes"`
+
 	// The path to a file containing certificate that is used to create the HTTPS server.
 	// Migth be either absolute path or path related to tendermint's config directory.
 	//
@@ -449,6 +461,9 @@ func DefaultRPCConfig() *RPCConfig {
 		MaxSubscriptionClients:    100,
 		MaxSubscriptionsPerClient: 5,
 		TimeoutBroadcastTxCommit:  10 * time.Second,
+
+		MaxBodyBytes:   int64(1000000), // 1MB
+		MaxHeaderBytes: 1 << 20,        // same as the net/http default
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",
@@ -493,6 +508,12 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	}
 	if cfg.TimeoutBroadcastTxCommit < 0 {
 		return errors.New("timeout_broadcast_tx_commit can't be negative")
+	}
+	if cfg.MaxBodyBytes < 0 {
+		return errors.New("max_body_bytes can't be negative")
+	}
+	if cfg.MaxHeaderBytes < 0 {
+		return errors.New("max_header_bytes can't be negative")
 	}
 	return nil
 }
@@ -774,6 +795,8 @@ type MempoolConfig struct {
 	CacheSize            int    `mapstructure:"cache_size"`
 	OnlyToPersistent     bool   `mapstructure:"only_to_persistent"`
 	SkipTxFromPersistent bool   `mapstructure:"skip_tx_from_persistent"`
+	MaxMsgBytes int    `mapstructure:"max_msg_bytes"`
+
 }
 
 // DefaultMempoolConfig returns a default configuration for the Tendermint mempool
@@ -784,9 +807,10 @@ func DefaultMempoolConfig() *MempoolConfig {
 		WalPath:   "",
 		// Each signature verification takes .5ms, Size reduced until we implement
 		// ABCI Recheck
-		Size:                 5000,
-		MaxTxsBytes:          1024 * 1024 * 1024, // 1GB
-		CacheSize:            10000,
+		Size:        5000,
+		MaxTxsBytes: 1024 * 1024 * 1024, // 1GB
+		CacheSize:   10000,
+		MaxMsgBytes: 1024 * 1024, // 1MB
 		OnlyToPersistent:     false,
 		SkipTxFromPersistent: false,
 	}
@@ -821,7 +845,42 @@ func (cfg *MempoolConfig) ValidateBasic() error {
 	if cfg.CacheSize < 0 {
 		return errors.New("cache_size can't be negative")
 	}
+	if cfg.MaxMsgBytes < 0 {
+		return errors.New("max_msg_bytes can't be negative")
+	}
 	return nil
+}
+
+//-----------------------------------------------------------------------------
+// FastSyncConfig
+
+// FastSyncConfig defines the configuration for the Tendermint fast sync service
+type FastSyncConfig struct {
+	Version string `mapstructure:"version"`
+}
+
+// DefaultFastSyncConfig returns a default configuration for the fast sync service
+func DefaultFastSyncConfig() *FastSyncConfig {
+	return &FastSyncConfig{
+		Version: "v0",
+	}
+}
+
+// TestFastSyncConfig returns a default configuration for the fast sync.
+func TestFastSyncConfig() *FastSyncConfig {
+	return DefaultFastSyncConfig()
+}
+
+// ValidateBasic performs basic validation.
+func (cfg *FastSyncConfig) ValidateBasic() error {
+	switch cfg.Version {
+	case "v0":
+		return nil
+	case "v1":
+		return nil
+	default:
+		return fmt.Errorf("unknown fastsync version %s", cfg.Version)
+	}
 }
 
 //-----------------------------------------------------------------------------

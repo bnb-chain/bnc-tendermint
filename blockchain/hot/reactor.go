@@ -3,11 +3,11 @@ package hot
 import (
 	"errors"
 	"fmt"
+	"github.com/tendermint/tendermint/store"
 	"reflect"
 	"time"
 
 	"github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	sm "github.com/tendermint/tendermint/state"
@@ -54,7 +54,7 @@ type BlockchainReactor struct {
 type BlockChainOption func(*BlockchainReactor)
 
 // NewBlockChainReactor returns new reactor instance.
-func NewBlockChainReactor(state sm.State, blockExec *sm.BlockExecutor, store *blockchain.BlockStore, hotSync, fastSync bool, blockTimeout time.Duration, options ...BlockChainOption) *BlockchainReactor {
+func NewBlockChainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore, hotSync, fastSync bool, blockTimeout time.Duration, options ...BlockChainOption) *BlockchainReactor {
 
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,

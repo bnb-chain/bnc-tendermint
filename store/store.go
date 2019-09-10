@@ -1,4 +1,4 @@
-package blockchain
+package store
 
 import (
 	"fmt"
@@ -223,6 +223,7 @@ func calcSeenCommitKey(height int64) []byte {
 
 var blockStoreKey = []byte("blockStore")
 
+// BlockStoreStateJSON is the block store state JSON structure.
 type BlockStoreStateJSON struct {
 	Height int64 `json:"height"`
 }
