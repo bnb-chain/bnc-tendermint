@@ -96,7 +96,7 @@ func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals 
 	fastSync := true
 	db := dbm.NewMemDB()
 	blockExec := sm.NewBlockExecutor(db, log.TestingLogger(), proxyApp.Consensus(),
-		mock.Mempool{}, sm.MockEvidencePool{})
+		mock.Mempool{}, sm.MockEvidencePool{}, true)
 	sm.SaveState(db, state)
 
 	// let's add some blocks in
@@ -123,7 +123,7 @@ func newBlockchainReactor(logger log.Logger, genDoc *types.GenesisDoc, privVals 
 		blockStore.SaveBlock(thisBlock, thisParts, lastCommit)
 	}
 
-	bcReactor := NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	bcReactor := NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync, config.HotSyncReactor, config.HotSync)
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
 
 	return bcReactor

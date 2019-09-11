@@ -129,7 +129,7 @@ func TestTxSearch(t *testing.T) {
 
 func TestTxSearchDeprecatedIndexing(t *testing.T) {
 	allowedTags := []string{"account.number", "sender"}
-	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags))
+	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	// index tx using events indexing (composite key)
 	txResult1 := txResultWithEvents([]abci.Event{

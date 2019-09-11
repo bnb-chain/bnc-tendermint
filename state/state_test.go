@@ -92,8 +92,8 @@ func TestABCIResponsesSaveLoad1(t *testing.T) {
 	// Build mock responses.
 	block := makeBlock(state, 2)
 	abciResponses := sm.NewABCIResponses(block)
-	abciResponses.DeliverTx[0] = &abci.ResponseDeliverTx{Data: []byte("foo"), Tags: nil}
-	abciResponses.DeliverTx[1] = &abci.ResponseDeliverTx{Data: []byte("bar"), Log: "ok", Tags: nil}
+	abciResponses.DeliverTx[0] = &abci.ResponseDeliverTx{Data: []byte("foo"), Events: nil}
+	abciResponses.DeliverTx[1] = &abci.ResponseDeliverTx{Data: []byte("bar"), Log: "ok", Events: nil}
 
 	abciResponses.EndBlock = &abci.ResponseEndBlock{ValidatorUpdates: []abci.ValidatorUpdate{
 		types.TM2PB.NewValidatorUpdate(ed25519.GenPrivKey().PubKey(), 10),
@@ -979,7 +979,7 @@ func TestApplyUpdates(t *testing.T) {
 					MaxAge: 66,
 				},
 			},
-			makeConsensusParams(1, 2, 3)},
+			makeConsensusParams(1, 2, 66)},
 	}
 
 	for i, tc := range cases {

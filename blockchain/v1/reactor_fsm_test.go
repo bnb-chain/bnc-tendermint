@@ -932,7 +932,7 @@ func (testR *testReactor) resetStateTimer(name string, timer **time.Timer, timeo
 	}
 }
 
-func (testR *testReactor) switchToConsensus() {
+func (testR *testReactor) switchToConsensusOrHotSync() {
 }
 
 // ----------------------------------------

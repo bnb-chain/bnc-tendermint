@@ -796,7 +796,7 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 		defer proxyApp.Stop()
 
 		assert.Panics(t, func() {
-			h := NewHandshaker(stateDB, state, store, genDoc)
+			h := NewHandshaker(stateDB, state, store, genDoc, true)
 			h.Handshake(proxyApp)
 		})
 	}
@@ -814,7 +814,7 @@ func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
 		defer proxyApp.Stop()
 
 		assert.Panics(t, func() {
-			h := NewHandshaker(stateDB, state, store, genDoc)
+			h := NewHandshaker(stateDB, state, store, genDoc, true)
 			h.Handshake(proxyApp)
 		})
 	}

@@ -9,7 +9,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
-	"github.com/tendermint/tendermint/libs/pubsub/query"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -60,7 +59,7 @@ func BenchmarkTxSearch(b *testing.B) {
 		}
 	}
 
-	txQuery := query.MustParse("transfer.address = 'address_43' AND transfer.amount = 50")
+	txQuery := "transfer.address = 'address_43' AND transfer.amount = 50"
 
 	b.ResetTimer()
 

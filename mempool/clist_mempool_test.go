@@ -268,8 +268,8 @@ func NewSleepCounterApplication(f bool, i int) *SleepCounterApplication {
 	return &SleepCounterApplication{counter.NewCounterApplication(f), wg}
 }
 
-func (app *SleepCounterApplication) CheckTx(tx []byte) abci.ResponseCheckTx {
-	res := app.CounterApplication.CheckTx(tx)
+func (app *SleepCounterApplication) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
+	res := app.CounterApplication.CheckTx(req)
 	app.wg.Wait()
 	return res
 }
@@ -301,20 +301,20 @@ func TestReapPriority(t *testing.T) {
 		//for threshold := range seqReap {
 		txs := mempool.ReapMaxBytesMaxGas(-1, -1)
 
-		if len(txs) >= threshold {
+		if len(txs) > threshold {
 			str := fmt.Sprintf("Reap failed to have priority, %v > %v\n", len(txs), threshold)
 			fmt.Print(str)
 			testResult <- str
 		} else {
-			fmt.Printf("Priority reaping: %v < %v\n", len(txs), threshold)
+			fmt.Printf("Priority reaping: %v <= %v\n", len(txs), threshold)
 		}
 		j += len(txs)
-		if err := mempool.Update(0, txs, nil, nil); err != nil {
+		if err := mempool.Update(0, txs, abciResponses(len(txs), abci.CodeTypeOK),nil, nil); err != nil {
 			testResult <- err.Error()
 		}
 		for _, txBytes := range txs {
 
-			res, err := appConnCon.DeliverTxSync(txBytes)
+			res, err := appConnCon.DeliverTxSync(abci.RequestDeliverTx{Tx: txBytes})
 			if err != nil {
 				testResult <- fmt.Sprintf("Client error committing tx: %v", err)
 			}

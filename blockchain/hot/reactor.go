@@ -197,7 +197,7 @@ func (hbcR *BlockchainReactor) switchRoutine() {
 		case <-hbcR.pool.Quit():
 			return
 		case <-switchToConsensusTicker.C:
-			if hbcR.pool.getSyncPattern() == Hot && hbcR.privValidator != nil && hbcR.pool.state.Validators.HasAddress(hbcR.privValidator.GetAddress()) {
+			if hbcR.pool.getSyncPattern() == Hot && hbcR.privValidator != nil && hbcR.pool.state.Validators.HasAddress(hbcR.privValidator.GetPubKey().Address()) {
 				hbcR.Logger.Info("hot sync switching to consensus sync")
 				conR, ok := hbcR.Switch.Reactor("CONSENSUS").(consensusReactor)
 				if ok {

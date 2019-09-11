@@ -44,7 +44,7 @@ func (testR *testBcR) sendBlockRequest(peerID p2p.ID, height int64) error {
 func (testR *testBcR) resetStateTimer(name string, timer **time.Timer, timeout time.Duration) {
 }
 
-func (testR *testBcR) switchToConsensus() {
+func (testR *testBcR) switchToConsensusOrHotSync() {
 
 }
 

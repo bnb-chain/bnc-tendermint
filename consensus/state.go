@@ -873,7 +873,7 @@ func (cs *ConsensusState) enterPropose(height int64, round int) {
 	}
 
 	// if not a validator, we're done
-	address := cs.privValidator.GetAddress()
+	address := cs.privValidator.GetPubKey().Address()
 	if !cs.Validators.HasAddress(address) {
 		logger.Debug("This node is not a validator", "addr", address, "vals", cs.Validators)
 		return
@@ -966,7 +966,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		return
 	}
 
-	proposerAddr := cs.privValidator.GetAddress()
+	proposerAddr := cs.privValidator.GetPubKey().Address()
 	return cs.blockExec.CreateProposalBlock(cs.Height, cs.state, commit, proposerAddr)
 }
 
@@ -1510,7 +1510,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		if err == ErrVoteHeightMismatch {
 			return added, err
 		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
-			addr := cs.privValidator.GetAddress()
+			addr := cs.privValidator.GetPubKey().Address()
 			if bytes.Equal(vote.ValidatorAddress, addr) {
 				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return added, err
@@ -1688,7 +1688,7 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 	// Flush the WAL. Otherwise, we may not recompute the same vote to sign, and the privValidator will refuse to sign anything.
 	cs.wal.FlushAndSync()
 
-	addr := cs.privValidator.GetAddress()
+	addr := cs.privValidator.GetPubKey().Address()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
 
 	vote := &types.Vote{
@@ -1724,7 +1724,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetPubKey().Address()) {
 		return nil
 	}
 	vote, err := cs.signVote(type_, hash, header)
