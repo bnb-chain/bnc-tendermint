@@ -234,18 +234,13 @@ func TestPickFromDecayedSet(t *testing.T) {
 		sampleStream <- metricsEvent{Bad, p, 0}
 	}
 	candidates := candidatePool.pickFromDecayedSet(true)
+	total:=make(map[p2p.ID]bool)
 	for _, c := range candidates {
-		for idx, tpid := range testPids {
+		for _, tpid := range testPids {
 			if *c == tpid {
-				if len(testPids) > 1 {
-					testPids = append(testPids[:idx], testPids[idx+1:]...)
-					break
-				} else {
-					testPids = nil
-					break
-				}
+				total[tpid] = true
 			}
 		}
 	}
-	assert.Nil(t, testPids)
+	assert.Equal(t, len(total),100)
 }
