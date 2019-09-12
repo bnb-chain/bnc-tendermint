@@ -62,7 +62,7 @@ func TestTxIndex(t *testing.T) {
 }
 
 func TestTxSearch(t *testing.T) {
-	allowedTags := []string{"account.number", "account.owner", "account.date"}
+	allowedTags := []string{"number", "owner", "date"}
 	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	txResult := txResultWithEvents([]abci.Event{
@@ -82,36 +82,36 @@ func TestTxSearch(t *testing.T) {
 		// search by hash
 		{fmt.Sprintf("tx.hash = '%X'", hash), 1},
 		// search by exact match (one tag)
-		{"account.number = 1", 1},
+		{"number = 1", 1},
 		// search by exact match (two tags)
-		{"account.number = 1 AND account.owner = 'Ivan'", 1},
+		{"number = 1 AND owner = 'Ivan'", 1},
 		// search by exact match (two tags)
-		{"account.number = 1 AND account.owner = 'Vlad'", 0},
-		{"account.owner = 'Vlad' AND account.number = 1", 0},
-		{"account.number >= 1 AND account.owner = 'Vlad'", 0},
-		{"account.owner = 'Vlad' AND account.number >= 1", 0},
-		{"account.number <= 0", 0},
-		{"account.number <= 0 AND account.owner = 'Ivan'", 0},
+		{"number = 1 AND owner = 'Vlad'", 0},
+		{"owner = 'Vlad' AND number = 1", 0},
+		{"number >= 1 AND owner = 'Vlad'", 0},
+		{"owner = 'Vlad' AND number >= 1", 0},
+		{"number <= 0", 0},
+		{"number <= 0 AND owner = 'Ivan'", 0},
 		// search using a prefix of the stored value
-		{"account.owner = 'Iv'", 0},
+		{"owner = 'Iv'", 0},
 		// search by range
-		{"account.number >= 1 AND account.number <= 5", 1},
+		{"number >= 1 AND number <= 5", 1},
 		// search by range (lower bound)
-		{"account.number >= 1", 1},
+		{"number >= 1", 1},
 		// search by range (upper bound)
-		{"account.number <= 5", 1},
+		{"number <= 5", 1},
 		// search using not allowed tag
 		{"not_allowed = 'boom'", 0},
 		// search for not existing tx result
-		{"account.number >= 2 AND account.number <= 5", 0},
+		{"number >= 2 AND number <= 5", 0},
 		// search using not existing tag
-		{"account.date >= TIME 2013-05-03T14:45:00Z", 0},
+		{"date >= TIME 2013-05-03T14:45:00Z", 0},
 		// search using CONTAINS
-		{"account.owner CONTAINS 'an'", 1},
+		{"owner CONTAINS 'an'", 1},
 		// search for non existing value using CONTAINS
-		{"account.owner CONTAINS 'Vlad'", 0},
+		{"owner CONTAINS 'Vlad'", 0},
 		// search using the wrong tag (of numeric type) using CONTAINS
-		{"account.number CONTAINS 'Iv'", 0},
+		{"number CONTAINS 'Iv'", 0},
 	}
 
 	for _, tc := range testCases {
@@ -128,7 +128,7 @@ func TestTxSearch(t *testing.T) {
 }
 
 func TestTxSearchDeprecatedIndexing(t *testing.T) {
-	allowedTags := []string{"account.number", "sender"}
+	allowedTags := []string{"number", "sender"}
 	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	// index tx using events indexing (composite key)
@@ -171,18 +171,18 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 		// search by hash
 		{fmt.Sprintf("tx.hash = '%X'", hash2), []*types.TxResult{txResult2}},
 		// search by exact match (one tag)
-		{"account.number = 1", []*types.TxResult{txResult1}},
-		{"account.number >= 1 AND account.number <= 5", []*types.TxResult{txResult1}},
+		{"number = 1", []*types.TxResult{txResult1}},
+		{"number >= 1 AND number <= 5", []*types.TxResult{txResult1}},
 		// search by range (lower bound)
-		{"account.number >= 1", []*types.TxResult{txResult1}},
+		{"number >= 1", []*types.TxResult{txResult1}},
 		// search by range (upper bound)
-		{"account.number <= 5", []*types.TxResult{txResult1}},
+		{"number <= 5", []*types.TxResult{txResult1}},
 		// search using not allowed tag
 		{"not_allowed = 'boom'", []*types.TxResult{}},
 		// search for not existing tx result
-		{"account.number >= 2 AND account.number <= 5", []*types.TxResult{}},
+		{"number >= 2 AND number <= 5", []*types.TxResult{}},
 		// search using not existing tag
-		{"account.date >= TIME 2013-05-03T14:45:00Z", []*types.TxResult{}},
+		{"date >= TIME 2013-05-03T14:45:00Z", []*types.TxResult{}},
 		// search by deprecated tag
 		{"sender = 'addr1'", []*types.TxResult{txResult2}},
 	}
@@ -197,7 +197,7 @@ func TestTxSearchDeprecatedIndexing(t *testing.T) {
 }
 
 func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
-	allowedTags := []string{"account.number"}
+	allowedTags := []string{"number"}
 	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	txResult := txResultWithEvents([]abci.Event{
@@ -208,7 +208,7 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 	err := indexer.Index(txResult)
 	require.NoError(t, err)
 
-	results, err := indexer.Search("account.number >= 1")
+	results, err := indexer.Search("number >= 1")
 	assert.NoError(t, err)
 
 	assert.Len(t, results, 1)
@@ -216,7 +216,7 @@ func TestTxSearchOneTxWithMultipleSameTagsButDifferentValues(t *testing.T) {
 }
 
 func TestTxSearchMultipleTxs(t *testing.T) {
-	allowedTags := []string{"account.number", "account.number.id"}
+	allowedTags := []string{"number", "number.id"}
 	indexer := NewTxIndex(db.NewMemDB(), IndexTags(allowedTags), EnableRangeQuery())
 
 	// indexed first, but bigger height (to test the order of transactions)
@@ -262,7 +262,7 @@ func TestTxSearchMultipleTxs(t *testing.T) {
 	err = indexer.Index(txResult4)
 	require.NoError(t, err)
 
-	results, err := indexer.Search("account.number >= 1")
+	results, err := indexer.Search("number >= 1")
 	assert.NoError(t, err)
 
 	require.Len(t, results, 3)
@@ -280,12 +280,12 @@ func TestIndexAllTags(t *testing.T) {
 	err := indexer.Index(txResult)
 	require.NoError(t, err)
 
-	results, err := indexer.Search("account.number >= 1")
+	results, err := indexer.Search("number >= 1")
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Equal(t, []*types.TxResult{txResult}, results)
 
-	results, err = indexer.Search("account.owner = 'Ivan'")
+	results, err = indexer.Search("owner = 'Ivan'")
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Equal(t, []*types.TxResult{txResult}, results)
@@ -295,9 +295,9 @@ func TestIndexAllTags(t *testing.T) {
 func TestDisableRangeQuery(t *testing.T) {
 	indexer := NewTxIndex(db.NewMemDB(), IndexAllTags())
 
-	_, err := indexer.Search("account.number >= 1")
+	_, err := indexer.Search("number >= 1")
 	assert.Error(t, err)
-	_, err = indexer.Search("account.number >= 1 AND account.sequence < 100 AND tx.height > 200 AND tx.height <= 300")
+	_, err = indexer.Search("number >= 1 AND sequence < 100 AND tx.height > 200 AND tx.height <= 300")
 	assert.Error(t, err)
 }
 

@@ -156,8 +156,9 @@ func (txi *TxIndex) indexEvents(result *types.TxResult, hash []byte, store dbm.S
 			if len(attr.Key) == 0 {
 				continue
 			}
-
-			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
+			// Notice, https://github.com/tendermint/tendermint/pull/3643 introduce a breaking change.
+			// We don't want to stop the world and reindex the data, so we choose attribute key as store key.
+			compositeTag := string(attr.Key)
 			if txi.indexAllTags || cmn.StringInSlice(compositeTag, txi.tagsToIndex) {
 				store.Set(keyForEvent(compositeTag, attr.Value, result), hash)
 			}
