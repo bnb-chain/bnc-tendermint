@@ -311,9 +311,15 @@ func getBeginBlockValidatorInfo(block *types.Block, stateDB dbm.DB) (abci.LastCo
 	var lastValSet *types.ValidatorSet
 	var err error
 	if block.Height > 1 {
-		lastValSet, err = LoadValidators(stateDB, block.Height-1)
-		if err != nil {
-			panic(err) // shouldn't happen
+		state := LoadState(stateDB)
+		// for state sync, validator set can't be load from db and it should be equal to the validator set in state
+		if block.Height == state.LastBlockHeight + 1 {
+			lastValSet = state.Validators
+		} else {
+			lastValSet, err = LoadValidators(stateDB, block.Height-1)
+			if err != nil {
+				panic(err) // shouldn't happen
+			}
 		}
 
 		// Sanity check that commit length matches validator set size -
