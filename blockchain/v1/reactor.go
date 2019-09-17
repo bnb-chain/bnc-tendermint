@@ -483,6 +483,7 @@ func (bcR *BlockchainReactor) SwitchToBlockchain(state *sm.State) {
 
 	startHeight := state.LastBlockHeight + 1
 	fsm := NewFSM(startHeight, bcR)
+	fsm.SetLogger(bcR.Logger)
 	bcR.fsm = fsm
 
 	go bcR.poolRoutine()
