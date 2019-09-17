@@ -501,6 +501,7 @@ func createSwitch(config *cfg.Config,
 	peerFilters []p2p.PeerFilterFunc,
 	mempoolReactor *mempl.Reactor,
 	bcReactor p2p.Reactor,
+	stateReactor *snapshot.StateReactor,
 	consensusReactor *consensus.ConsensusReactor,
 	evidenceReactor *evidence.EvidenceReactor,
 	nodeInfo p2p.NodeInfo,
@@ -518,6 +519,9 @@ func createSwitch(config *cfg.Config,
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
 	sw.AddReactor("EVIDENCE", evidenceReactor)
+	if stateReactor != nil {
+		sw.AddReactor("STATE", stateReactor)
+	}
 
 	sw.SetNodeInfo(nodeInfo)
 	sw.SetNodeKey(nodeKey)
@@ -563,7 +567,7 @@ func createHotSyncReactorAndAddToSwitch(privValidator types.PrivValidator, block
 	sw.AddReactor("HOT", hotSyncReactor)
 }
 
-func createStateReactorAndAddToSwitch(txDB dbm.DB, proxyApp proxy.AppConns, blockStore *store.BlockStore, stateDB dbm.DB, config *cfg.Config, sw *p2p.Switch, logger log.Logger) {
+func createStateReactor(txDB dbm.DB, proxyApp proxy.AppConns, blockStore *store.BlockStore, stateDB dbm.DB, config *cfg.Config, logger log.Logger) *snapshot.StateReactor {
 	stateSyncLogger := logger.With("module", "statesync")
 	snapshot.InitSnapshotManager(stateDB, txDB, blockStore, config.DBDir(), stateSyncLogger)
 
@@ -571,7 +575,7 @@ func createStateReactorAndAddToSwitch(txDB dbm.DB, proxyApp proxy.AppConns, bloc
 	// so the later reactor need read config.StateSyncHeight rather than a copied variable
 	stateReactor := snapshot.NewStateReactor(stateDB, proxyApp.State(), config)
 	stateReactor.SetLogger(stateSyncLogger)
-	sw.AddReactor("STATE", stateReactor)
+	return stateReactor
 }
 
 func createPEXReactorAndAddToSwitch(addrBook pex.AddrBook, config *cfg.Config,
@@ -692,6 +696,11 @@ func NewNode(config *cfg.Config,
 		sm.BlockExecutorWithMetrics(smMetrics),
 	)
 
+	var stateReactor *snapshot.StateReactor
+	if config.StateSyncReactor {
+		stateReactor = createStateReactor(txDB, proxyApp, blockStore, stateDB, config, logger)
+	}
+
 	// Make BlockchainReactor
 
 	bcReactor, err := createBlockchainReactor(config, state, blockExec, blockStore, fastSync && (config.StateSyncHeight < 0 || !config.StateSyncReactor), logger)
@@ -716,7 +725,7 @@ func NewNode(config *cfg.Config,
 	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")
 	sw := createSwitch(
-		config, transport, p2pMetrics, peerFilters, mempoolReactor, bcReactor,
+		config, transport, p2pMetrics, peerFilters, mempoolReactor, bcReactor, stateReactor,
 		consensusReactor, evidenceReactor, nodeInfo, nodeKey, p2pLogger,
 	)
 
@@ -745,9 +754,6 @@ func NewNode(config *cfg.Config,
 	var pexReactor *pex.PEXReactor
 	if config.P2P.PexReactor {
 		pexReactor = createPEXReactorAndAddToSwitch(addrBook, config, sw, logger)
-	}
-	if config.StateSyncReactor {
-		createStateReactorAndAddToSwitch(txDB, proxyApp, blockStore, stateDB, config, sw, logger)
 	}
 
 	if config.HotSyncReactor {

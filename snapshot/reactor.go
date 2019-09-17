@@ -3,7 +3,6 @@ package snapshot
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/tendermint/tendermint/state"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,6 +17,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
+	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -51,7 +51,7 @@ const (
 type fastSyncReactor interface {
 	// for when we switch from blockchain reactor and fast sync to
 	// the consensus machine
-	SwitchToBlockchain(*state.State)
+	SwitchToBlockchain(*sm.State)
 }
 
 type peerError struct {
