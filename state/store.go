@@ -145,6 +145,12 @@ type ABCIResponses struct {
 	BeginBlock *abci.ResponseBeginBlock  `json:"begin_block"`
 }
 
+type ABCIResponsesDeprecated struct {
+	DeliverTx  []*abci.ResponseDeliverTxDeprecated `json:"deliver_tx"`
+	EndBlock   *abci.ResponseEndBlock              `json:"end_block"`
+	BeginBlock *abci.ResponseBeginBlock            `json:"begin_block"`
+}
+
 // NewABCIResponses returns a new ABCIResponses
 func NewABCIResponses(block *types.Block) *ABCIResponses {
 	resDeliverTxs := make([]*abci.ResponseDeliverTx, block.NumTxs)
@@ -179,9 +185,22 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 	abciResponses := new(ABCIResponses)
 	err := cdc.UnmarshalBinaryBare(buf, abciResponses)
 	if err != nil {
-		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
-		cmn.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
+		abciResponsesDeprecated := new(ABCIResponsesDeprecated)
+		err := cdc.UnmarshalBinaryBare(buf, abciResponsesDeprecated)
+		if err != nil {
+			// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
+			cmn.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
                 changed: %v\n`, err))
+		}
+		var deliverTxs []*abci.ResponseDeliverTx
+		for _, result := range abciResponsesDeprecated.DeliverTx {
+			deliverTxs = append(deliverTxs, abci.ConvertDeprecatedDeliverTxResponse(result))
+		}
+		return &ABCIResponses{
+			DeliverTx:  deliverTxs,
+			EndBlock:   abciResponsesDeprecated.EndBlock,
+			BeginBlock: abciResponsesDeprecated.BeginBlock,
+		}, nil
 	}
 	// TODO: ensure that buf is completely read.
 

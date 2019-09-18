@@ -185,6 +185,17 @@ message ResponseCheckTx {
   string codespace = 8;
 }
 
+message ResponseCheckTxDeprecated {
+  uint32 code = 1;
+  bytes data = 2;
+  string log = 3; // nondeterministic
+  string info = 4; // nondeterministic
+  int64 gas_wanted  = 5;
+  int64 gas_used = 6;
+  repeated common.KVPair tags = 7 [(gogoproto.nullable)=false, (gogoproto.jsontag)="tags,omitempty"];
+  string codespace = 8;
+}
+
 message ResponseDeliverTx {
   uint32 code = 1;
   bytes data = 2;
@@ -193,6 +204,17 @@ message ResponseDeliverTx {
   int64 gas_wanted = 5;
   int64 gas_used = 6;
   repeated Event events = 7 [(gogoproto.nullable)=false, (gogoproto.jsontag)="events,omitempty"];
+  string codespace = 8;
+}
+
+message ResponseDeliverTxDeprecated {
+  uint32 code = 1;
+  bytes data = 2;
+  string log = 3; // nondeterministic
+  string info = 4; // nondeterministic
+  int64 gas_wanted = 5;
+  int64 gas_used = 6;
+  repeated common.KVPair tags = 7 [(gogoproto.nullable)=false, (gogoproto.jsontag)="tags,omitempty"];
   string codespace = 8;
 }
 

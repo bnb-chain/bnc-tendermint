@@ -32,3 +32,43 @@ func (v ValidatorUpdates) Swap(i, j int) {
 	v[i] = v[j]
 	v[j] = v1
 }
+
+//------------------------------------------------------------------------------
+
+func ConvertDeprecatedDeliverTxResponse(deprecated *ResponseDeliverTxDeprecated) *ResponseDeliverTx {
+	if deprecated == nil {
+		return nil
+	}
+	return &ResponseDeliverTx{
+		Code:                 deprecated.Code,
+		Data:                 deprecated.Data,
+		Log:                  deprecated.Log,
+		Info:                 deprecated.Info,
+		GasWanted:            deprecated.GasWanted,
+		GasUsed:              deprecated.GasUsed,
+		Events:               []Event{{Attributes: deprecated.Tags}},
+		Codespace:            deprecated.Codespace,
+		XXX_NoUnkeyedLiteral: deprecated.XXX_NoUnkeyedLiteral,
+		XXX_unrecognized:     deprecated.XXX_unrecognized,
+		XXX_sizecache:        deprecated.XXX_sizecache,
+	}
+}
+
+func ConvertDeprecatedCheckTxResponse(deprecated *ResponseDeliverTxDeprecated) *ResponseCheckTx {
+	if deprecated == nil {
+		return nil
+	}
+	return &ResponseCheckTx{
+		Code:                 deprecated.Code,
+		Data:                 deprecated.Data,
+		Log:                  deprecated.Log,
+		Info:                 deprecated.Info,
+		GasWanted:            deprecated.GasWanted,
+		GasUsed:              deprecated.GasUsed,
+		Events:               []Event{{Attributes: deprecated.Tags}},
+		Codespace:            deprecated.Codespace,
+		XXX_NoUnkeyedLiteral: deprecated.XXX_NoUnkeyedLiteral,
+		XXX_unrecognized:     deprecated.XXX_unrecognized,
+		XXX_sizecache:        deprecated.XXX_sizecache,
+	}
+}

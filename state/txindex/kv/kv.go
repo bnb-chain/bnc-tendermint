@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-
+	abci "github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/pubsub/query"
@@ -78,7 +78,21 @@ func (txi *TxIndex) Get(hash []byte) (*types.TxResult, error) {
 	txResult := new(types.TxResult)
 	err := cdc.UnmarshalBinaryBare(rawBytes, &txResult)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading TxResult: %v", err)
+		txResultDeprecated := new(types.TxResultDeprecated)
+		err := cdc.UnmarshalBinaryBare(rawBytes, &txResultDeprecated)
+		if err != nil {
+			return nil, fmt.Errorf("Error reading TxResult: %v", err)
+		}
+		result := abci.ConvertDeprecatedDeliverTxResponse(&txResultDeprecated.Result)
+		if result == nil {
+			return nil, fmt.Errorf("Error: failed to convert deprecated tx result")
+		}
+		return &types.TxResult{
+			Height: txResultDeprecated.Height,
+			Index: txResultDeprecated.Index,
+			Tx: txResultDeprecated.Tx,
+			Result: *result,
+		}, nil
 	}
 
 	return txResult, nil
