@@ -136,7 +136,6 @@ program](https://hackerone.com/tendermint).
     option for `db_backend`. Must be `goleveldb` or `cleveldb`.
   - [rpc] [\#3616](https://github.com/tendermint/tendermint/issues/3616) Fix field names for `/block_results` response (eg. `results.DeliverTx`
     -> `results.deliver_tx`). See docs for details.
-  - [rpc] [\#3724](https://github.com/tendermint/tendermint/issues/3724) RPC now binds to `127.0.0.1` by default instead of `0.0.0.0`
 
 * Go API
   - [abci] [\#3193](https://github.com/tendermint/tendermint/issues/3193) Use RequestDeliverTx and RequestCheckTx in the ABCI
