@@ -630,6 +630,7 @@ func (mem *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 	mem.Lock()
 	defer mem.Unlock()
 
+	mem.logger.Info("reap txs from mempool", "maxBytes", maxBytes, "maxGas", maxGas)
 	for atomic.LoadInt32(&mem.rechecking) > 0 {
 		// TODO: Something better?
 		time.Sleep(time.Millisecond * 10)
@@ -646,6 +647,9 @@ func (mem *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		// Check total size requirement
 		aminoOverhead := types.ComputeAminoOverhead(memTx.tx, 1)
 		if maxBytes > -1 && totalBytes+int64(len(memTx.tx))+aminoOverhead > maxBytes {
+			if len(txs) > 4000 {
+				mem.logger.Info("big block produced, exceeds the maxBytes!!!", "txsLen", len(txs), "totalBytes", totalBytes, "maxBytes", maxBytes)
+			}
 			return txs
 		}
 		totalBytes += int64(len(memTx.tx)) + aminoOverhead
@@ -655,10 +659,14 @@ func (mem *Mempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 		// must be non-negative, it follows that this won't overflow.
 		newTotalGas := totalGas + memTx.gasWanted
 		if maxGas > -1 && newTotalGas > maxGas {
+			mem.logger.Info("reach the maxGas", "maxGas", maxGas, "newTotalGas", newTotalGas)
 			return txs
 		}
 		totalGas = newTotalGas
 		txs = append(txs, memTx.tx)
+	}
+	if len(txs) > 4000 {
+		mem.logger.Info("big block produced, reaped all txs in mempool!!!", "txsLen", len(txs), "totalBytes", totalBytes)
 	}
 	return txs
 }

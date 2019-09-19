@@ -89,6 +89,7 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 
 	maxBytes := state.ConsensusParams.BlockSize.MaxBytes
 	maxGas := state.ConsensusParams.BlockSize.MaxGas
+	blockExec.logger.Info("create proposal block", "maxBlockSize", maxBytes, "maxGas", maxGas)
 
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(maxBytes)
