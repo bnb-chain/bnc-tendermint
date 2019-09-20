@@ -15,7 +15,7 @@ import (
 var bucket = []byte("tm")
 
 func init() {
-	registerDBCreator(BoltDBBackend, func(name, dir string) (DB, error) {
+	registerDBCreator(BoltDBBackend, func(name, dir string, opt interface{}) (DB, error) {
 		return NewBoltDB(name, dir)
 	}, false)
 }
