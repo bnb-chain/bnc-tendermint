@@ -32,16 +32,6 @@ func (r ResponseDeliverTx) IsErr() bool {
 }
 
 // IsOK returns true if Code is OK.
-func (r ResponseDeliverTxDeprecated) IsOK() bool {
-	return r.Code == CodeTypeOK
-}
-
-// IsErr returns true if Code is something other than OK.
-func (r ResponseDeliverTxDeprecated) IsErr() bool {
-	return r.Code != CodeTypeOK
-}
-
-// IsOK returns true if Code is OK.
 func (r ResponseQuery) IsOK() bool {
 	return r.Code == CodeTypeOK
 }

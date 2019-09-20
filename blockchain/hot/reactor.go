@@ -3,13 +3,13 @@ package hot
 import (
 	"errors"
 	"fmt"
-	"github.com/tendermint/tendermint/store"
 	"reflect"
 	"time"
 
 	"github.com/tendermint/go-amino"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/store"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )

@@ -519,6 +519,7 @@ func createSwitch(config *cfg.Config,
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
 	sw.AddReactor("EVIDENCE", evidenceReactor)
+	// stateReactor is special, need create it before block chain reactor.
 	if stateReactor != nil {
 		sw.AddReactor("STATE", stateReactor)
 	}

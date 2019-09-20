@@ -65,6 +65,7 @@ RETRY_LOOP:
 
 	ENSURE_CONNECTED:
 		for {
+			// FailFast is deprecated
 			_, err := client.Echo(context.Background(), &types.RequestEcho{Message: "hello"}, grpc.WaitForReady(true))
 			if err == nil {
 				break ENSURE_CONNECTED
@@ -179,7 +180,7 @@ func (cli *grpcClient) CheckTxAsync(params types.RequestCheckTx) *ReqRes {
 
 func (cli *grpcClient) ReCheckTxAsync(tx types.RequestCheckTx) *ReqRes {
 	req := types.ToRequestCheckTx(tx)
-	res, err := cli.client.CheckTx(context.Background(), req.GetCheckTx(), grpc.FailFast(true))
+	res, err := cli.client.CheckTx(context.Background(), req.GetCheckTx(), grpc.WaitForReady(true))
 	if err != nil {
 		cli.StopForError(err)
 	}
