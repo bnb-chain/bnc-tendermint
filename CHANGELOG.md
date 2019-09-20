@@ -140,9 +140,6 @@ program](https://hackerone.com/tendermint).
 * Go API
   - [abci] [\#3193](https://github.com/tendermint/tendermint/issues/3193) Use RequestDeliverTx and RequestCheckTx in the ABCI
     Application interface
-  - [libs/db] [\#3632](https://github.com/tendermint/tendermint/pull/3632) Removed deprecated `LevelDBBackend` const
-    If you have `db_backend` set to `leveldb` in your config file, please
-    change it to `goleveldb` or `cleveldb`.
   - [p2p] [\#3521](https://github.com/tendermint/tendermint/issues/3521) Remove NewNetAddressStringWithOptionalID
 
 * Blockchain Protocol
