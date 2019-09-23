@@ -1538,6 +1538,9 @@ func (m *BlockPartMessage) ValidateBasic() error {
 	if m.Round < 0 {
 		return errors.New("Negative Round")
 	}
+	if m.Part == nil {
+		return errors.New("block part is missing")
+	}
 	if err := m.Part.ValidateBasic(); err != nil {
 		return fmt.Errorf("Wrong Part: %v", err)
 	}
@@ -1558,6 +1561,9 @@ type VoteMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *VoteMessage) ValidateBasic() error {
+	if m.Vote == nil {
+		return errors.New("vote is missing")
+	}
 	return m.Vote.ValidateBasic()
 }
 
