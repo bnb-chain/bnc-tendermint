@@ -8,7 +8,12 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
+	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/tendermint/tendermint/crypto/multisig"
+	"github.com/tendermint/tendermint/crypto/secp256k1"
 	"io"
+	"math"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -132,6 +137,11 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	}
 
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
+
+	if remPubKey == nil {
+		return nil, errors.New("peer sent a nil public key")
+	}
+
 	if !remPubKey.VerifyBytes(challenge[:], remSignature) {
 		return nil, errors.New("Challenge verification failed")
 	}
@@ -156,8 +166,10 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 		if err := func() error {
 			var sealedFrame = pool.Get(aeadSizeOverhead + totalFrameSize)
 			var frame = pool.Get(totalFrameSize)
-			defer pool.Put(sealedFrame)
-			defer pool.Put(frame)
+			defer func() {
+				pool.Put(sealedFrame)
+				pool.Put(frame)
+			}()
 			var chunk []byte
 			if dataMaxSize < len(data) {
 				chunk = data[:dataMaxSize]
@@ -185,7 +197,7 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 			return n, err
 		}
 	}
-	return
+	return n, err
 }
 
 // CONTRACT: data smaller than dataMaxSize is read atomically.
@@ -231,7 +243,7 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 		sc.recvBuffer = make([]byte, len(chunk)-n)
 		copy(sc.recvBuffer, chunk[n:])
 	}
-	return
+	return n, err
 }
 
 // Implements net.Conn
@@ -259,7 +271,7 @@ func genEphKeys() (ephPub, ephPriv *[32]byte) {
 	return
 }
 
-func shareEphPubKey(conn io.ReadWriteCloser, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
+func shareEphPubKey(conn io.ReadWriter, locEphPub *[32]byte) (remEphPub *[32]byte, err error) {
 
 	// Send our pubkey and receive theirs in tandem.
 	var trs, _ = cmn.Parallel(
@@ -413,12 +425,41 @@ type authSigMessage struct {
 	Sig []byte
 }
 
-func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
+func generateEvilPubKeyAndSig() (crypto.PubKey, []byte) {
+	pkSet1, sigSet1 := generatePubKeysAndSignatures(5, []byte{1, 2, 3, 4})
+	multisigKey := multisig.NewPubKeyMultisigThreshold(2, pkSet1)
+	multisignature := multisig.NewMultisig(len(pkSet1))
+
+	multisignature.AddSignatureFromPubKey(sigSet1[0], pkSet1[0], pkSet1)
+	multisignature.AddSignatureFromPubKey(sigSet1[1], pkSet1[1], pkSet1)
+
+	multisigKey.(*multisig.PubKeyMultisigThreshold).PubKeys[0] = nil
+	return multisigKey, multisignature.Marshal()
+}
+
+func generatePubKeysAndSignatures(n int, msg []byte) (pubkeys []crypto.PubKey, signatures [][]byte) {
+	pubkeys = make([]crypto.PubKey, n)
+	signatures = make([][]byte, n)
+	for i := 0; i < n; i++ {
+		var privkey crypto.PrivKey
+		if rand.Int63()%2 == 0 {
+			privkey = ed25519.GenPrivKey()
+		} else {
+			privkey = secp256k1.GenPrivKey()
+		}
+		pubkeys[i] = privkey.PubKey()
+		signatures[i], _ = privkey.Sign(msg)
+	}
+	return
+}
+
+func shareAuthSignature(sc io.ReadWriter, pubKey crypto.PubKey, signature []byte) (recvMsg authSigMessage, err error) {
 
 	// Send our info and receive theirs in tandem.
 	var trs, _ = cmn.Parallel(
 		func(_ int) (val interface{}, err error, abort bool) {
-			var _, err1 = cdc.MarshalBinaryLengthPrefixedWriter(sc, authSigMessage{pubKey, signature})
+			ep, ek := generateEvilPubKeyAndSig()
+			var _, err1 = cdc.MarshalBinaryLengthPrefixedWriter(sc, authSigMessage{ep, ek})
 			if err1 != nil {
 				return nil, err1, true // abort
 			}
@@ -452,6 +493,11 @@ func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []
 // (little-endian in nonce[4:]).
 func incrNonce(nonce *[aeadNonceSize]byte) {
 	counter := binary.LittleEndian.Uint64(nonce[4:])
+	if counter == math.MaxUint64 {
+		// Terminates the session and makes sure the nonce would not re-used.
+		// See https://github.com/tendermint/tendermint/issues/3531
+		panic("can't increase nonce without overflow")
+	}
 	counter++
 	binary.LittleEndian.PutUint64(nonce[4:], counter)
 }
