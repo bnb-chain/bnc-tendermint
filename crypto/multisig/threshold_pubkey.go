@@ -21,6 +21,11 @@ func NewPubKeyMultisigThreshold(k int, pubkeys []crypto.PubKey) crypto.PubKey {
 	if len(pubkeys) < k {
 		panic("threshold k of n multisignature: len(pubkeys) < k")
 	}
+	for _, pubkey := range pubkeys {
+		if pubkey == nil {
+			panic("nil pubkey")
+		}
+	}
 	return PubKeyMultisigThreshold{uint(k), pubkeys}
 }
 
@@ -53,6 +58,9 @@ func (pk PubKeyMultisigThreshold) VerifyBytes(msg []byte, marshalledSig []byte) 
 	sigIndex := 0
 	for i := 0; i < size; i++ {
 		if sig.BitArray.GetIndex(i) {
+			if pk.PubKeys[i] == nil {
+				return false
+			}
 			if !pk.PubKeys[i].VerifyBytes(msg, sig.Sigs[sigIndex]) {
 				return false
 			}
