@@ -33,7 +33,7 @@ const (
 type MempoolPacket struct {
 	chID     byte
 	src      p2p.Peer
-	msgBytes []byte
+	msg      MempoolMessage
 }
 
 // Reactor handles mempool tx broadcasting amongst peers.
@@ -169,18 +169,6 @@ func (memR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 
 // Receive implements Reactor.
 func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
-	memR.recvCh <- &MempoolPacket{chID: chID, src: src, msgBytes: msgBytes}
-}
-
-func (memR *Reactor) receiveRoutine() {
-	memR.Logger.Debug("Starting ReceiveRoutine for mempool")
-	for p := range memR.recvCh {
-		memR.receiveImpl(p.chID, p.src, p.msgBytes)
-	}
-}
-
-// It adds any received transactions to the mempool.
-func (memR *Reactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := memR.decodeMsg(msgBytes)
 	if err != nil {
 		memR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
@@ -188,7 +176,18 @@ func (memR *Reactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte) {
 		return
 	}
 	memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
+	memR.recvCh <- &MempoolPacket{chID: chID, src: src, msg: msg}
+}
 
+func (memR *Reactor) receiveRoutine() {
+	memR.Logger.Debug("Starting ReceiveRoutine for mempool")
+	for p := range memR.recvCh {
+		memR.receiveImpl(p.chID, p.src, p.msg)
+	}
+}
+
+// It adds any received transactions to the mempool.
+func (memR *Reactor) receiveImpl(chID byte, src p2p.Peer, msg MempoolMessage) {
 	switch msg := msg.(type) {
 	case *TxMessage:
 		peerID := memR.ids.GetForPeer(src)
