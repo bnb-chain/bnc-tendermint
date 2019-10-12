@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.31.5-binance.3
+*Oct 12th, 2019*
+### Bugfix:
+
+The previous patch was insufficient because the attacker could still find a way
+to submit a `nil` pubkey by constructing a `PubKeyMultisigThreshold` pubkey
+with `nil` subpubkeys for example.
+
+This release provides multiple fixes, which include recovering from panics when
+accepting new peers and only allowing `ed25519` pubkeys.
+
+### SECURITY:
+
+- [p2p] [\#4030](https://github.com/tendermint/tendermint/issues/4030) Only allow ed25519 pubkeys when connecting
+
 ## v0.31.5-binance.2
 *Sep 6th, 2019*
 ### FEATURES:
