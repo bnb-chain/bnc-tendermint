@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -20,6 +21,7 @@ import (
 
 	pool "github.com/libp2p/go-buffer-pool"
 	"github.com/tendermint/tendermint/crypto"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"golang.org/x/crypto/hkdf"
 )
@@ -107,11 +109,11 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 
 	sendAead, err := chacha20poly1305.New(sendSecret[:])
 	if err != nil {
-		return nil, errors.New("Invalid send SecretConnection Key")
+		return nil, errors.New("invalid send SecretConnection Key")
 	}
 	recvAead, err := chacha20poly1305.New(recvSecret[:])
 	if err != nil {
-		return nil, errors.New("Invalid receive SecretConnection Key")
+		return nil, errors.New("invalid receive SecretConnection Key")
 	}
 	// Construct SecretConnection.
 	sc := &SecretConnection{
@@ -133,11 +135,11 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey crypto.PrivKey) (*
 	}
 
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
-	if remPubKey == nil{
-		return nil, errors.New("pubkey is missing")
+	if _, ok := remPubKey.(ed25519.PubKeyEd25519); !ok {
+		return nil, fmt.Errorf("expected ed25519 pubkey, got %T", remPubKey)
 	}
 	if !remPubKey.VerifyBytes(challenge[:], remSignature) {
-		return nil, errors.New("Challenge verification failed")
+		return nil, errors.New("challenge verification failed")
 	}
 
 	// We've authorized.
@@ -220,7 +222,7 @@ func (sc *SecretConnection) Read(data []byte) (n int, err error) {
 	defer pool.Put(frame)
 	_, err = sc.recvAead.Open(frame[:0], sc.recvNonce[:], sealedFrame, nil)
 	if err != nil {
-		return n, errors.New("Failed to decrypt SecretConnection")
+		return n, errors.New("failed to decrypt SecretConnection")
 	}
 	incrNonce(sc.recvNonce)
 	// end decryption
