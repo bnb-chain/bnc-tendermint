@@ -33,7 +33,7 @@ const (
 type MempoolPacket struct {
 	chID     byte
 	src      p2p.Peer
-	msg      MempoolMessage
+	msg      *MempoolMessage
 }
 
 // Reactor handles mempool tx broadcasting amongst peers.
@@ -176,7 +176,7 @@ func (memR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		return
 	}
 	memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
-	memR.recvCh <- &MempoolPacket{chID: chID, src: src, msg: msg}
+	memR.recvCh <- &MempoolPacket{chID: chID, src: src, msg: &msg}
 }
 
 func (memR *Reactor) receiveRoutine() {
