@@ -101,7 +101,7 @@ func (vote *Vote) String() string {
 		cmn.Fingerprint(vote.ValidatorAddress),
 		vote.Height,
 		vote.Round,
-		vote.Type,
+		byte(vote.Type),
 		typeString,
 		cmn.Fingerprint(vote.BlockID.Hash),
 		cmn.Fingerprint(vote.Signature),

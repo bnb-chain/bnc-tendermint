@@ -376,13 +376,6 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, txInfo TxInfo, res *abci.Resp
 			}
 			memTx.senders.Store(txInfo.SenderID, true)
 			mem.addTx(memTx)
-			mem.logger.Info("Added good transaction",
-				"tx", txID(tx),
-				"res", r,
-				"height", memTx.height,
-				"total", mem.Size(),
-				"fromPersistent", memTx.fromPersistent,
-			)
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
