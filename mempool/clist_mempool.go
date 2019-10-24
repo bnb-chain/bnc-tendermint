@@ -587,9 +587,8 @@ func (mem *CListMempool) recheckTxs() {
 	// NOTE: globalCb may be called concurrently.
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
-		mem.proxyAppConn.CheckTxAsync(abci.RequestCheckTx{
+		mem.proxyAppConn.ReCheckTxAsync(abci.RequestCheckTx{
 			Tx:   memTx.tx,
-			Type: abci.CheckTxType_Recheck,
 		})
 	}
 

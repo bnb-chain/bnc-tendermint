@@ -106,7 +106,7 @@ func (app *localClient) CheckTxAsync(req types.RequestCheckTx) *ReqRes {
 func (app *localClient) ReCheckTxAsync(req types.RequestCheckTx) *ReqRes {
 	app.mtx.Lock()
 	defer app.mtx.Unlock()
-	res := app.Application.CheckTx(req)
+	res := app.Application.ReCheckTx(req)
 	return app.callback(
 		types.ToRequestCheckTx(req),
 		types.ToResponseCheckTx(res),
