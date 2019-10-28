@@ -199,7 +199,10 @@ func (txi *TxIndex) Search(queryStr string) ([]*types.TxResult, error) {
 	filteredHashes := make(map[string][]byte)
 
 	// get a list of conditions (like "tx.height > 5")
-	conditions := q.Conditions()
+	conditions, err := q.Conditions()
+	if err != nil {
+		return nil, errors.Wrap(err, "error during parsing conditions from query")
+	}
 
 	// if there is a hash condition, return the result immediately
 	hash, err, ok := lookForHash(conditions)
