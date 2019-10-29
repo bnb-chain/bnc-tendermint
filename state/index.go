@@ -152,7 +152,7 @@ func (ih *IndexHub) SetIndexedHeight(h int64) {
 	if err != nil {
 		ih.Logger.Error("failed to MarshalBinaryBare for indexed height", "error", err, "height", h)
 	} else {
-		ih.stateDB.Set(IndexHeightKey, rawHeight)
+		ih.stateDB.SetSync(IndexHeightKey, rawHeight)
 	}
 }
 
