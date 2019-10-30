@@ -54,6 +54,6 @@ func (bki *BlockIndex) Index(header *types.Header) error {
 	if err != nil {
 		return err
 	}
-	bki.store.Set(hash, rawBytes)
+	bki.store.SetSync(hash, rawBytes)
 	return nil
 }
