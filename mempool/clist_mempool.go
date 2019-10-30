@@ -31,11 +31,13 @@ import (
 type CListMempool struct {
 	config *cfg.MempoolConfig
 
-	proxyMtx     sync.Mutex
-	proxyAppConn proxy.AppConnMempool
-	txs          *clist.CList // concurrent linked-list of good txs
-	preCheck     PreCheckFunc
-	postCheck    PostCheckFunc
+	proxyLowMtx      sync.Mutex
+	proxyNextMtx     sync.Mutex
+	proxyBlockingMtx sync.Mutex
+	proxyAppConn     proxy.AppConnMempool
+	txs              *clist.CList // concurrent linked-list of good txs
+	preCheck         PreCheckFunc
+	postCheck        PostCheckFunc
 
 	// Track whether we're rechecking txs.
 	// These are not protected by a mutex and are expected to be mutated
@@ -136,18 +138,18 @@ func (mem *CListMempool) InitWAL() {
 	walDir := mem.config.WalDir()
 	err := cmn.EnsureDir(walDir, 0700)
 	if err != nil {
-		panic(errors.Wrap(err, "Error ensuring WAL dir"))
+		panic(errors.Wrap(err, "Error ensuring Mempool WAL dir"))
 	}
 	af, err := auto.OpenAutoFile(walDir + "/wal")
 	if err != nil {
-		panic(errors.Wrap(err, "Error opening WAL file"))
+		panic(errors.Wrap(err, "Error opening Mempool WAL file"))
 	}
 	mem.wal = af
 }
 
 func (mem *CListMempool) CloseWAL() {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	if err := mem.wal.Close(); err != nil {
 		mem.logger.Error("Error closing WAL", "err", err)
@@ -156,11 +158,25 @@ func (mem *CListMempool) CloseWAL() {
 }
 
 func (mem *CListMempool) Lock() {
-	mem.proxyMtx.Lock()
+	mem.proxyNextMtx.Lock()
+	mem.proxyBlockingMtx.Lock()
+	mem.proxyNextMtx.Unlock()
 }
 
 func (mem *CListMempool) Unlock() {
-	mem.proxyMtx.Unlock()
+	mem.proxyBlockingMtx.Unlock()
+}
+
+func (mem *CListMempool) LockLow() {
+	mem.proxyLowMtx.Lock()
+	mem.proxyNextMtx.Lock()
+	mem.proxyBlockingMtx.Lock()
+	mem.proxyNextMtx.Unlock()
+}
+
+func (mem *CListMempool) UnlockLow() {
+	mem.proxyBlockingMtx.Unlock()
+	mem.proxyLowMtx.Unlock()
 }
 
 func (mem *CListMempool) Size() int {
@@ -176,8 +192,8 @@ func (mem *CListMempool) FlushAppConn() error {
 }
 
 func (mem *CListMempool) Flush() {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	mem.cache.Reset()
 
@@ -192,7 +208,6 @@ func (mem *CListMempool) Flush() {
 
 // TxsFront returns the first transaction in the ordered list for peer
 // goroutines to call .NextWait() on.
-// FIXME: leaking implementation details!
 func (mem *CListMempool) TxsFront() *clist.CElement {
 	return mem.txs.Front()
 }
@@ -213,9 +228,9 @@ func (mem *CListMempool) CheckTx(tx types.Tx, cb func(*abci.Response)) (err erro
 }
 
 func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(*abci.Response), txInfo TxInfo) (err error) {
-	mem.proxyMtx.Lock()
+	mem.LockLow()
 	// use defer to unlock mutex because application (*local client*) might panic
-	defer mem.proxyMtx.Unlock()
+	defer mem.UnlockLow()
 
 	var (
 		memSize  = mem.Size()
@@ -379,7 +394,7 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, txInfo TxInfo, res *abci.Resp
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
-			mem.logger.Info("Rejected bad transaction", "tx", txID(tx), "res", r, "err", postCheckErr)
+			mem.logger.Info("Rejected bad transaction", "tx", TxID(tx), "res", r, "err", postCheckErr)
 			mem.metrics.FailedTxs.Add(1)
 			// remove from cache (it might be good later)
 			mem.cache.Remove(tx)
@@ -412,7 +427,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			// Good, nothing to do.
 		} else {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Info("Tx is no longer valid", "tx", txID(tx), "res", r, "err", postCheckErr)
+			mem.logger.Info("Tx is no longer valid", "tx", TxID(tx), "res", r, "err", postCheckErr)
 			// NOTE: we remove tx from the cache because it might be good later
 			mem.removeTx(tx, mem.recheckCursor, true)
 		}
@@ -455,8 +470,8 @@ func (mem *CListMempool) notifyTxsAvailable() {
 }
 
 func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	for atomic.LoadInt32(&mem.rechecking) > 0 {
 		// TODO: Something better?
@@ -492,8 +507,8 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxBytes, maxGas int64) types.Txs {
 }
 
 func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
-	mem.proxyMtx.Lock()
-	defer mem.proxyMtx.Unlock()
+	mem.Lock()
+	defer mem.Unlock()
 
 	if max < 0 {
 		max = mem.txs.Len()
@@ -556,9 +571,9 @@ func (mem *CListMempool) Update(
 
 	// Either recheck non-committed txs to see if they became invalid
 	// or just notify there're some txs left.
-	if mem.Size() > 0 {
+	if memSize := mem.Size(); memSize > 0 {
 		if mem.config.Recheck {
-			mem.logger.Info("Recheck txs", "numtxs", mem.Size(), "height", height)
+			mem.logger.Info("Recheck txs", "numtxs", memSize, "height", height)
 			mem.recheckTxs()
 			// At this point, mem.txs are being rechecked.
 			// mem.recheckCursor re-scans mem.txs and possibly removes some txs.
@@ -704,7 +719,7 @@ func txKey(tx types.Tx) [sha256.Size]byte {
 	return sha256.Sum256(tx)
 }
 
-// txID is the hex encoded hash of the bytes as a types.Tx.
-func txID(tx []byte) string {
+// TxID is the hex encoded hash of the bytes as a types.Tx.
+func TxID(tx []byte) string {
 	return fmt.Sprintf("%X", types.Tx(tx).Hash())
 }

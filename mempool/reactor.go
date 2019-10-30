@@ -198,7 +198,7 @@ func (memR *Reactor) receiveImpl(chID byte, src p2p.Peer, msgBytes []byte) {
 			if err == ErrTxInCache {
 				memR.Logger.Debug("Could not check tx", "tx", "err", err)
 			} else {
-				memR.Logger.Info("Could not check tx", "tx", txID(msg.Tx), "err", err)
+				memR.Logger.Info("Could not check tx", "tx", TxID(msg.Tx), "err", err)
 			}
 		}
 		// broadcasting happens from go routines per peer
