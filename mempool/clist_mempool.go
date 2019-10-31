@@ -394,7 +394,7 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, txInfo TxInfo, res *abci.Resp
 			mem.notifyTxsAvailable()
 		} else {
 			// ignore bad transaction
-			mem.logger.Info("Rejected bad transaction", "tx", TxID(tx), "res", r, "err", postCheckErr)
+			mem.logger.Info("Rejected bad transaction", "tx", txID(tx), "res", r, "err", postCheckErr)
 			mem.metrics.FailedTxs.Add(1)
 			// remove from cache (it might be good later)
 			mem.cache.Remove(tx)
@@ -427,7 +427,7 @@ func (mem *CListMempool) resCbRecheck(req *abci.Request, res *abci.Response) {
 			// Good, nothing to do.
 		} else {
 			// Tx became invalidated due to newly committed block.
-			mem.logger.Info("Tx is no longer valid", "tx", TxID(tx), "res", r, "err", postCheckErr)
+			mem.logger.Info("Tx is no longer valid", "tx", txID(tx), "res", r, "err", postCheckErr)
 			// NOTE: we remove tx from the cache because it might be good later
 			mem.removeTx(tx, mem.recheckCursor, true)
 		}
@@ -720,7 +720,7 @@ func txKey(tx types.Tx) [sha256.Size]byte {
 	return sha256.Sum256(tx)
 }
 
-// TxID is the hex encoded hash of the bytes as a types.Tx.
-func TxID(tx []byte) string {
+// txID is the hex encoded hash of the bytes as a types.Tx.
+func txID(tx []byte) string {
 	return fmt.Sprintf("%X", types.Tx(tx).Hash())
 }
