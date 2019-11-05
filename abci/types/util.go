@@ -53,3 +53,29 @@ func ConvertDeprecatedDeliverTxResponse(deprecated *ResponseDeliverTxDeprecated)
 		XXX_sizecache:        deprecated.XXX_sizecache,
 	}
 }
+
+func ConvertDeprecatedBeginBlockResponse(deprecated *ResponseBeginBlockDeprecated) *ResponseBeginBlock {
+	if deprecated == nil {
+		return nil
+	}
+	return &ResponseBeginBlock{
+		Events:               []Event{{Attributes: deprecated.Tags}},
+		XXX_NoUnkeyedLiteral: deprecated.XXX_NoUnkeyedLiteral,
+		XXX_unrecognized:     deprecated.XXX_unrecognized,
+		XXX_sizecache:        deprecated.XXX_sizecache,
+	}
+}
+
+func ConvertDeprecatedEndBlockResponse(deprecated *ResponseEndBlockDeprecated) *ResponseEndBlock {
+	if deprecated == nil {
+		return nil
+	}
+	return &ResponseEndBlock{
+		ValidatorUpdates:      deprecated.ValidatorUpdates,
+		ConsensusParamUpdates: deprecated.ConsensusParamUpdates,
+		Events:                []Event{{Attributes: deprecated.Tags}},
+		XXX_NoUnkeyedLiteral:  deprecated.XXX_NoUnkeyedLiteral,
+		XXX_unrecognized:      deprecated.XXX_unrecognized,
+		XXX_sizecache:         deprecated.XXX_sizecache,
+	}
+}

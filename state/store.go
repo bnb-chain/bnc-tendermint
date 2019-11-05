@@ -140,15 +140,15 @@ func saveState(db dbm.DB, state State, key []byte) {
 // of the various ABCI calls during block processing.
 // It is persisted to disk for each height before calling Commit.
 type ABCIResponses struct {
-	DeliverTx  []*abci.ResponseDeliverTx `json:"deliver_tx"`
-	EndBlock   *abci.ResponseEndBlock    `json:"end_block"`
-	BeginBlock *abci.ResponseBeginBlock  `json:"begin_block"`
+	DeliverTx  []*abci.ResponseDeliverTx
+	EndBlock   *abci.ResponseEndBlock
+	BeginBlock *abci.ResponseBeginBlock
 }
 
 type ABCIResponsesDeprecated struct {
-	DeliverTx  []*abci.ResponseDeliverTxDeprecated `json:"deliver_tx"`
-	EndBlock   *abci.ResponseEndBlock              `json:"end_block"`
-	BeginBlock *abci.ResponseBeginBlock            `json:"begin_block"`
+	DeliverTx  []*abci.ResponseDeliverTxDeprecated
+	EndBlock   *abci.ResponseEndBlockDeprecated
+	BeginBlock *abci.ResponseBeginBlockDeprecated
 }
 
 // NewABCIResponses returns a new ABCIResponses
@@ -185,21 +185,21 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 	abciResponses := new(ABCIResponses)
 	err := cdc.UnmarshalBinaryBare(buf, abciResponses)
 	if err != nil {
-		abciResponsesDeprecated := new(ABCIResponsesDeprecated)
-		err := cdc.UnmarshalBinaryBare(buf, abciResponsesDeprecated)
+		deprecated := new(ABCIResponsesDeprecated)
+		err := cdc.UnmarshalBinaryBare(buf, deprecated)
 		if err != nil {
 			// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 			cmn.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
                 changed: %v\n`, err))
 		}
 		var deliverTxs []*abci.ResponseDeliverTx
-		for _, result := range abciResponsesDeprecated.DeliverTx {
+		for _, result := range deprecated.DeliverTx {
 			deliverTxs = append(deliverTxs, abci.ConvertDeprecatedDeliverTxResponse(result))
 		}
 		return &ABCIResponses{
 			DeliverTx:  deliverTxs,
-			EndBlock:   abciResponsesDeprecated.EndBlock,
-			BeginBlock: abciResponsesDeprecated.BeginBlock,
+			EndBlock:   abci.ConvertDeprecatedEndBlockResponse(deprecated.EndBlock),
+			BeginBlock: abci.ConvertDeprecatedBeginBlockResponse(deprecated.BeginBlock),
 		}, nil
 	}
 	// TODO: ensure that buf is completely read.
