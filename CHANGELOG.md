@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.32.3-binance.1
+
+### IMPROVEMENTS:
+
+- [Performance] [\#110](https://github.com/binance-chain/bnc-tendermint/pull/110) Improve performance
+
+### BUG FIXES:
+
+- [index] [\#129](https://github.com/binance-chain/bnc-tendermint/pull/129) fix tx indexer lag behind block
+
 ## v0.32.3
 
 *August 28, 2019*
