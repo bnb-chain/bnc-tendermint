@@ -122,6 +122,14 @@ type TxResult struct {
 	Result abci.ResponseDeliverTx `json:"result"`
 }
 
+// One usage is indexing transaction results.
+type TxResultDeprecated struct {
+	Height int64                            `json:"height"`
+	Index  uint32                           `json:"index"`
+	Tx     Tx                               `json:"tx"`
+	Result abci.ResponseDeliverTxDeprecated `json:"result"`
+}
+
 // ComputeAminoOverhead calculates the overhead for amino encoding a transaction.
 // The overhead consists of varint encoding the field number and the wire type
 // (= length-delimited = 2), and another varint encoding the length of the

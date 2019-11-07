@@ -26,7 +26,7 @@ const (
 	VoteChannel        = byte(0x22)
 	VoteSetBitsChannel = byte(0x23)
 
-	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+	maxMsgSize = 2 * 1048576 // 2MB; NOTE/TODO: keep in sync with types.PartSet sizes.
 
 	blocksToContributeToBecomeGoodPeer = 10000
 	votesToContributeToBecomeGoodPeer  = 10000
@@ -117,8 +117,13 @@ func (conR *ConsensusReactor) SwitchToConsensus(state sm.State, blocksSynced int
 	}
 	err := conR.conS.Start()
 	if err != nil {
-		conR.Logger.Error("Error starting conS", "err", err)
-		return
+		panic(fmt.Sprintf(`Failed to start consensus state: %v
+
+conS:
+%+v
+
+conR:
+%+v`, err, conR.conS, conR))
 	}
 }
 
@@ -156,7 +161,8 @@ func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 	}
 }
 
-// AddPeer implements Reactor
+// AddPeer implements Reactor by spawning multiple gossiping goroutines for the
+// peer.
 func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 	if !conR.IsRunning() {
 		return
@@ -164,10 +170,8 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 
 	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
 	if !ok {
-		// should not happen
-		panic(fmt.Sprintf("Peer %v has no state", peer))
+		panic(fmt.Sprintf("peer %v has no state", peer))
 	}
-
 	// Begin routines for this peer.
 	go conR.gossipDataRoutine(peer, peerState)
 	go conR.gossipVotesRoutine(peer, peerState)
@@ -180,14 +184,14 @@ func (conR *ConsensusReactor) AddPeer(peer p2p.Peer) {
 	}
 }
 
-func (conR *ConsensusReactor) InitAddPeer(peer p2p.Peer) p2p.Peer {
+func (conR *ConsensusReactor) InitPeer(peer p2p.Peer) p2p.Peer {
 	// Create peerState for peer
 	peerState := NewPeerState(peer).SetLogger(conR.Logger)
 	peer.Set(types.PeerStateKey, peerState)
 	return peer
 }
 
-// RemovePeer implements Reactor
+// RemovePeer is a noop.
 func (conR *ConsensusReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	if !conR.IsRunning() {
 		return
@@ -354,10 +358,6 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	default:
 		conR.Logger.Error(fmt.Sprintf("Unknown chId %X", chID))
 	}
-
-	if err != nil {
-		conR.Logger.Error("Error in Receive()", "err", err)
-	}
 }
 
 // SetEventBus sets event bus.
@@ -502,7 +502,7 @@ OUTER_LOOP:
 			if prs.ProposalBlockParts == nil {
 				blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
 				if blockMeta == nil {
-					cmn.PanicCrisis(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
+					panic(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
 						prs.Height, conR.conS.blockStore.Height()))
 				}
 				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
@@ -1128,7 +1128,7 @@ func (ps *PeerState) ensureCatchupCommitRound(height int64, round int, numValida
 		NOTE: This is wrong, 'round' could change.
 		e.g. if orig round is not the same as block LastCommit round.
 		if ps.CatchupCommitRound != -1 && ps.CatchupCommitRound != round {
-			cmn.PanicSanity(fmt.Sprintf("Conflicting CatchupCommitRound. Height: %v, Orig: %v, New: %v", height, ps.CatchupCommitRound, round))
+			panic(fmt.Sprintf("Conflicting CatchupCommitRound. Height: %v, Orig: %v, New: %v", height, ps.CatchupCommitRound, round))
 		}
 	*/
 	if ps.PRS.CatchupCommitRound == round {
@@ -1538,6 +1538,9 @@ func (m *BlockPartMessage) ValidateBasic() error {
 	if m.Round < 0 {
 		return errors.New("Negative Round")
 	}
+	if m.Part == nil {
+		return errors.New("block part is missing")
+	}
 	if err := m.Part.ValidateBasic(); err != nil {
 		return fmt.Errorf("Wrong Part: %v", err)
 	}
@@ -1558,6 +1561,9 @@ type VoteMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *VoteMessage) ValidateBasic() error {
+	if m.Vote == nil {
+		return errors.New("vote is missing")
+	}
 	return m.Vote.ValidateBasic()
 }
 

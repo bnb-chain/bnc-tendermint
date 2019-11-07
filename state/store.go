@@ -145,6 +145,12 @@ type ABCIResponses struct {
 	BeginBlock *abci.ResponseBeginBlock
 }
 
+type ABCIResponsesDeprecated struct {
+	DeliverTx  []*abci.ResponseDeliverTxDeprecated
+	EndBlock   *abci.ResponseEndBlockDeprecated
+	BeginBlock *abci.ResponseBeginBlockDeprecated
+}
+
 // NewABCIResponses returns a new ABCIResponses
 func NewABCIResponses(block *types.Block) *ABCIResponses {
 	resDeliverTxs := make([]*abci.ResponseDeliverTx, block.NumTxs)
@@ -179,9 +185,22 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 	abciResponses := new(ABCIResponses)
 	err := cdc.UnmarshalBinaryBare(buf, abciResponses)
 	if err != nil {
-		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
-		cmn.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
+		deprecated := new(ABCIResponsesDeprecated)
+		err := cdc.UnmarshalBinaryBare(buf, deprecated)
+		if err != nil {
+			// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
+			cmn.Exit(fmt.Sprintf(`LoadABCIResponses: Data has been corrupted or its spec has
                 changed: %v\n`, err))
+		}
+		var deliverTxs []*abci.ResponseDeliverTx
+		for _, result := range deprecated.DeliverTx {
+			deliverTxs = append(deliverTxs, abci.ConvertDeprecatedDeliverTxResponse(result))
+		}
+		return &ABCIResponses{
+			DeliverTx:  deliverTxs,
+			EndBlock:   abci.ConvertDeprecatedEndBlockResponse(deprecated.EndBlock),
+			BeginBlock: abci.ConvertDeprecatedBeginBlockResponse(deprecated.BeginBlock),
+		}, nil
 	}
 	// TODO: ensure that buf is completely read.
 
@@ -191,7 +210,7 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // SaveABCIResponses persists the ABCIResponses to the database.
 // This is useful in case we crash after app.Commit and before s.Save().
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
-func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
+func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
 	db.SetSync(calcABCIResponsesKey(height), abciResponses.Bytes())
 }
 

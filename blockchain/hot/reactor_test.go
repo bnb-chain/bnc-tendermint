@@ -7,14 +7,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/mock"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -221,7 +222,7 @@ func newBlockchainReactorPair(logger log.Logger, genDoc *types.GenesisDoc, privV
 	}
 	blockDB := dbm.NewMemDB()
 	stateDB := dbm.NewMemDB()
-	blockStore := blockchain.NewBlockStore(blockDB)
+	blockStore := store.NewBlockStore(blockDB)
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
 		panic(cmn.ErrorWrap(err, "error constructing state from genesis file"))
@@ -230,8 +231,10 @@ func newBlockchainReactorPair(logger log.Logger, genDoc *types.GenesisDoc, privV
 	// Make the BlockPool itself.
 	// NOTE we have to create and commit the blocks first because
 	// pool.height is determined from the store.
-	blockExec := sm.NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), proxyApp.Consensus(),
-		sm.MockMempool{}, sm.MockEvidencePool{}, true)
+	db := dbm.NewMemDB()
+	blockExec := sm.NewBlockExecutor(db, log.TestingLogger(), proxyApp.Consensus(),
+		mock.Mempool{}, sm.MockEvidencePool{}, true)
+	sm.SaveState(db, state)
 	// let's add some blocks in
 	for blockHeight := int64(1); blockHeight <= maxBlockHeight; blockHeight++ {
 		lastCommit := types.NewCommit(types.BlockID{}, nil)

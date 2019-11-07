@@ -44,12 +44,12 @@ type StatePool struct {
 	mtx          sync.Mutex
 	manifest     *abci.Manifest
 	manifestHash abci.SHA256Sum
-	dummyHash abci.SHA256Sum
+	dummyHash    abci.SHA256Sum
 	state        *sm.State // tendermint state
-	block 		 *types.Block
-	seenCommit 	 *types.Commit
+	block        *types.Block
+	seenCommit   *types.Commit
 	stateDB      dbm.DB
-	app       	 proxy.AppConnState
+	app          proxy.AppConnState
 
 	requesters sync.Map // map[abci.SHA256Sum]*spRequester
 
@@ -59,7 +59,7 @@ type StatePool struct {
 
 	// peers
 	respondedPeers map[abci.SHA256Sum]map[p2p.ID]struct{} // peers that response manifest to us, used to determine whom we will trust and request snapshot chunk from
-	trustedPeers   map[p2p.ID]*spPeer          			  // peers we trusted and want sync from
+	trustedPeers   map[p2p.ID]*spPeer                     // peers we trusted and want sync from
 
 	// number of pending request snapshots after pool init
 	numPending int
@@ -70,7 +70,7 @@ type StatePool struct {
 
 func NewStatePool(app proxy.AppConnState, requestsCh chan<- SnapshotRequest, errorsCh chan<- peerError, stateDB dbm.DB) *StatePool {
 	sp := &StatePool{
-		app: 					app,
+		app:                    app,
 		trustedPeers:           make(map[p2p.ID]*spPeer),
 		receivedManifests:      make(map[abci.SHA256Sum]*abci.Manifest),
 		pendingScheduledHashes: make(chan abci.SHA256Sum, 100),
@@ -259,7 +259,7 @@ func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest,
 		return err
 	}
 
-	for peer, _ := range peers {
+	for peer := range peers {
 		pool.addPeerGuarded(peer, hash)
 	}
 
@@ -293,7 +293,7 @@ func (pool *StatePool) initGuarded(hash abci.SHA256Sum, manifest *abci.Manifest,
 func (pool *StatePool) loadFromDiskOrSchedule(hash abci.SHA256Sum, existChunks map[abci.SHA256Sum]abci.SnapshotChunk) {
 	if compressed, err := Manager().Reader.LoadFromRestoration(hash); err == nil {
 		chunkHash := sha256.Sum256(compressed)
-		if chunkHash != hash {	// the chunk we downloaded last time is not complete, re-download it again
+		if chunkHash != hash { // the chunk we downloaded last time is not complete, re-download it again
 			pool.pendingScheduledHashes <- hash
 		}
 		if decompressed, err := snappy.Decode(nil, compressed); err == nil {
@@ -399,7 +399,7 @@ func (pool *StatePool) processChunk(peerID p2p.ID, msg *bcChunkResponseMessage, 
 }
 
 // TODO: this function may block receive goroutine which makes peer timeout
-func (pool *StatePool) processChunkImpl(hash abci.SHA256Sum, snapshotChunk abci.SnapshotChunk) (err error){
+func (pool *StatePool) processChunkImpl(hash abci.SHA256Sum, snapshotChunk abci.SnapshotChunk) (err error) {
 	numPending := pool.numPending
 
 	switch chunk := snapshotChunk.(type) {
@@ -637,6 +637,6 @@ type SnapshotRequest struct {
 	PeerID p2p.ID
 }
 
-func(req SnapshotRequest) String() string {
+func (req SnapshotRequest) String() string {
 	return fmt.Sprintf("%d, %x", req.Height, req.Hash)
 }

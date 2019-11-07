@@ -28,9 +28,9 @@ type Client interface {
 	EchoAsync(msg string) *ReqRes
 	InfoAsync(types.RequestInfo) *ReqRes
 	SetOptionAsync(types.RequestSetOption) *ReqRes
-	DeliverTxAsync(tx []byte) *ReqRes
-	CheckTxAsync(tx []byte) *ReqRes
-	ReCheckTxAsync(tx []byte) *ReqRes
+	ReCheckTxAsync(types.RequestCheckTx) *ReqRes
+	DeliverTxAsync(types.RequestDeliverTx) *ReqRes
+	CheckTxAsync(types.RequestCheckTx) *ReqRes
 	QueryAsync(types.RequestQuery) *ReqRes
 	CommitAsync() *ReqRes
 	InitChainAsync(types.RequestInitChain) *ReqRes
@@ -41,8 +41,8 @@ type Client interface {
 	EchoSync(msg string) (*types.ResponseEcho, error)
 	InfoSync(types.RequestInfo) (*types.ResponseInfo, error)
 	SetOptionSync(types.RequestSetOption) (*types.ResponseSetOption, error)
-	DeliverTxSync(tx []byte) (*types.ResponseDeliverTx, error)
-	CheckTxSync(tx []byte) (*types.ResponseCheckTx, error)
+	DeliverTxSync(types.RequestDeliverTx) (*types.ResponseDeliverTx, error)
+	CheckTxSync(types.RequestCheckTx) (*types.ResponseCheckTx, error)
 	QuerySync(types.RequestQuery) (*types.ResponseQuery, error)
 	CommitSync() (*types.ResponseCommit, error)
 	InitChainSync(types.RequestInitChain) (*types.ResponseInitChain, error)

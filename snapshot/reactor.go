@@ -12,12 +12,12 @@ import (
 
 	"github.com/tendermint/go-amino"
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/proxy"
+	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
 
@@ -47,6 +47,12 @@ const (
 	// otherwise there will be "holes" on their blockstore which might cause other new peers retry block sync
 	stateSyncLockFileName = "STATESYNC.LOCK"
 )
+
+type fastSyncReactor interface {
+	// for when we switch from blockchain reactor and fast sync to
+	// the consensus machine
+	SwitchToBlockchain(*sm.State)
+}
 
 type peerError struct {
 	err    error
@@ -222,7 +228,7 @@ func (bcSR *StateReactor) startFastSync() {
 		bcSR.Logger.Error("failed to stat state sync lock file", "err", err)
 	}
 
-	bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(*blockchain.BlockchainReactor)
+	bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(fastSyncReactor)
 	bcR.SwitchToBlockchain(bcSR.pool.state)
 	bcSR.pool.Stop()
 }

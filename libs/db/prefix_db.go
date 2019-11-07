@@ -212,7 +212,10 @@ func (pdb *prefixDB) Stats() map[string]string {
 }
 
 func (pdb *prefixDB) prefixed(key []byte) []byte {
-	return append(cp(pdb.prefix), key...)
+	ret := make([]byte, len(pdb.prefix), len(pdb.prefix)+len(key))
+	copy(ret, pdb.prefix)
+	ret = append(ret, key...)
+	return ret
 }
 
 //----------------------------------------
@@ -231,13 +234,11 @@ func newPrefixBatch(prefix []byte, source Batch) prefixBatch {
 }
 
 func (pb prefixBatch) Set(key, value []byte) {
-	pkey := append(cp(pb.prefix), key...)
-	pb.source.Set(pkey, value)
+	pb.source.Set(pb.prefixed(key), value)
 }
 
 func (pb prefixBatch) Delete(key []byte) {
-	pkey := append(cp(pb.prefix), key...)
-	pb.source.Delete(pkey)
+	pb.source.Delete(pb.prefixed(key))
 }
 
 func (pb prefixBatch) Write() {
@@ -250,6 +251,13 @@ func (pb prefixBatch) WriteSync() {
 
 func (pb prefixBatch) Close() {
 	pb.source.Close()
+}
+
+func (pb prefixBatch) prefixed(key []byte) []byte {
+	ret := make([]byte, len(pb.prefix), len(pb.prefix) + len(key))
+	copy(ret, pb.prefix)
+	ret = append(ret, key...)
+	return ret
 }
 
 //----------------------------------------

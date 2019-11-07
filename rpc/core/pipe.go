@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"time"
 
 	cfg "github.com/tendermint/tendermint/config"
@@ -47,7 +48,8 @@ type transport interface {
 }
 
 type peers interface {
-	DialPeersAsync(p2p.AddrBook, []string, bool) error
+	AddPersistentPeers([]string) error
+	DialPeersAsync([]string) error
 	NumPeers() (outbound, inbound, dialig int)
 	Peers() p2p.IPeerSet
 }
@@ -76,8 +78,8 @@ var (
 	blockIndexer     blockindex.BlockIndexer
 	consensusReactor *consensus.ConsensusReactor
 	eventBus         *types.EventBus // thread safe
-	mempool          *mempl.Mempool
 	indexerHub       *sm.IndexHub
+	mempool          mempl.Mempool
 
 	logger log.Logger
 
@@ -92,7 +94,7 @@ func SetBlockStore(bs sm.BlockStore) {
 	blockStore = bs
 }
 
-func SetMempool(mem *mempl.Mempool) {
+func SetMempool(mem mempl.Mempool) {
 	mempool = mem
 }
 
@@ -157,19 +159,24 @@ func SetConfig(c cfg.RPCConfig) {
 	config = c
 }
 
-func validatePage(page, perPage, totalCount int) int {
+func validatePage(page, perPage, totalCount int) (int, error) {
 	if perPage < 1 {
-		return 1
+		panic(fmt.Sprintf("zero or negative perPage: %d", perPage))
+	}
+
+	if page == 0 {
+		return 1, nil // default
 	}
 
 	pages := ((totalCount - 1) / perPage) + 1
-	if page < 1 {
-		page = 1
-	} else if page > pages {
-		page = pages
+	if pages == 0 {
+		pages = 1 // one page (even if it's empty)
+	}
+	if page < 0 || page > pages {
+		return 1, fmt.Errorf("page should be within [0, %d] range, given %d", pages, page)
 	}
 
-	return page
+	return page, nil
 }
 
 func validatePerPage(perPage int) int {
