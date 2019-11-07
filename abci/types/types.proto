@@ -81,8 +81,14 @@ message RequestBeginBlock {
   repeated Evidence byzantine_validators = 4 [(gogoproto.nullable)=false];
 }
 
+enum CheckTxType {
+  New = 0;
+  Recheck = 1;
+}
+
 message RequestCheckTx {
   bytes tx = 1;
+  CheckTxType type = 2;
 }
 
 message RequestDeliverTx {
@@ -165,10 +171,25 @@ message ResponseQuery {
 }
 
 message ResponseBeginBlock {
+  repeated Event events = 1 [(gogoproto.nullable)=false, (gogoproto.jsontag)="events,omitempty"];
+}
+
+message ResponseBeginBlockDeprecated {
   repeated common.KVPair tags = 1 [(gogoproto.nullable)=false, (gogoproto.jsontag)="tags,omitempty"];
 }
 
 message ResponseCheckTx {
+  uint32 code = 1;
+  bytes data = 2;
+  string log = 3; // nondeterministic
+  string info = 4; // nondeterministic
+  int64 gas_wanted  = 5;
+  int64 gas_used = 6;
+  repeated Event events = 7 [(gogoproto.nullable)=false, (gogoproto.jsontag)="events,omitempty"];
+  string codespace = 8;
+}
+
+message ResponseCheckTxDeprecated {
   uint32 code = 1;
   bytes data = 2;
   string log = 3; // nondeterministic
@@ -186,11 +207,28 @@ message ResponseDeliverTx {
   string info = 4; // nondeterministic
   int64 gas_wanted = 5;
   int64 gas_used = 6;
+  repeated Event events = 7 [(gogoproto.nullable)=false, (gogoproto.jsontag)="events,omitempty"];
+  string codespace = 8;
+}
+
+message ResponseDeliverTxDeprecated {
+  uint32 code = 1;
+  bytes data = 2;
+  string log = 3; // nondeterministic
+  string info = 4; // nondeterministic
+  int64 gas_wanted = 5;
+  int64 gas_used = 6;
   repeated common.KVPair tags = 7 [(gogoproto.nullable)=false, (gogoproto.jsontag)="tags,omitempty"];
   string codespace = 8;
 }
 
 message ResponseEndBlock {
+  repeated ValidatorUpdate validator_updates = 1 [(gogoproto.nullable)=false];
+  ConsensusParams consensus_param_updates = 2;
+  repeated Event events = 3 [(gogoproto.nullable)=false, (gogoproto.jsontag)="events,omitempty"];
+}
+
+message ResponseEndBlockDeprecated {
   repeated ValidatorUpdate validator_updates = 1 [(gogoproto.nullable)=false];
   ConsensusParams consensus_param_updates = 2;
   repeated common.KVPair tags = 3 [(gogoproto.nullable)=false, (gogoproto.jsontag)="tags,omitempty"];
@@ -212,7 +250,6 @@ message ConsensusParams {
   ValidatorParams validator = 3;
 }
 
-// BlockSize contains limits on the block size.
 message BlockSizeParams {
   // Note: must be greater than 0
   int64 max_bytes = 1;
@@ -234,6 +271,11 @@ message ValidatorParams {
 message LastCommitInfo {
   int32 round = 1;
   repeated VoteInfo votes = 2 [(gogoproto.nullable)=false];
+}
+
+message Event {
+  string type = 1;
+  repeated common.KVPair attributes = 2 [(gogoproto.nullable)=false, (gogoproto.jsontag)="attributes,omitempty"];
 }
 
 //----------------------------------------

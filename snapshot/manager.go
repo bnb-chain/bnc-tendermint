@@ -3,12 +3,12 @@ package snapshot
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/tendermint/tendermint/store"
 	"sync/atomic"
 
 	"github.com/golang/snappy"
 
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/blockchain"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	sm "github.com/tendermint/tendermint/state"
@@ -20,7 +20,7 @@ var manager atomic.Value // the global manager maintain tracking current snapsho
 func InitSnapshotManager(
 	stateDB dbm.DB,
 	txIndexDB dbm.DB,
-	blockStore *blockchain.BlockStore,
+	blockStore *store.BlockStore,
 	dbDir string,
 	logger log.Logger) {
 
@@ -72,7 +72,7 @@ func ManagerAt(height int64) *SnapshotManager {
 type SnapshotManager struct {
 	stateDB    dbm.DB
 	txIndexDB  dbm.DB
-	blockStore *blockchain.BlockStore
+	blockStore *store.BlockStore
 	logger     log.Logger
 	height     int64
 
@@ -147,7 +147,7 @@ func (mgr *SnapshotManager) GetStateDB() dbm.DB {
 	return mgr.stateDB
 }
 
-func (mgr *SnapshotManager) GetBlockStore() *blockchain.BlockStore {
+func (mgr *SnapshotManager) GetBlockStore() *store.BlockStore {
 	return mgr.blockStore
 }
 

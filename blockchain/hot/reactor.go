@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/tendermint/go-amino"
-	"github.com/tendermint/tendermint/blockchain"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
+	"github.com/tendermint/tendermint/store"
 	sm "github.com/tendermint/tendermint/state"
 	"github.com/tendermint/tendermint/types"
 )
@@ -54,7 +54,7 @@ type BlockchainReactor struct {
 type BlockChainOption func(*BlockchainReactor)
 
 // NewBlockChainReactor returns new reactor instance.
-func NewBlockChainReactor(state sm.State, blockExec *sm.BlockExecutor, store *blockchain.BlockStore, hotSync, fastSync bool, blockTimeout time.Duration, options ...BlockChainOption) *BlockchainReactor {
+func NewBlockChainReactor(state sm.State, blockExec *sm.BlockExecutor, store *store.BlockStore, hotSync, fastSync bool, blockTimeout time.Duration, options ...BlockChainOption) *BlockchainReactor {
 
 	if state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
@@ -197,7 +197,7 @@ func (hbcR *BlockchainReactor) switchRoutine() {
 		case <-hbcR.pool.Quit():
 			return
 		case <-switchToConsensusTicker.C:
-			if hbcR.pool.getSyncPattern() == Hot && hbcR.privValidator != nil && hbcR.pool.state.Validators.HasAddress(hbcR.privValidator.GetAddress()) {
+			if hbcR.pool.getSyncPattern() == Hot && hbcR.privValidator != nil && hbcR.pool.state.Validators.HasAddress(hbcR.privValidator.GetPubKey().Address()) {
 				hbcR.Logger.Info("hot sync switching to consensus sync")
 				conR, ok := hbcR.Switch.Reactor("CONSENSUS").(consensusReactor)
 				if ok {

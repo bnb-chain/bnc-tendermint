@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	ManifestVersion int32 = 0
-	ChunkPayloadMaxBytes int = 4 * 1024 * 1024 // 4M before compression
-	snapshotDir string = "snapshot"
-	finalizedDir string = "current"
-	restorationDir string = "restoration"
-	manifestFileName string = "MANIFEST"
+	ManifestVersion      int32  = 0
+	ChunkPayloadMaxBytes int    = 4 * 1024 * 1024 // 4M before compression
+	snapshotDir          string = "snapshot"
+	finalizedDir         string = "current"
+	restorationDir       string = "restoration"
+	manifestFileName     string = "MANIFEST"
 )
 
 // AppStateChunk completeness enums

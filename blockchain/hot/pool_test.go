@@ -10,14 +10,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/tendermint/tendermint/abci/types"
-	"github.com/tendermint/tendermint/blockchain"
 	cfg "github.com/tendermint/tendermint/config"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
+	tmmock "github.com/tendermint/tendermint/mock"
 	"github.com/tendermint/tendermint/p2p/mock"
 	"github.com/tendermint/tendermint/proxy"
 	sm "github.com/tendermint/tendermint/state"
+	"github.com/tendermint/tendermint/store"
 	"github.com/tendermint/tendermint/types"
 	tmtime "github.com/tendermint/tendermint/types/time"
 )
@@ -504,7 +505,7 @@ func newBlockchainPoolPair(logger log.Logger, genDoc *types.GenesisDoc, privVals
 	}
 	blockDB := dbm.NewMemDB()
 	stateDB := dbm.NewMemDB()
-	blockStore := blockchain.NewBlockStore(blockDB)
+	blockStore := store.NewBlockStore(blockDB)
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
 	if err != nil {
 		panic(cmn.ErrorWrap(err, "error constructing state from genesis file"))
@@ -513,8 +514,10 @@ func newBlockchainPoolPair(logger log.Logger, genDoc *types.GenesisDoc, privVals
 	// Make the BlockPool itself.
 	// NOTE we have to create and commit the blocks first because
 	// pool.height is determined from the store.
-	blockExec := sm.NewBlockExecutor(dbm.NewMemDB(), log.TestingLogger(), proxyApp.Consensus(),
-		sm.MockMempool{}, sm.MockEvidencePool{}, true)
+	db := dbm.NewMemDB()
+	blockExec := sm.NewBlockExecutor(db, log.TestingLogger(), proxyApp.Consensus(),
+		tmmock.Mempool{}, sm.MockEvidencePool{}, true)
+	sm.SaveState(db, state)
 	// let's add some blocks in
 	for blockHeight := int64(1); blockHeight <= maxBlockHeight; blockHeight++ {
 		lastCommit := types.NewCommit(types.BlockID{}, nil)
@@ -552,7 +555,7 @@ type BlockPoolPair struct {
 	privVals     []types.PrivValidator
 }
 
-func nextBlock(state sm.State, blockStore *blockchain.BlockStore, blockExec *sm.BlockExecutor, pri types.PrivValidator) (*types.Block, *types.Commit, *types.VoteSet) {
+func nextBlock(state sm.State, blockStore *store.BlockStore, blockExec *sm.BlockExecutor, pri types.PrivValidator) (*types.Block, *types.Commit, *types.VoteSet) {
 	height := blockStore.Height()
 	lastBlockMeta := blockStore.LoadBlockMeta(height)
 	lastBlock := blockStore.LoadBlock(height)
@@ -587,11 +590,11 @@ func (app *testApp) EndBlock(req abci.RequestEndBlock) abci.ResponseEndBlock {
 	return abci.ResponseEndBlock{}
 }
 
-func (app *testApp) DeliverTx(tx []byte) abci.ResponseDeliverTx {
-	return abci.ResponseDeliverTx{Tags: []cmn.KVPair{}}
+func (app *testApp) DeliverTx(req abci.RequestDeliverTx) abci.ResponseDeliverTx {
+	return abci.ResponseDeliverTx{}
 }
 
-func (app *testApp) CheckTx(tx []byte) abci.ResponseCheckTx {
+func (app *testApp) CheckTx(req abci.RequestCheckTx) abci.ResponseCheckTx {
 	return abci.ResponseCheckTx{}
 }
 

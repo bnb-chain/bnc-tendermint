@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"io"
+	"math"
 	"net"
 	"sync"
 	"time"
@@ -160,8 +161,10 @@ func (sc *SecretConnection) Write(data []byte) (n int, err error) {
 		if err := func() error {
 			var sealedFrame = pool.Get(aeadSizeOverhead + totalFrameSize)
 			var frame = pool.Get(totalFrameSize)
-			defer pool.Put(sealedFrame)
-			defer pool.Put(frame)
+			defer func() {
+				pool.Put(sealedFrame)
+				pool.Put(frame)
+			}()
 			var chunk []byte
 			if dataMaxSize < len(data) {
 				chunk = data[:dataMaxSize]
@@ -456,6 +459,11 @@ func shareAuthSignature(sc *SecretConnection, pubKey crypto.PubKey, signature []
 // (little-endian in nonce[4:]).
 func incrNonce(nonce *[aeadNonceSize]byte) {
 	counter := binary.LittleEndian.Uint64(nonce[4:])
+	if counter == math.MaxUint64 {
+		// Terminates the session and makes sure the nonce would not re-used.
+		// See https://github.com/tendermint/tendermint/issues/3531
+		panic("can't increase nonce without overflow")
+	}
 	counter++
 	binary.LittleEndian.PutUint64(nonce[4:], counter)
 }

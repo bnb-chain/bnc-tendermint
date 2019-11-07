@@ -9,8 +9,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	optPkg "github.com/syndtr/goleveldb/leveldb/opt"
-
-	cmn "github.com/tendermint/tendermint/libs/common"
 )
 
 func init() {
@@ -71,7 +69,7 @@ func (db *GoLevelDB) Set(key []byte, value []byte) {
 	value = nonNilBytes(value)
 	err := db.db.Put(key, value, nil)
 	if err != nil {
-		cmn.PanicCrisis(err)
+		panic(err)
 	}
 }
 
@@ -81,7 +79,7 @@ func (db *GoLevelDB) SetSync(key []byte, value []byte) {
 	value = nonNilBytes(value)
 	err := db.db.Put(key, value, &optPkg.WriteOptions{Sync: true})
 	if err != nil {
-		cmn.PanicCrisis(err)
+		panic(err)
 	}
 }
 
@@ -90,7 +88,7 @@ func (db *GoLevelDB) Delete(key []byte) {
 	key = nonNilBytes(key)
 	err := db.db.Delete(key, nil)
 	if err != nil {
-		cmn.PanicCrisis(err)
+		panic(err)
 	}
 }
 
@@ -99,7 +97,7 @@ func (db *GoLevelDB) DeleteSync(key []byte) {
 	key = nonNilBytes(key)
 	err := db.db.Delete(key, &optPkg.WriteOptions{Sync: true})
 	if err != nil {
-		cmn.PanicCrisis(err)
+		panic(err)
 	}
 }
 
