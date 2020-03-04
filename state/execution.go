@@ -251,6 +251,8 @@ func execBlockOnProxyApp(
 
 	txIndex := 0
 
+	abciResponses := NewABCIResponses(block)
+
 	// Execute transactions and get hash.
 	proxyCb := func(req *abci.Request, res *abci.Response) {
 		if r, ok := res.Value.(*abci.Response_DeliverTx); ok {
@@ -272,11 +274,13 @@ func execBlockOnProxyApp(
 
 	// Begin block
 	var err error
-	_, err = proxyAppConn.BeginBlockSync(abci.RequestBeginBlock{
+	commitInfo, byzVals := getBeginBlockValidatorInfo(block, state, stateDB)
+
+	abciResponses.BeginBlock, err = proxyAppConn.BeginBlockSync(abci.RequestBeginBlock{
 		Hash:                block.Hash(),
 		Header:              types.TM2PB.Header(&block.Header),
-		LastCommitInfo:      abci.LastCommitInfo{},
-		ByzantineValidators: nil,
+		LastCommitInfo:      commitInfo,
+		ByzantineValidators: byzVals,
 	})
 	if err != nil {
 		logger.Error("Error in proxyAppConn.BeginBlock", "err", err)
@@ -292,7 +296,7 @@ func execBlockOnProxyApp(
 	}
 
 	// End block.
-	_, err = proxyAppConn.EndBlockSync(abci.RequestEndBlock{Height: block.Height})
+	abciResponses.EndBlock, err = proxyAppConn.EndBlockSync(abci.RequestEndBlock{Height: block.Height})
 	if err != nil {
 		logger.Error("Error in proxyAppConn.EndBlock", "err", err)
 		return nil, err
@@ -300,24 +304,16 @@ func execBlockOnProxyApp(
 
 	logger.Info("Executed block", "height", block.Height, "validTxs", validTxs, "invalidTxs", invalidTxs)
 
-	return &ABCIResponses{}, nil
+	return abciResponses, nil
 }
 
 func getBeginBlockValidatorInfo(block *types.Block, state *State, stateDB dbm.DB) (abci.LastCommitInfo, []abci.Evidence) {
 	voteInfos := make([]abci.VoteInfo, block.LastCommit.Size())
 	byzVals := make([]abci.Evidence, len(block.Evidence.Evidence))
 	var lastValSet *types.ValidatorSet
-	var err error
 	if block.Height > 1 {
 		// for state sync, validator set can't be load from db and it should be equal to the validator set in state
-		if block.Height == state.LastBlockHeight + 1 {
-			lastValSet = state.Validators
-		} else {
-			lastValSet, err = LoadValidators(stateDB, block.Height-1)
-			if err != nil {
-				panic(err) // shouldn't happen
-			}
-		}
+		lastValSet = state.Validators
 
 		// Sanity check that commit length matches validator set size -
 		// only applies after first block

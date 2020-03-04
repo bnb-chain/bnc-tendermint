@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"os"
 	"reflect"
 
 	//"strconv"
@@ -438,7 +439,8 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBl
 
 		h.nBlocks++
 	}
-
+	h.logger.Info("finish replay")
+	os.Exit(0)
 	if mutateState {
 		// sync the final block
 		state, err = h.replayBlock(state, storeBlockHeight, proxyApp.Consensus())
