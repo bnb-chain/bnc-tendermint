@@ -610,6 +610,12 @@ func NewNode(config *cfg.Config,
 	logger log.Logger,
 	options ...Option) (*Node, error) {
 
+	if config.ProfListenAddress != "" {
+		go func() {
+			logger.Error("Profile server", "err", http.ListenAndServe(config.ProfListenAddress, nil))
+		}()
+	}
+
 	blockStore, stateDB, err := initDBs(config, dbProvider)
 	if err != nil {
 		return nil, err
@@ -761,11 +767,6 @@ func NewNode(config *cfg.Config,
 		createHotSyncReactorAndAddToSwitch(privValidator, blockExec, blockStore, eventBus, state, config, fastSync, htMetrics, sw, logger)
 	}
 
-	if config.ProfListenAddress != "" {
-		go func() {
-			logger.Error("Profile server", "err", http.ListenAndServe(config.ProfListenAddress, nil))
-		}()
-	}
 
 	node := &Node{
 		config:        config,
