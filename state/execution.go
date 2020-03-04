@@ -250,7 +250,6 @@ func execBlockOnProxyApp(
 	var validTxs, invalidTxs = 0, 0
 
 	txIndex := 0
-	abciResponses := NewABCIResponses(block)
 
 	// Execute transactions and get hash.
 	proxyCb := func(req *abci.Request, res *abci.Response) {
@@ -265,21 +264,19 @@ func execBlockOnProxyApp(
 				logger.Debug("Invalid tx", "code", txRes.Code, "log", txRes.Log)
 				invalidTxs++
 			}
-			abciResponses.DeliverTx[txIndex] = txRes
 			txIndex++
 		}
 	}
 	proxyAppConn.SetResponseCallback(proxyCb)
 
-	commitInfo, byzVals := getBeginBlockValidatorInfo(block, state, stateDB)
 
 	// Begin block
 	var err error
-	abciResponses.BeginBlock, err = proxyAppConn.BeginBlockSync(abci.RequestBeginBlock{
+	_, err = proxyAppConn.BeginBlockSync(abci.RequestBeginBlock{
 		Hash:                block.Hash(),
 		Header:              types.TM2PB.Header(&block.Header),
-		LastCommitInfo:      commitInfo,
-		ByzantineValidators: byzVals,
+		LastCommitInfo:      abci.LastCommitInfo{},
+		ByzantineValidators: nil,
 	})
 	if err != nil {
 		logger.Error("Error in proxyAppConn.BeginBlock", "err", err)
@@ -295,7 +292,7 @@ func execBlockOnProxyApp(
 	}
 
 	// End block.
-	abciResponses.EndBlock, err = proxyAppConn.EndBlockSync(abci.RequestEndBlock{Height: block.Height})
+	_, err = proxyAppConn.EndBlockSync(abci.RequestEndBlock{Height: block.Height})
 	if err != nil {
 		logger.Error("Error in proxyAppConn.EndBlock", "err", err)
 		return nil, err
@@ -303,7 +300,7 @@ func execBlockOnProxyApp(
 
 	logger.Info("Executed block", "height", block.Height, "validTxs", validTxs, "invalidTxs", invalidTxs)
 
-	return abciResponses, nil
+	return &ABCIResponses{}, nil
 }
 
 func getBeginBlockValidatorInfo(block *types.Block, state *State, stateDB dbm.DB) (abci.LastCommitInfo, []abci.Evidence) {
