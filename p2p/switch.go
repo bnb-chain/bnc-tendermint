@@ -20,8 +20,8 @@ const (
 
 	// repeatedly try to reconnect for a few minutes
 	// ie. 5 * 20 = 100s
-	reconnectAttempts = 20
-	reconnectInterval = 5 * time.Second
+	reconnectAttempts = 200000000
+	reconnectInterval = 50 * time.Millisecond
 
 	// then move into exponential backoff mode for ~1day
 	// ie. 3**10 = 16hrs
@@ -713,9 +713,9 @@ func (sw *Switch) addOutboundPeerWithConfig(
 
 func (sw *Switch) filterPeer(p Peer) error {
 	// Avoid duplicate
-	if sw.peers.Has(p.ID()) {
-		return ErrRejected{id: p.ID(), isDuplicate: true}
-	}
+	//if sw.peers.Has(p.ID()) {
+	//	return ErrRejected{id: p.ID(), isDuplicate: true}
+	//}
 
 	errc := make(chan error, len(sw.peerFilters))
 

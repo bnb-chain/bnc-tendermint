@@ -62,6 +62,7 @@ func (ids *mempoolIDs) ReserveForPeer(peer p2p.Peer) {
 
 	curID := ids.nextPeerID()
 	ids.peerMap[peer.ID()] = curID
+	fmt.Printf("======= do reserve %d ======\n", curID)
 	ids.activeIDs[curID] = struct{}{}
 }
 
@@ -89,8 +90,16 @@ func (ids *mempoolIDs) Reclaim(peer p2p.Peer) {
 
 	removedID, ok := ids.peerMap[peer.ID()]
 	if ok {
+		fmt.Printf("============do remove === %d\n", removedID)
 		delete(ids.activeIDs, removedID)
 		delete(ids.peerMap, peer.ID())
+	} else {
+		fmt.Printf("==== size  %d\n", len(ids.activeIDs))
+		keys := make([]uint16, 0)
+		for k := range ids.activeIDs {
+			keys = append(keys, k)
+		}
+		fmt.Println("============do not remove === ", keys)
 	}
 }
 

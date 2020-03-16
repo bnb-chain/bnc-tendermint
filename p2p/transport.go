@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 	"net"
 	"time"
 
@@ -83,15 +84,15 @@ type ConnFilterFunc func(ConnSet, net.Conn, []net.IP) error
 // and refuses new ones if they come from a known ip.
 func ConnDuplicateIPFilter() ConnFilterFunc {
 	return func(cs ConnSet, c net.Conn, ips []net.IP) error {
-		for _, ip := range ips {
-			if cs.HasIP(ip) {
-				return ErrRejected{
-					conn:        c,
-					err:         fmt.Errorf("IP<%v> already connected", ip),
-					isDuplicate: true,
-				}
-			}
-		}
+		//for _, ip := range ips {
+		//	if cs.HasIP(ip) {
+		//		return ErrRejected{
+		//			conn:        c,
+		//			err:         fmt.Errorf("IP<%v> already connected", ip),
+		//			isDuplicate: true,
+		//		}
+		//	}
+		//}
 
 		return nil
 	}
@@ -200,6 +201,15 @@ func (mt *MultiplexTransport) Dial(
 	addr NetAddress,
 	cfg peerConfig,
 ) (Peer, error) {
+	var (
+		pv     = ed25519.GenPrivKey()
+	)
+	mt.nodeKey = NodeKey{
+		PrivKey: pv,
+	}
+	ni,_:=mt.nodeInfo.(DefaultNodeInfo)
+	ni.ID_ = mt.nodeKey.ID()
+	mt.nodeInfo = ni
 	c, err := addr.DialTimeout(mt.dialTimeout)
 	if err != nil {
 		return nil, err
@@ -219,7 +229,7 @@ func (mt *MultiplexTransport) Dial(
 
 	p := mt.wrapPeer(secretConn, nodeInfo, cfg, &addr)
 
-	return p, nil
+	return p, fmt.Errorf("test error")
 }
 
 // Close implements transportLifecycle.
@@ -338,9 +348,9 @@ func (mt *MultiplexTransport) filterConn(c net.Conn) (err error) {
 	}()
 
 	// Reject if connection is already present.
-	if mt.conns.Has(c) {
-		return ErrRejected{conn: c, isDuplicate: true}
-	}
+	//if mt.conns.Has(c) {
+	//	return ErrRejected{conn: c, isDuplicate: true}
+	//}
 
 	// Resolve ips for incoming conn.
 	ips, err := resolveIPs(mt.resolver, c)
@@ -519,6 +529,8 @@ func handshake(
 	go func(errc chan<- error, c net.Conn) {
 		_, err := cdc.MarshalBinaryLengthPrefixedWriter(c, ourNodeInfo)
 		errc <- err
+		//write invalid bytes
+		c.Write([]byte{0x1,0x2,0x3,0x00})
 	}(errc, c)
 	go func(errc chan<- error, c net.Conn) {
 		_, err := cdc.UnmarshalBinaryLengthPrefixedReader(
