@@ -32,9 +32,9 @@ var Routes = map[string]*rpc.RPCFunc{
 	"num_unconfirmed_txs":  rpc.NewRPCFunc(NumUnconfirmedTxs, ""),
 
 	// tx broadcast API
-	"broadcast_tx_commit": rpc.NewRPCFunc(BroadcastTxCommit, "tx"),
-	"broadcast_tx_sync":   rpc.NewRPCFunc(BroadcastTxSync, "tx"),
-	"broadcast_tx_async":  rpc.NewRPCFunc(BroadcastTxAsync, "tx"),
+	"broadcast_tx_commit": rpc.NewRPCFunc(BroadcastTxCommit, "tx,encode"),
+	"broadcast_tx_sync":   rpc.NewRPCFunc(BroadcastTxSync, "tx,encode"),
+	"broadcast_tx_async":  rpc.NewRPCFunc(BroadcastTxAsync, "tx,encode"),
 
 	// abci API
 	"abci_query": rpc.NewRPCFunc(ABCIQuery, "path,data,height,prove"),

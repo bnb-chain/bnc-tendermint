@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -213,6 +214,19 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
 func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+	fmt.Println(hex.EncodeToString(tx))
+	resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
+		Path:   "custom/encode/tx",
+		Data:   tx,
+		Height: 0,
+		Prove:  false,
+	})
+	if err != nil {
+		return nil, err
+	}
+	tx = resQuery.Value
+	fmt.Println(hex.EncodeToString(tx))
+
 	subscriber := ctx.RemoteAddr()
 
 	if eventBus.NumClients() >= config.MaxSubscriptionClients {
