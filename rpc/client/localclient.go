@@ -82,15 +82,15 @@ func (c *Local) ABCIQueryWithOptions(path string, data cmn.HexBytes, opts ABCIQu
 }
 
 func (c *Local) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	return core.BroadcastTxCommit(c.ctx, tx)
+	return core.BroadcastTxCommit(c.ctx, tx, false)
 }
 
 func (c *Local) BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	return core.BroadcastTxAsync(c.ctx, tx)
+	return core.BroadcastTxAsync(c.ctx, tx, false)
 }
 
 func (c *Local) BroadcastTxSync(tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
-	return core.BroadcastTxSync(c.ctx, tx)
+	return core.BroadcastTxSync(c.ctx, tx, false)
 }
 
 func (c *Local) UnconfirmedTxs(limit int) (*ctypes.ResultUnconfirmedTxs, error) {

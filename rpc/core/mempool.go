@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -73,7 +72,20 @@ import (
 // | Parameter | Type | Default | Required | Description     |
 // |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
-func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.ResultBroadcastTx, error) {
+	if encode {
+		resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
+			Path:   "custom/encode/tx",
+			Data:   tx,
+			Height: 0,
+			Prove:  false,
+		})
+		if err != nil {
+			return nil, err
+		}
+		tx = resQuery.Value
+	}
+
 	err := mempool.CheckTx(tx, nil)
 	if err != nil {
 		return nil, err
@@ -134,7 +146,20 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadca
 // | Parameter | Type | Default | Required | Description     |
 // |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
-func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTx, error) {
+func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.ResultBroadcastTx, error) {
+	if encode {
+		resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
+			Path:   "custom/encode/tx",
+			Data:   tx,
+			Height: 0,
+			Prove:  false,
+		})
+		if err != nil {
+			return nil, err
+		}
+		tx = resQuery.Value
+	}
+
 	resCh := make(chan *abci.Response, 1)
 	err := mempool.CheckTx(tx, func(res *abci.Response) {
 		resCh <- res
@@ -213,19 +238,19 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcas
 // | Parameter | Type | Default | Required | Description     |
 // |-----------|------|---------|----------|-----------------|
 // | tx        | Tx   | nil     | true     | The transaction |
-func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-	fmt.Println(hex.EncodeToString(tx))
-	resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
-		Path:   "custom/encode/tx",
-		Data:   tx,
-		Height: 0,
-		Prove:  false,
-	})
-	if err != nil {
-		return nil, err
+func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.ResultBroadcastTxCommit, error) {
+	if encode {
+		resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
+			Path:   "custom/encode/tx",
+			Data:   tx,
+			Height: 0,
+			Prove:  false,
+		})
+		if err != nil {
+			return nil, err
+		}
+		tx = resQuery.Value
 	}
-	tx = resQuery.Value
-	fmt.Println(hex.EncodeToString(tx))
 
 	subscriber := ctx.RemoteAddr()
 
