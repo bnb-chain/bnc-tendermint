@@ -75,7 +75,7 @@ import (
 func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.ResultBroadcastTx, error) {
 	if encode {
 		resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
-			Path:   "custom/encode/tx",
+			Path:   "custom/amino/encodeTx",
 			Data:   tx,
 			Height: 0,
 			Prove:  false,
@@ -149,7 +149,7 @@ func BroadcastTxAsync(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.
 func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.ResultBroadcastTx, error) {
 	if encode {
 		resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
-			Path:   "custom/encode/tx",
+			Path:   "custom/amino/encodeTx",
 			Data:   tx,
 			Height: 0,
 			Prove:  false,
@@ -241,7 +241,7 @@ func BroadcastTxSync(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.R
 func BroadcastTxCommit(ctx *rpctypes.Context, tx types.Tx, encode bool) (*ctypes.ResultBroadcastTxCommit, error) {
 	if encode {
 		resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
-			Path:   "custom/encode/tx",
+			Path:   "custom/amino/encodeTx",
 			Data:   tx,
 			Height: 0,
 			Prove:  false,
