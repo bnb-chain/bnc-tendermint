@@ -97,6 +97,13 @@ func (conR *ConsensusReactor) OnStop() {
 	}
 }
 
+func (conR *ConsensusReactor) SwitchToCatchUp() {
+	conR.mtx.Lock()
+	conR.fastSync = false
+	conR.mtx.Unlock()
+	conR.metrics.FastSyncing.Set(0)
+}
+
 // SwitchToConsensus switches from fast_sync mode to consensus mode.
 // It resets the state, turns off fast_sync, and starts the consensus state-machine
 func (conR *ConsensusReactor) SwitchToConsensus(state sm.State, blocksSynced int) {

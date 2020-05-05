@@ -41,6 +41,7 @@ type consensusReactor interface {
 	// for when we switch from blockchain reactor and fast sync to
 	// the consensus machine
 	SwitchToConsensus(sm.State, int)
+	SwitchToCatchUp()
 }
 
 type hotsyncReactor interface {
@@ -303,6 +304,10 @@ FOR_LOOP:
 					hotR, ok := bcR.Switch.Reactor("HOT").(hotsyncReactor)
 					if ok {
 						hotR.SwitchToHotSync(state, int32(blocksSynced))
+						conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
+						if ok {
+							conR.SwitchToCatchUp()
+						}
 					} else {
 						// should only happen during testing
 					}
