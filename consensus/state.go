@@ -1356,8 +1356,11 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 func (cs *ConsensusState) recordMetrics(height int64, block *types.Block) {
 	cs.metrics.Validators.Set(float64(cs.Validators.Size()))
 	cs.metrics.ValidatorsPower.Set(float64(cs.Validators.TotalVotingPower()))
-	missingValidators := 0
-	missingValidatorsPower := int64(0)
+	var (
+		missingValidators      = 0
+		missingValidatorsPower int64
+	)
+
 	for i, val := range cs.Validators.Validators {
 		var vote *types.CommitSig
 		if i < len(block.LastCommit.Precommits) {
