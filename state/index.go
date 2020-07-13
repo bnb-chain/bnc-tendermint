@@ -77,6 +77,10 @@ func (ih *IndexHub) OnStart() error {
 	return nil
 }
 
+func (ih *IndexHub) SetExpectedHeight(height int64) {
+	ih.expectHeight = height
+}
+
 func (ih *IndexHub) recoverIndex() {
 	for h := ih.expectHeight; h <= ih.stateHeight; h++ {
 		ih.Logger.Info("try to recover index", "height", h)

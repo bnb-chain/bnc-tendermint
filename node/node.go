@@ -397,7 +397,7 @@ func createBlockchainReactor(config *cfg.Config,
 	case "v0":
 		bcReactor = bcv0.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync, config.HotSyncReactor, config.HotSync)
 	case "v1":
-		bcReactor = bcv1.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync,config.HotSyncReactor, config.HotSync)
+		bcReactor = bcv1.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync, config.HotSyncReactor, config.HotSync)
 	default:
 		return nil, fmt.Errorf("unknown fastsync version %s", config.FastSync.Version)
 	}
@@ -568,13 +568,13 @@ func createHotSyncReactorAndAddToSwitch(privValidator types.PrivValidator, block
 	sw.AddReactor("HOT", hotSyncReactor)
 }
 
-func createStateReactor(txDB dbm.DB, proxyApp proxy.AppConns, blockStore *store.BlockStore, stateDB dbm.DB, config *cfg.Config, logger log.Logger) *snapshot.StateReactor {
+func createStateReactor(txDB dbm.DB, proxyApp proxy.AppConns, blockStore *store.BlockStore, indexHub *sm.IndexHub, stateDB dbm.DB, config *cfg.Config, logger log.Logger) *snapshot.StateReactor {
 	stateSyncLogger := logger.With("module", "statesync")
 	snapshot.InitSnapshotManager(stateDB, txDB, blockStore, config.DBDir(), stateSyncLogger)
 
 	// !!!This method may change config.StateSyncHeight!!!
 	// so the later reactor need read config.StateSyncHeight rather than a copied variable
-	stateReactor := snapshot.NewStateReactor(stateDB, proxyApp.State(), config)
+	stateReactor := snapshot.NewStateReactor(stateDB, proxyApp.State(), config, indexHub)
 	stateReactor.SetLogger(stateSyncLogger)
 	return stateReactor
 }
@@ -699,7 +699,7 @@ func NewNode(config *cfg.Config,
 
 	var stateReactor *snapshot.StateReactor
 	if config.StateSyncReactor {
-		stateReactor = createStateReactor(txDB, proxyApp, blockStore, stateDB, config, logger)
+		stateReactor = createStateReactor(txDB, proxyApp, blockStore, indexHub, stateDB, config, logger)
 	}
 
 	// Make BlockchainReactor
