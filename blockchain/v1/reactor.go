@@ -49,6 +49,7 @@ type consensusReactor interface {
 	// for when we switch from blockchain reactor and fast sync to
 	// the consensus machine
 	SwitchToConsensus(sm.State, int)
+	SwitchToCatchUp()
 }
 
 // BlockchainReactor handles long-term catchup syncing.
@@ -496,6 +497,10 @@ func (bcR *BlockchainReactor) switchToConsensusOrHotSync() {
 		hotR, ok := bcR.Switch.Reactor("HOT").(hotsyncReactor)
 		if ok {
 			hotR.SwitchToHotSync(bcR.state, int32(bcR.blocksSynced))
+			conR, ok := bcR.Switch.Reactor("CONSENSUS").(consensusReactor)
+			if ok {
+				conR.SwitchToCatchUp()
+			}
 		} else {
 			// should only happen during testing
 		}
