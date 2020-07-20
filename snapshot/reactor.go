@@ -54,6 +54,10 @@ type fastSyncReactor interface {
 	SwitchToBlockchain(*sm.State)
 }
 
+type indexHub interface {
+	SetExpectedHeight(height int64)
+}
+
 type peerError struct {
 	err    error
 	peerID p2p.ID
@@ -68,12 +72,14 @@ type StateReactor struct {
 	pool      *StatePool
 	stateSync int64 // 0 and positive for enable this reactor
 
+	idxHub indexHub
+
 	requestsCh <-chan SnapshotRequest
 	errorsCh   <-chan peerError
 }
 
 // NewStateReactor returns new reactor instance.
-func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config) *StateReactor {
+func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config, idxHub indexHub) *StateReactor {
 	requestsCh := make(chan SnapshotRequest, maxInFlightRequesters)
 
 	const capacity = 1000                      // must be bigger than peers count
@@ -97,6 +103,7 @@ func NewStateReactor(stateDB dbm.DB, app proxy.AppConnState, config *cfg.Config)
 		config:     config,
 		pool:       pool,
 		stateSync:  config.StateSyncHeight,
+		idxHub:     idxHub,
 		requestsCh: requestsCh,
 		errorsCh:   errorsCh,
 	}
@@ -227,8 +234,9 @@ func (bcSR *StateReactor) startFastSync() {
 	} else {
 		bcSR.Logger.Error("failed to stat state sync lock file", "err", err)
 	}
-
+	bcSR.idxHub.SetExpectedHeight(bcSR.pool.state.LastBlockHeight + 1)
 	bcR := bcSR.Switch.Reactor("BLOCKCHAIN").(fastSyncReactor)
+
 	bcR.SwitchToBlockchain(bcSR.pool.state)
 	bcSR.pool.Stop()
 }

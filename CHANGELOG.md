@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.32.3-binance.2
+### BUG FIXES:
+- [status] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/140) fix hot sync not a catched up status
+- [consensus] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/141)  fix bug in load last validator set
+- [index] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/142) fix index height can not set after state sync
+
 ## v0.32.3-binance.1
 
 ### IMPROVEMENTS:
