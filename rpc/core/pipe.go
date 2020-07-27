@@ -83,7 +83,8 @@ var (
 
 	logger log.Logger
 
-	config cfg.RPCConfig
+	config  cfg.RPCConfig
+	hotSync bool
 )
 
 func SetStateDB(db dbm.DB) {
@@ -157,6 +158,10 @@ func SetEventBus(b *types.EventBus) {
 // SetConfig sets an RPCConfig.
 func SetConfig(c cfg.RPCConfig) {
 	config = c
+}
+
+func SetHotSync(h bool) {
+	hotSync = h
 }
 
 func validatePage(page, perPage, totalCount int) (int, error) {

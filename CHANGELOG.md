@@ -1,10 +1,13 @@
 # Changelog
 
+## v0.32.3-binance.3
+- [sync] [\#147](https://github.com/binance-chain/bnc-tendermint/pull/147) fix not panic when do not have block under state sync
+
 ## v0.32.3-binance.2
 ### BUG FIXES:
 - [status] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/140) fix hot sync not a catched up status
-- [consensus] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/141)  fix bug in load last validator set
-- [index] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/142) fix index height can not set after state sync
+- [consensus] [\#141](https://github.com/binance-chain/bnc-tendermint/pull/141)  fix bug in load last validator set
+- [index] [\#142](https://github.com/binance-chain/bnc-tendermint/pull/142) fix index height can not set after state sync
 
 ## v0.32.3-binance.1
 

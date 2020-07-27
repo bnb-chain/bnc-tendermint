@@ -929,6 +929,7 @@ func (n *Node) ConfigureRPC() {
 	rpccore.SetEventBus(n.eventBus)
 	rpccore.SetLogger(n.Logger.With("module", "rpc"))
 	rpccore.SetConfig(*n.config.RPC)
+	rpccore.SetHotSync(n.config.HotSync)
 }
 
 func (n *Node) startRPC() ([]net.Listener, error) {
