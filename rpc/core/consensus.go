@@ -54,6 +54,9 @@ func Validators(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultValidato
 	// The latest validator that we know is the
 	// NextValidator of the last block.
 	height := consensusState.GetState().LastBlockHeight + 1
+	if hotSync {
+		height = blockStore.Height()
+	}
 	height, err := getHeight(height, heightPtr)
 	if err != nil {
 		return nil, err
