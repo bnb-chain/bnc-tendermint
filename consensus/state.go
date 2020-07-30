@@ -17,6 +17,7 @@ import (
 
 	cfg "github.com/tendermint/tendermint/config"
 	cstypes "github.com/tendermint/tendermint/consensus/types"
+	"github.com/tendermint/tendermint/crypto"
 	tmevents "github.com/tendermint/tendermint/libs/events"
 	"github.com/tendermint/tendermint/p2p"
 	sm "github.com/tendermint/tendermint/state"
@@ -31,6 +32,8 @@ var (
 	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
 	ErrAddingVote               = errors.New("Error adding vote")
 	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
+
+	errPubKeyIsNotSet = errors.New("pubkey is not set. Look for \"Can't get private validator pubkey\" errors")
 )
 
 //-----------------------------------------------------------------------------
@@ -95,6 +98,9 @@ type ConsensusState struct {
 	mtx sync.RWMutex
 	cstypes.RoundState
 	state sm.State // State until height-1.
+	// privValidator pubkey, memoized for the duration of one block
+	// to avoid extra requests to HSM
+	privValidatorPubKey crypto.PubKey
 
 	// state changes may be triggered by: msgs from peers,
 	// msgs from ourself, or by timeouts
@@ -251,11 +257,17 @@ func (cs *ConsensusState) GetValidators() (int64, []*types.Validator) {
 	return cs.state.LastBlockHeight, cs.state.Validators.Copy().Validators
 }
 
-// SetPrivValidator sets the private validator account for signing votes.
+// SetPrivValidator sets the private validator account for signing votes. It
+// immediately requests pubkey and caches it.
 func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 	cs.mtx.Lock()
+	defer cs.mtx.Unlock()
+
 	cs.privValidator = priv
-	cs.mtx.Unlock()
+
+	if err := cs.updatePrivValidatorPubKey(); err != nil {
+		cs.Logger.Error("Can't get private validator pubkey", "err", err)
+	}
 }
 
 // SetTimeoutTicker sets the local timer. It may be useful to overwrite for testing.
@@ -872,8 +884,17 @@ func (cs *ConsensusState) enterPropose(height int64, round int) {
 		return
 	}
 
+	logger.Debug("This node is a validator")
+
+	if cs.privValidatorPubKey == nil {
+		// If this node is a validator & proposer in the current round, it will
+		// miss the opportunity to create a block.
+		logger.Error(fmt.Sprintf("enterPropose: %v", errPubKeyIsNotSet))
+		return
+	}
+	address := cs.privValidatorPubKey.Address()
+
 	// if not a validator, we're done
-	address := cs.privValidator.GetPubKey().Address()
 	if !cs.Validators.HasAddress(address) {
 		logger.Debug("This node is not a validator", "addr", address, "vals", cs.Validators)
 		return
@@ -950,7 +971,12 @@ func (cs *ConsensusState) isProposalComplete() bool {
 // is returned for convenience so we can log the proposal block.
 // Returns nil block upon error.
 // NOTE: keep it side-effect free for clarity.
+// CONTRACT: cs.privValidator is not nil.
 func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
+	if cs.privValidator == nil {
+		panic("entered createProposalBlock with privValidator being nil")
+	}
+
 	var commit *types.Commit
 	switch {
 	case cs.Height == 1:
@@ -960,13 +986,19 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 	case cs.LastCommit.HasTwoThirdsMajority():
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
-	default:
-		// This shouldn't happen.
-		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
+	default: // This shouldn't happen.
+		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block")
 		return
 	}
 
-	proposerAddr := cs.privValidator.GetPubKey().Address()
+	if cs.privValidatorPubKey == nil {
+		// If this node is a validator & proposer in the current round, it will
+		// miss the opportunity to create a block.
+		cs.Logger.Error(fmt.Sprintf("enterPropose: %v", errPubKeyIsNotSet))
+		return
+	}
+	proposerAddr := cs.privValidatorPubKey.Address()
+
 	return cs.blockExec.CreateProposalBlock(cs.Height, cs.state, commit, proposerAddr)
 }
 
@@ -1343,6 +1375,11 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 
 	fail.Fail() // XXX
 
+	// Private validator might have changed it's key pair => refetch pubkey.
+	if err := cs.updatePrivValidatorPubKey(); err != nil {
+		cs.Logger.Error("Can't get private validator pubkey", "err", err)
+	}
+
 	// cs.StartTime is already set.
 	// Schedule Round0 to start soon.
 	cs.scheduleRound0(&cs.RoundState)
@@ -1513,9 +1550,16 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		if err == ErrVoteHeightMismatch {
 			return added, err
 		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
+			if cs.privValidatorPubKey == nil {
+				return false, errPubKeyIsNotSet
+			}
 			addr := cs.privValidator.GetPubKey().Address()
 			if bytes.Equal(vote.ValidatorAddress, addr) {
-				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
+				cs.Logger.Error(
+					"Found conflicting vote from ourselves. Did you unsafe_reset a validator?",
+					"height", vote.Height,
+					"round", vote.Round,
+					"type", vote.Type)
 				return added, err
 			}
 			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
@@ -1691,7 +1735,10 @@ func (cs *ConsensusState) signVote(type_ types.SignedMsgType, hash []byte, heade
 	// Flush the WAL. Otherwise, we may not recompute the same vote to sign, and the privValidator will refuse to sign anything.
 	cs.wal.FlushAndSync()
 
-	addr := cs.privValidator.GetPubKey().Address()
+	if cs.privValidatorPubKey == nil {
+		return nil, errPubKeyIsNotSet
+	}
+	addr := cs.privValidatorPubKey.Address()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
 
 	vote := &types.Vote{
@@ -1726,8 +1773,18 @@ func (cs *ConsensusState) voteTime() time.Time {
 
 // sign the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, header types.PartSetHeader) *types.Vote {
-	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetPubKey().Address()) {
+	if cs.privValidator == nil { // the node does not have a key
+		return nil
+	}
+
+	if cs.privValidatorPubKey == nil {
+		// Vote won't be signed, but it's not critical.
+		cs.Logger.Error(fmt.Sprintf("signAddVote: %v", errPubKeyIsNotSet))
+		return nil
+	}
+
+	// If the node not in the validator set, do nothing.
+	if !cs.Validators.HasAddress(cs.privValidatorPubKey.Address()) {
 		return nil
 	}
 	vote, err := cs.signVote(type_, hash, header)
@@ -1739,6 +1796,18 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 	//if !cs.replayMode {
 	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	//}
+	return nil
+}
+
+// updatePrivValidatorPubKey get's the private validator public key and
+// memoizes it. This func returns an error if the private validator is not
+// responding or responds with an error.
+func (cs *ConsensusState) updatePrivValidatorPubKey() error {
+	if cs.privValidator == nil {
+		return nil
+	}
+
+	cs.privValidatorPubKey = cs.privValidator.GetPubKey()
 	return nil
 }
 
