@@ -294,7 +294,7 @@ accepting new peers and only allowing `ed25519` pubkeys.
 *July 17th, 2019*
 
 ### IMPROVEMENTS:
-- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool
+- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool 
 - [metrics] [\#96](https://github.com/binance-chain/bnc-tendermint/pull/96) monitor: add more metrics about p2p
 
 
