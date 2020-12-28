@@ -283,7 +283,7 @@ accepting new peers and only allowing `ed25519` pubkeys.
 *Sep 6th, 2019*
 ### FEATURES:
 - [config] [\#115](https://github.com/binance-chain/bnc-tendermint/pull/115) add option to enable range query for tx indexer;add option to disable websocket
-- [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor
+- [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor 
 
 ### IMPROVEMENTS:
 - [index] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/106) index service recover from data lost
@@ -294,7 +294,7 @@ accepting new peers and only allowing `ed25519` pubkeys.
 *July 17th, 2019*
 
 ### IMPROVEMENTS:
-- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool
+- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool 
 - [metrics] [\#96](https://github.com/binance-chain/bnc-tendermint/pull/96) monitor: add more metrics about p2p
 
 
