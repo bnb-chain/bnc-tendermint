@@ -1,6 +1,7 @@
 # Changelog
 ## v0.32.3-binance.4
 - [sync] [\#157](https://github.com/binance-chain/bnc-tendermint/pull/157) fix goroutine/memory leak under hotsync when receive consensus message
+- [api] [\#148](https://github.com/binance-chain/bnc-tendermint/pull/148) fix `validators` api does now show correct height issue
 
 ## v0.32.3-binance.3
 - [sync] [\#147](https://github.com/binance-chain/bnc-tendermint/pull/147) fix not panic when do not have block under state sync
