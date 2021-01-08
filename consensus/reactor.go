@@ -41,6 +41,7 @@ type ConsensusReactor struct {
 	conS *ConsensusState
 
 	mtx      sync.RWMutex
+	hotSync  bool
 	fastSync bool
 	eventBus *types.EventBus
 
@@ -51,10 +52,11 @@ type ReactorOption func(*ConsensusReactor)
 
 // NewConsensusReactor returns a new ConsensusReactor with the given
 // consensusState.
-func NewConsensusReactor(consensusState *ConsensusState, fastSync bool, options ...ReactorOption) *ConsensusReactor {
+func NewConsensusReactor(consensusState *ConsensusState, fastSync bool, hotSync bool, options ...ReactorOption) *ConsensusReactor {
 	conR := &ConsensusReactor{
 		conS:     consensusState,
 		fastSync: fastSync,
+		hotSync:  hotSync,
 		metrics:  NopMetrics(),
 	}
 	conR.updateFastSyncingMetric()
@@ -115,6 +117,7 @@ func (conR *ConsensusReactor) SwitchToConsensus(state sm.State, blocksSynced int
 
 	conR.mtx.Lock()
 	conR.fastSync = false
+	conR.hotSync = false
 	conR.mtx.Unlock()
 	conR.metrics.FastSyncing.Set(0)
 
@@ -290,8 +293,8 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		}
 
 	case DataChannel:
-		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+		if conR.FastSync() || conR.HotSync() {
+			conR.Logger.Info("Ignoring message received during fastSync/hotsync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -310,8 +313,8 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		}
 
 	case VoteChannel:
-		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+		if conR.FastSync() || conR.HotSync() {
+			conR.Logger.Info("Ignoring message received during fastSync/hotSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -332,8 +335,8 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 		}
 
 	case VoteSetBitsChannel:
-		if conR.FastSync() {
-			conR.Logger.Info("Ignoring message received during fastSync", "msg", msg)
+		if conR.FastSync() || conR.HotSync() {
+			conR.Logger.Info("Ignoring message received during fastSync/hotSync", "msg", msg)
 			return
 		}
 		switch msg := msg.(type) {
@@ -378,6 +381,13 @@ func (conR *ConsensusReactor) FastSync() bool {
 	conR.mtx.RLock()
 	defer conR.mtx.RUnlock()
 	return conR.fastSync
+}
+
+// HotSync returns whether the consensus reactor is in hot-sync mode.
+func (conR *ConsensusReactor) HotSync() bool {
+	conR.mtx.RLock()
+	defer conR.mtx.RUnlock()
+	return conR.hotSync
 }
 
 //--------------------------------------
