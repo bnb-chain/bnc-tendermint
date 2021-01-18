@@ -492,6 +492,11 @@ func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.Nod
 	}
 
 	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
+
+	// Limit the number of incoming connections.
+	max := config.P2P.MaxNumInboundPeers
+	p2p.MultiplexTransportMaxIncomingConnections(max)(transport)
+
 	return transport, peerFilters
 }
 
@@ -1269,7 +1274,19 @@ func createAndStartPrivValidatorSocketClient(
 		return nil, errors.Wrap(err, "failed to start private validator")
 	}
 
-	return pvsc, nil
+	// try to get a pubkey from private validate first time
+	pubKey := pvsc.GetPubKey()
+	if pubKey == nil {
+		return nil, errors.New("could not retrieve public key from private validator")
+	}
+
+	const (
+		retries = 50 // 50 * 100ms = 5s total
+		timeout = 100 * time.Millisecond
+	)
+	pvscWithRetries := privval.NewRetrySignerClient(pvsc, retries, timeout)
+
+	return pvscWithRetries, nil
 }
 
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a

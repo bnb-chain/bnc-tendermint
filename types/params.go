@@ -23,6 +23,9 @@ const (
 	MaxStateSizeBytes = 104857600 // 100MB
 
 	MonitorWindowInSeconds = 40
+
+	// MaxBlockPartsCount is the maximum count of block parts.
+	MaxBlockPartsCount = ( MaxBlockSizeBytes / BlockPartSizeBytes) + 1
 )
 
 // ConsensusParams contains consensus critical parameters that determine the

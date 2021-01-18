@@ -1,4 +1,11 @@
 # Changelog
+## v0.32.3-binance.5
+- [api] [\#150](https://github.com/binance-chain/bnc-tendermint/pull/150) relax tx querying
+- [p2p] [\#151](https://github.com/binance-chain/bnc-tendermint/pull/151) return masked IP (not the actual IP) in addrbook#groupKey
+- [consensus] [\#152](https://github.com/binance-chain/bnc-tendermint/pull/152) validate incoming messages
+- [consensus] [\#153](https://github.com/binance-chain/bnc-tendermint/pull/153) Fix consensus failure when remote signer drops
+- [bug-fix] [\#155](https://github.com/binance-chain/bnc-tendermint/pull/155) Bugfix post v0.32
+
 ## v0.32.3-binance.4
 - [sync] [\#157](https://github.com/binance-chain/bnc-tendermint/pull/157) fix goroutine/memory leak under hotsync when receive consensus message
 - [api] [\#148](https://github.com/binance-chain/bnc-tendermint/pull/148) fix `validators` api does now show correct height issue
@@ -286,18 +293,18 @@ accepting new peers and only allowing `ed25519` pubkeys.
 *Sep 6th, 2019*
 ### FEATURES:
 - [config] [\#115](https://github.com/binance-chain/bnc-tendermint/pull/115) add option to enable range query for tx indexer;add option to disable websocket
-- [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor 
+- [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor
 
 ### IMPROVEMENTS:
 - [index] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/106) index service recover from data lost
-- [P2P] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/107) introduce skip_tx_from_persistent config and other basic p2p improvement 
+- [P2P] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/107) introduce skip_tx_from_persistent config and other basic p2p improvement
 
 
 ## v0.31.5-binance.1
 *July 17th, 2019*
 
 ### IMPROVEMENTS:
-- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool 
+- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool
 - [metrics] [\#96](https://github.com/binance-chain/bnc-tendermint/pull/96) monitor: add more metrics about p2p
 
 

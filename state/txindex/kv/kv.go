@@ -199,7 +199,10 @@ func (txi *TxIndex) Search(queryStr string) ([]*types.TxResult, error) {
 	filteredHashes := make(map[string][]byte)
 
 	// get a list of conditions (like "tx.height > 5")
-	conditions := q.Conditions()
+	conditions, err := q.Conditions()
+	if err != nil {
+		return nil, errors.Wrap(err, "error during parsing conditions from query")
+	}
 
 	// if there is a hash condition, return the result immediately
 	hash, err, ok := lookForHash(conditions)
@@ -207,10 +210,14 @@ func (txi *TxIndex) Search(queryStr string) ([]*types.TxResult, error) {
 		return nil, errors.Wrap(err, "error during searching for a hash in the query")
 	} else if ok {
 		res, err := txi.Get(hash)
-		if res == nil {
+		switch {
+		case err != nil:
+			return []*types.TxResult{}, errors.Wrap(err, "error while retrieving the result")
+		case res == nil:
 			return []*types.TxResult{}, nil
+		default:
+			return []*types.TxResult{res}, nil
 		}
-		return []*types.TxResult{res}, errors.Wrap(err, "error while retrieving the result")
 	}
 
 	// conditions to skip because they're handled before "everything else"
