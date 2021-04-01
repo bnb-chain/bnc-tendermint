@@ -16,7 +16,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
-
 	amino "github.com/tendermint/go-amino"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/gopool"
@@ -248,6 +247,36 @@ func jsonParamsToArgs(rpcFunc *RPCFunc, cdc *amino.Codec, raw []byte) ([]reflect
 
 	// Otherwise, bad format, we cannot parse
 	return nil, errors.Errorf("unknown type for JSON params: %v. Expected map or array", err)
+}
+
+func jsonParamsToString(raw []byte) (string, error) {
+	const argsOffset = 1
+
+	// TODO: Make more efficient, perhaps by checking the first character for '{' or '['?
+	// First, try to get the map.
+	var m map[string]json.RawMessage
+	err := json.Unmarshal(raw, &m)
+	if err == nil {
+		b := new(bytes.Buffer)
+		for key, value := range m {
+			fmt.Fprintf(b, "%s=\"%s\"\n", key, value)
+		}
+		return b.String(), nil
+	}
+
+	// Otherwise, try an array.
+	var a []json.RawMessage
+	err = json.Unmarshal(raw, &a)
+	if err == nil {
+		b := new(bytes.Buffer)
+		for index, ele := range a {
+			fmt.Fprintf(b, "%d=\"%s\"\n", index, ele)
+		}
+		return b.String(), nil
+	}
+
+	// Otherwise, bad format, we cannot parse
+	return "", errors.Errorf("unknown type for JSON params: %v. Expected map or array", err)
 }
 
 // rpc.json
@@ -679,6 +708,8 @@ func (wsc *wsConnection) processRequest(message []byte) {
 		return
 	}
 
+	wsc.Logger.Info("Received request", "request", request)
+
 	// A Notification is a Request object without an "id" member.
 	// The Server MUST NOT reply to a Notification, including those that are within a batch request.
 	if request.ID == types.JSONRPCStringID("") {
@@ -707,14 +738,16 @@ func (wsc *wsConnection) processRequest(message []byte) {
 	returns := rpcFunc.f.Call(args)
 
 	// TODO: Need to encode args/returns to string if we want to log them
-	wsc.Logger.Info("WSJSONRPC", "method", request.Method)
+	params, err:= jsonParamsToString(request.Params)
+	if err == nil {
+		wsc.Logger.Info("WSJSONRPC", "method", request.Method, "args", params)
+	}
 
 	result, err := unreflectResult(returns)
 	if err != nil {
 		wsc.WriteRPCResponse(types.RPCInternalError(request.ID, err))
 		return
 	}
-
 	wsc.WriteRPCResponse(types.NewRPCSuccessResponse(wsc.cdc, request.ID, result))
 }
 
