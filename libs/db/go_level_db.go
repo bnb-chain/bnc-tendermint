@@ -3,8 +3,12 @@ package db
 import (
 	"bytes"
 	"fmt"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"path/filepath"
+	"strconv"
+	"time"
 
+	"github.com/go-kit/kit/metrics/prometheus"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -27,6 +31,22 @@ var _ DB = (*GoLevelDB)(nil)
 
 type GoLevelDB struct {
 	db *leveldb.DB
+
+	closed               bool
+	numFilesAtLevelGuage *prometheus.Gauge
+	diskSizeGauge        *prometheus.Gauge
+	compTimeGauge        *prometheus.Gauge
+	compReadGauge        *prometheus.Gauge
+	compWriteGauge       *prometheus.Gauge
+	writeDelayNGauge     *prometheus.Gauge
+	writePauseNGauge     *prometheus.Gauge
+	writeDelayGauge      *prometheus.Gauge
+	diskReadGauge        *prometheus.Gauge
+	diskWriteGauge       *prometheus.Gauge
+	memCompGauge         *prometheus.Gauge
+	level0CompGauge      *prometheus.Gauge
+	nonlevel0CompGauge   *prometheus.Gauge
+	seekCompGauge        *prometheus.Gauge
 }
 
 func NewGoLevelDB(name string, dir string) (*GoLevelDB, error) {
@@ -42,6 +62,7 @@ func NewGoLevelDBWithOpts(name string, dir string, o *optPkg.Options) (*GoLevelD
 	database := &GoLevelDB{
 		db: db,
 	}
+	go database.meter(name, 3*time.Second)
 	return database, nil
 }
 
@@ -107,6 +128,7 @@ func (db *GoLevelDB) DB() *leveldb.DB {
 
 // Implements DB.
 func (db *GoLevelDB) Close() {
+	db.closed = true
 	db.db.Close()
 }
 
@@ -144,6 +166,122 @@ func (db *GoLevelDB) Stats() map[string]string {
 		}
 	}
 	return stats
+}
+
+var (
+	numFilesAtLevelGuage = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "num_files_at_level",
+	}, []string{"dbname", "level"})
+	diskSizeGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "disk_size",
+	}, []string{"dbname", "level"})
+	compTimeGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "comp_time",
+	}, []string{"dbname", "level"})
+	compReadGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "comp_read",
+	}, []string{"dbname", "level"})
+	compWriteGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "comp_write",
+	}, []string{"dbname", "level"})
+	writeDelayNGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "write_delay_n",
+	}, []string{"dbname"})
+	writePauseNGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "write_pause_n",
+	}, []string{"dbname"})
+	writeDelayGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "write_delay",
+	}, []string{"dbname"})
+	diskReadGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "disk_read",
+	}, []string{"dbname"})
+	diskWriteGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "disk_write",
+	}, []string{"dbname"})
+	memCompGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "mem_comp",
+	}, []string{"dbname"})
+	level0CompGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "level0_comp",
+	}, []string{"dbname"})
+	nonlevel0CompGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "nonlevel0_comp",
+	}, []string{"dbname"})
+	seekCompGauge = prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "goleveldb",
+		Subsystem: "bc",
+		Name:      "seek_comp",
+	}, []string{"dbname"})
+)
+
+func (db *GoLevelDB) meter(name string, refresh time.Duration) {
+	var merr error
+
+	timer := time.NewTimer(refresh)
+	defer timer.Stop()
+
+	// Iterate ad infinitum and collect the stats
+	for i := 1; !db.closed && merr == nil; i++ {
+		var stats leveldb.DBStats
+		if err := db.db.Stats(&stats); err != nil {
+			merr = err
+			continue
+		}
+
+		for l := range stats.LevelSizes {
+			lvl := strconv.Itoa(l)
+			numFilesAtLevelGuage.With("dbname", name, "level", lvl).Set(float64(stats.LevelTablesCounts[l]))
+			diskSizeGauge.With("dbname", name, "level", lvl).Set(float64(stats.LevelSizes[l]))
+			compTimeGauge.With("dbname", name, "level", lvl).Set(float64(stats.LevelDurations[l]))
+			compReadGauge.With("dbname", name, "level", lvl).Set(float64(stats.LevelRead[l]))
+			compWriteGauge.With("dbname", name, "level", lvl).Set(float64(stats.LevelWrite[l]))
+		}
+
+		writeDelayNGauge.With("dbname", name).Set(float64(stats.WriteDelayCount))
+		writePauseNGauge.With("dbname", name).Set(float64(stats.WritePauseCount))
+		writeDelayGauge.With("dbname", name).Set(float64(stats.WriteDelayDuration))
+		diskReadGauge.With("dbname", name).Set(float64(stats.IORead))
+		diskWriteGauge.With("dbname", name).Set(float64(stats.IOWrite))
+
+		memCompGauge.With("dbname", name).Set(float64(stats.MemComp))
+		level0CompGauge.With("dbname", name).Set(float64(stats.Level0Comp))
+		nonlevel0CompGauge.With("dbname", name).Set(float64(stats.NonLevel0Comp))
+		seekCompGauge.With("dbname", name).Set(float64(stats.SeekComp))
+
+		// Sleep a bit, then repeat the stats collection
+		select {
+		case <-timer.C:
+			timer.Reset(refresh)
+			// Timeout, gather a new set of stats
+		}
+	}
 }
 
 //----------------------------------------

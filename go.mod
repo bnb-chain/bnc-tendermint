@@ -13,8 +13,8 @@ require (
 	github.com/go-logfmt/logfmt v0.3.0
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gogo/protobuf v1.2.1
-	github.com/golang/protobuf v1.3.2
-	github.com/golang/snappy v0.0.1
+	github.com/golang/protobuf v1.4.2
+	github.com/golang/snappy v0.0.4
 	github.com/google/gofuzz v1.0.0 // indirect
 	github.com/gorilla/websocket v1.2.0
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -41,11 +41,11 @@ require (
 	github.com/spf13/pflag v1.0.3 // indirect
 	github.com/spf13/viper v1.0.0
 	github.com/stretchr/testify v1.3.0
-	github.com/syndtr/goleveldb v1.0.1-0.20190318030020-c3a204f8e965
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/go-amino v0.14.1
 	go.etcd.io/bbolt v1.3.3 // indirect
-	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
-	golang.org/x/net v0.0.0-20190909003024-a7b16738d86b
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/net v0.0.0-20200813134508-3edf25e44fcc
 	google.golang.org/genproto v0.0.0-20181029155118-b69ba1387ce2 // indirect
 	google.golang.org/grpc v1.23.0
 )
