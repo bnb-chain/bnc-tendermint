@@ -1,4 +1,9 @@
 # Changelog
+## v0.32.3-binance.6
+### SECURITY:
+- [crypto] [\#5707](https://github.com/tendermint/tendermint/pull/5707) fix infinite recursion in Secp256k1 string formatting
+- [go] [\#162](https://github.com/binance-chain/bnc-tendermint/pull/162) update go version to 1.16
+
 ## v0.32.3-binance.5
 - [api] [\#150](https://github.com/binance-chain/bnc-tendermint/pull/150) relax tx querying
 - [p2p] [\#151](https://github.com/binance-chain/bnc-tendermint/pull/151) return masked IP (not the actual IP) in addrbook#groupKey
