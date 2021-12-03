@@ -1,6 +1,6 @@
 module github.com/tendermint/tendermint
 
-go 1.12
+go 1.16
 
 require (
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
