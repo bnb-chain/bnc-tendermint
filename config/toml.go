@@ -59,7 +59,7 @@ func WriteConfigFile(configFilePath string, config *Config) {
 		panic(err)
 	}
 
-	cmn.MustWriteFile(configFilePath, buffer.Bytes(), 0644)
+	cmn.MustWriteFile(configFilePath, buffer.Bytes(), 0600)
 }
 
 // Note: any changes to the comments/variables/mapstructure
@@ -211,7 +211,7 @@ disable_websocket = {{ .RPC.DisableWebsocket }}
 # 10 - default size.
 # Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
 websocket_pool_size = {{ .RPC.WebsocketPoolMaxSize }}
-	
+
 # The queued buffer for workers to process requests.
 # 10 -default
 websocket_pool_queue_size = {{ .RPC.WebsocketPoolQueueSize }}
@@ -354,7 +354,7 @@ recheck = {{ .Mempool.Recheck }}
 broadcast = {{ .Mempool.Broadcast }}
 wal_dir = "{{ js .Mempool.WalPath }}"
 
-# If set true, will only broadcast transactions to persistent peers. 
+# If set true, will only broadcast transactions to persistent peers.
 only_to_persistent = {{ .Mempool.OnlyToPersistent }}
 
 # If set true, only the transaction from none persistent peer will broadcast.
@@ -507,11 +507,11 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 			chainID = "tendermint_test"
 		}
 		testGenesis := fmt.Sprintf(testGenesisFmt, chainID)
-		cmn.MustWriteFile(genesisFilePath, []byte(testGenesis), 0644)
+		cmn.MustWriteFile(genesisFilePath, []byte(testGenesis), 0600)
 	}
 	// we always overwrite the priv val
-	cmn.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0644)
-	cmn.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0644)
+	cmn.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0600)
+	cmn.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0600)
 
 	config := TestConfig().SetRoot(rootDir)
 	return config

@@ -157,7 +157,7 @@ func (writer *SnapshotWriter) Write(hash SHA256Sum, chunk []byte) error {
 		return err
 	}
 	toWrite := filepath.Join(path, fmt.Sprintf("%x", hash))
-	return ioutil.WriteFile(toWrite, chunk, 0644)
+	return ioutil.WriteFile(toWrite, chunk, 0600)
 }
 
 func (writer *SnapshotWriter) WriteManifest(manifest []byte) error {
@@ -166,7 +166,7 @@ func (writer *SnapshotWriter) WriteManifest(manifest []byte) error {
 		return err
 	}
 	toWrite := filepath.Join(path, manifestFileName)
-	return ioutil.WriteFile(toWrite, manifest, 0644)
+	return ioutil.WriteFile(toWrite, manifest, 0600)
 }
 
 func (writer *SnapshotWriter) Finalize() error {
