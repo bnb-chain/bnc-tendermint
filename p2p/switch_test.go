@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -352,7 +351,7 @@ func TestSwitchStopPeerForError(t *testing.T) {
 
 	scrapeMetrics := func() string {
 		resp, _ := http.Get(s.URL)
-		buf, _ := ioutil.ReadAll(resp.Body)
+		buf, _ := io.ReadAll(resp.Body)
 		return string(buf)
 	}
 

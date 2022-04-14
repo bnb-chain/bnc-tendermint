@@ -1,7 +1,6 @@
 package kv
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -44,7 +43,7 @@ func TestBlockIndex(t *testing.T) {
 }
 
 func BenchmarkBlockIndex(b *testing.B) {
-	dir, err := ioutil.TempDir("", "block_index_db")
+	dir, err := os.MkdirTemp("", "block_index_db")
 	if err != nil {
 		b.Fatal(err)
 	}

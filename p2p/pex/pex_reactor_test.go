@@ -2,7 +2,6 @@ package pex
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -70,7 +69,7 @@ func TestPEXReactorRunning(t *testing.T) {
 	switches := make([]*p2p.Switch, N)
 
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -200,7 +199,7 @@ func TestPEXReactorAddrsMessageAbuse(t *testing.T) {
 
 func TestCheckSeeds(t *testing.T) {
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -239,7 +238,7 @@ func TestCheckSeeds(t *testing.T) {
 
 func TestPEXReactorUsesSeedsIfNeeded(t *testing.T) {
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -259,7 +258,7 @@ func TestPEXReactorUsesSeedsIfNeeded(t *testing.T) {
 
 func TestConnectionSpeedForPeerReceivedFromSeed(t *testing.T) {
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -288,7 +287,7 @@ func TestConnectionSpeedForPeerReceivedFromSeed(t *testing.T) {
 
 func TestPEXReactorSeedMode(t *testing.T) {
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -327,7 +326,7 @@ func TestPEXReactorSeedMode(t *testing.T) {
 
 func TestPEXReactorDoesNotDisconnectFromPersistentPeerInSeedMode(t *testing.T) {
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -365,7 +364,7 @@ func TestPEXReactorDoesNotDisconnectFromPersistentPeerInSeedMode(t *testing.T) {
 
 func TestPEXReactorDialsPeerUpToMaxAttemptsInSeedMode(t *testing.T) {
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -401,7 +400,7 @@ func TestPEXReactorSeedModeFlushStop(t *testing.T) {
 	switches := make([]*p2p.Switch, N)
 
 	// directory to store address books
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
 	defer os.RemoveAll(dir) // nolint: errcheck
 
@@ -634,7 +633,7 @@ func testCreatePeerWithSeed(dir string, id int, seed *p2p.Switch) *p2p.Switch {
 
 func createReactor(conf *PEXReactorConfig) (r *PEXReactor, book *addrBook) {
 	// directory to store address book
-	dir, err := ioutil.TempDir("", "pex_reactor")
+	dir, err := os.MkdirTemp("", "pex_reactor")
 	if err != nil {
 		panic(err)
 	}
