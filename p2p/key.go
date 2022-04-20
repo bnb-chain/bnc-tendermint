@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
-
 	"github.com/tendermint/tendermint/crypto"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	cmn "github.com/tendermint/tendermint/libs/common"
+	"os"
 )
 
 // ID is a hex-encoded crypto.Address
@@ -58,7 +57,7 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 }
 
 func LoadNodeKey(filePath string) (*NodeKey, error) {
-	jsonBytes, err := ioutil.ReadFile(filePath)
+	jsonBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +79,7 @@ func genNodeKey(filePath string) (*NodeKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = ioutil.WriteFile(filePath, jsonBytes, 0600)
+	err = os.WriteFile(filePath, jsonBytes, 0600)
 	if err != nil {
 		return nil, err
 	}

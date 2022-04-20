@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -130,7 +129,7 @@ func extractKey(tmhome, outputPath string) {
 	stateFile := filepath.Join(internal.ExpandPath(tmhome), "data", "priv_validator_state.json")
 	fpv := privval.LoadFilePV(keyFile, stateFile)
 	pkb := [64]byte(fpv.Key.PrivKey.(ed25519.PrivKeyEd25519))
-	if err := ioutil.WriteFile(internal.ExpandPath(outputPath), pkb[:32], 0644); err != nil {
+	if err := os.WriteFile(internal.ExpandPath(outputPath), pkb[:32], 0644); err != nil {
 		logger.Info("Failed to write private key", "output", outputPath, "err", err)
 		os.Exit(1)
 	}

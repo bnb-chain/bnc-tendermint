@@ -3,7 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"text/template"
 
@@ -211,7 +211,7 @@ disable_websocket = {{ .RPC.DisableWebsocket }}
 # 10 - default size.
 # Should be {WebsocketPoolSpawnSize} =< {WebsocketPoolMaxSize}
 websocket_pool_size = {{ .RPC.WebsocketPoolMaxSize }}
-	
+
 # The queued buffer for workers to process requests.
 # 10 -default
 websocket_pool_queue_size = {{ .RPC.WebsocketPoolQueueSize }}
@@ -354,7 +354,7 @@ recheck = {{ .Mempool.Recheck }}
 broadcast = {{ .Mempool.Broadcast }}
 wal_dir = "{{ js .Mempool.WalPath }}"
 
-# If set true, will only broadcast transactions to persistent peers. 
+# If set true, will only broadcast transactions to persistent peers.
 only_to_persistent = {{ .Mempool.OnlyToPersistent }}
 
 # If set true, only the transaction from none persistent peer will broadcast.
@@ -480,7 +480,7 @@ func ResetTestRoot(testName string) *Config {
 
 func ResetTestRootWithChainID(testName string, chainID string) *Config {
 	// create a unique, concurrency-safe test directory under os.TempDir()
-	rootDir, err := ioutil.TempDir("", fmt.Sprintf("%s-%s_", chainID, testName))
+	rootDir, err := os.MkdirTemp("", fmt.Sprintf("%s-%s_", chainID, testName))
 	if err != nil {
 		panic(err)
 	}

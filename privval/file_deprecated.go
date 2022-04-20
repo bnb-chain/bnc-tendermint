@@ -1,7 +1,6 @@
 package privval
 
 import (
-	"io/ioutil"
 	"os"
 
 	"github.com/tendermint/tendermint/crypto"
@@ -26,7 +25,7 @@ type OldFilePV struct {
 
 // LoadOldFilePV loads an OldFilePV from the filePath.
 func LoadOldFilePV(filePath string) (*OldFilePV, error) {
-	pvJSONBytes, err := ioutil.ReadFile(filePath)
+	pvJSONBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}
