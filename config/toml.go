@@ -59,7 +59,7 @@ func WriteConfigFile(configFilePath string, config *Config) {
 		panic(err)
 	}
 
-	cmn.MustWriteFile(configFilePath, buffer.Bytes(), 0644)
+	cmn.MustWriteFile(configFilePath, buffer.Bytes(), 0600)
 }
 
 // Note: any changes to the comments/variables/mapstructure
@@ -507,11 +507,11 @@ func ResetTestRootWithChainID(testName string, chainID string) *Config {
 			chainID = "tendermint_test"
 		}
 		testGenesis := fmt.Sprintf(testGenesisFmt, chainID)
-		cmn.MustWriteFile(genesisFilePath, []byte(testGenesis), 0644)
+		cmn.MustWriteFile(genesisFilePath, []byte(testGenesis), 0600)
 	}
 	// we always overwrite the priv val
-	cmn.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0644)
-	cmn.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0644)
+	cmn.MustWriteFile(privKeyFilePath, []byte(testPrivValidatorKey), 0600)
+	cmn.MustWriteFile(privStateFilePath, []byte(testPrivValidatorState), 0600)
 
 	config := TestConfig().SetRoot(rootDir)
 	return config

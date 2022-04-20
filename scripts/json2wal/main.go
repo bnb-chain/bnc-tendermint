@@ -37,13 +37,21 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("failed to open WAL file: %v", err))
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Printf("Error closing file: %s\n", f.Name())
+		}
+	}()
 
-	walFile, err := os.OpenFile(os.Args[2], os.O_EXCL|os.O_WRONLY|os.O_CREATE, 0666)
+	walFile, err := os.OpenFile(os.Args[2], os.O_EXCL|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		panic(fmt.Errorf("failed to open WAL file: %v", err))
 	}
-	defer walFile.Close()
+	defer func() {
+		if err := walFile.Close(); err != nil {
+			fmt.Printf("Error closing file: %s\n", walFile.Name())
+		}
+	}()
 
 	// the length of tendermint/wal/MsgInfo in the wal.json may exceed the defaultBufSize(4096) of bufio
 	// because of the byte array in BlockPart
