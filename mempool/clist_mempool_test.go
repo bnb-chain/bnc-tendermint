@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	mrand "math/rand"
 	"os"
 	"path/filepath"
@@ -309,7 +308,7 @@ func TestReapPriority(t *testing.T) {
 			fmt.Printf("Priority reaping: %v <= %v\n", len(txs), threshold)
 		}
 		j += len(txs)
-		if err := mempool.Update(0, txs, abciResponses(len(txs), abci.CodeTypeOK),nil, nil); err != nil {
+		if err := mempool.Update(0, txs, abciResponses(len(txs), abci.CodeTypeOK), nil, nil); err != nil {
 			testResult <- err.Error()
 		}
 		for _, txBytes := range txs {
@@ -471,7 +470,7 @@ func TestSerialReap(t *testing.T) {
 
 func TestMempoolCloseWAL(t *testing.T) {
 	// 1. Create the temporary directory for mempool and WAL testing.
-	rootDir, err := ioutil.TempDir("", "mempool-test")
+	rootDir, err := os.MkdirTemp("", "mempool-test")
 	require.Nil(t, err, "expecting successful tmpdir creation")
 
 	// 2. Ensure that it doesn't contain any elements -- Sanity check
@@ -694,7 +693,7 @@ func checksumIt(data []byte) string {
 }
 
 func checksumFile(p string, t *testing.T) string {
-	data, err := ioutil.ReadFile(p)
+	data, err := os.ReadFile(p)
 	require.Nil(t, err, "expecting successful read of %q", p)
 	return checksumIt(data)
 }

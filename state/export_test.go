@@ -43,11 +43,11 @@ func CalcValidatorsKey(height int64) []byte {
 	return calcValidatorsKey(height)
 }
 
-// SaveABCIResponses is an alias for the private SaveABCIResponses method in
-// store.go, exported exclusively and explicitly for testing.
-func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
-	SaveABCIResponses(db, height, abciResponses)
-}
+//// SaveABCIResponses is an alias for the private SaveABCIResponses method in
+//// store.go, exported exclusively and explicitly for testing.
+//func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
+//	SaveABCIResponses(db, height, abciResponses)
+//}
 
 // SaveConsensusParamsInfo is an alias for the private saveConsensusParamsInfo
 // method in store.go, exported exclusively and explicitly for testing.

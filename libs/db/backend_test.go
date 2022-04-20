@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,7 +21,7 @@ func cleanupDBDir(dir, name string) {
 
 func testBackendGetSetDelete(t *testing.T, backend DBBackendType) {
 	// Default
-	dirname, err := ioutil.TempDir("", fmt.Sprintf("test_backend_%s_", backend))
+	dirname, err := os.MkdirTemp("", fmt.Sprintf("test_backend_%s_", backend))
 	require.Nil(t, err)
 	db := NewDB("testdb", backend, dirname)
 	defer cleanupDBDir(dirname, "testdb")

@@ -77,7 +77,7 @@ func TestLoadAndUpgrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// need to re-write the file everytime because upgrading renames it
-			err := ioutil.WriteFile(oldFilePath, []byte(oldPrivvalContent), 0600)
+			err := os.WriteFile(oldFilePath, []byte(oldPrivvalContent), 0600)
 			require.NoError(t, err)
 			if tt.wantPanic {
 				require.Panics(t, func() { loadAndUpgrade(tt.args.oldPVPath, tt.args.newPVKeyPath, tt.args.newPVStatePath) })
