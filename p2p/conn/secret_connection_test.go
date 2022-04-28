@@ -335,7 +335,7 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
 		data := createGoldenTestVectors(t)
-		cmn.WriteFile(goldenFilepath, []byte(data), 0644)
+		cmn.WriteFile(goldenFilepath, []byte(data), 0600)
 	}
 	f, err := os.Open(goldenFilepath)
 	if err != nil {

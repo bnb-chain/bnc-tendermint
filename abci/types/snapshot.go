@@ -3,7 +3,6 @@ package types
 import (
 	"crypto/sha256"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -99,7 +98,7 @@ func (reader *SnapshotReader) LoadFromRestoration(hash SHA256Sum) ([]byte, error
 
 func (reader *SnapshotReader) loadImpl(hash SHA256Sum, category string) ([]byte, error) {
 	toRead := filepath.Join(reader.DbDir, snapshotDir, strconv.FormatInt(reader.Height, 10), category, fmt.Sprintf("%x", hash))
-	return ioutil.ReadFile(toRead)
+	return os.ReadFile(toRead)
 }
 
 func (reader *SnapshotReader) LoadManifest(height int64) (int64, []byte, error) {
@@ -114,7 +113,7 @@ func (reader *SnapshotReader) LoadManifest(height int64) (int64, []byte, error) 
 		return 0, nil, fmt.Errorf("requested wrong height: %d, reader height: %d", height, reader.Height)
 	} else {
 		toRead := filepath.Join(reader.DbDir, snapshotDir, strconv.FormatInt(lookupHeight, 10), finalizedDir, manifestFileName)
-		manifest, err := ioutil.ReadFile(toRead)
+		manifest, err := os.ReadFile(toRead)
 		return lookupHeight, manifest, err
 	}
 }
@@ -129,7 +128,7 @@ func (reader *SnapshotReader) InitSnapshotHeight() int64 {
 	var latestHeight int64
 
 	toTraverse := filepath.Join(reader.DbDir, snapshotDir)
-	if files, err := ioutil.ReadDir(toTraverse); err == nil {
+	if files, err := os.ReadDir(toTraverse); err == nil {
 		for _, f := range files {
 			if f.IsDir() {
 				if height, err := strconv.ParseInt(f.Name(), 10, 64); err == nil && height > latestHeight {
@@ -157,7 +156,7 @@ func (writer *SnapshotWriter) Write(hash SHA256Sum, chunk []byte) error {
 		return err
 	}
 	toWrite := filepath.Join(path, fmt.Sprintf("%x", hash))
-	return ioutil.WriteFile(toWrite, chunk, 0644)
+	return os.WriteFile(toWrite, chunk, 0600)
 }
 
 func (writer *SnapshotWriter) WriteManifest(manifest []byte) error {
@@ -166,7 +165,7 @@ func (writer *SnapshotWriter) WriteManifest(manifest []byte) error {
 		return err
 	}
 	toWrite := filepath.Join(path, manifestFileName)
-	return ioutil.WriteFile(toWrite, manifest, 0644)
+	return os.WriteFile(toWrite, manifest, 0600)
 }
 
 func (writer *SnapshotWriter) Finalize() error {

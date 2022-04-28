@@ -1,37 +1,41 @@
 # Changelog
+## v0.32.3-binance.7
+- [bug-fix] [\#167](https://github.com/bnb-chain/bnc-tendermint/pull/167) change file permission and add error handling
+- [go] [\#168](https://github.com/bnb-chain/bnc-tendermint/pull/168) upgrade go version to 1.17 and replace ioutil with io/os
+
 ## v0.32.3-binance.6
-- [go] [\#163](https://github.com/binance-chain/bnc-tendermint/pull/163) update go version to 1.16
-- [crypto] [\#164](https://github.com/binance-chain/bnc-tendermint/pull/164) fix infinite recursion in Secp256k1 String() method
+- [go] [\#163](https://github.com/bnb-chain/bnc-tendermint/pull/163) update go version to 1.16
+- [crypto] [\#164](https://github.com/bnb-chain/bnc-tendermint/pull/164) fix infinite recursion in Secp256k1 String() method
 
 ## v0.32.3-binance.5
-- [api] [\#150](https://github.com/binance-chain/bnc-tendermint/pull/150) relax tx querying
-- [p2p] [\#151](https://github.com/binance-chain/bnc-tendermint/pull/151) return masked IP (not the actual IP) in addrbook#groupKey
-- [consensus] [\#152](https://github.com/binance-chain/bnc-tendermint/pull/152) validate incoming messages
-- [consensus] [\#153](https://github.com/binance-chain/bnc-tendermint/pull/153) Fix consensus failure when remote signer drops
-- [bug-fix] [\#155](https://github.com/binance-chain/bnc-tendermint/pull/155) Bugfix post v0.32
+- [api] [\#150](https://github.com/bnb-chain/bnc-tendermint/pull/150) relax tx querying
+- [p2p] [\#151](https://github.com/bnb-chain/bnc-tendermint/pull/151) return masked IP (not the actual IP) in addrbook#groupKey
+- [consensus] [\#152](https://github.com/bnb-chain/bnc-tendermint/pull/152) validate incoming messages
+- [consensus] [\#153](https://github.com/bnb-chain/bnc-tendermint/pull/153) Fix consensus failure when remote signer drops
+- [bug-fix] [\#155](https://github.com/bnb-chain/bnc-tendermint/pull/155) Bugfix post v0.32
 
 ## v0.32.3-binance.4
-- [sync] [\#157](https://github.com/binance-chain/bnc-tendermint/pull/157) fix goroutine/memory leak under hotsync when receive consensus message
-- [api] [\#148](https://github.com/binance-chain/bnc-tendermint/pull/148) fix `validators` api does now show correct height issue
+- [sync] [\#157](https://github.com/bnb-chain/bnc-tendermint/pull/157) fix goroutine/memory leak under hotsync when receive consensus message
+- [api] [\#148](https://github.com/bnb-chain/bnc-tendermint/pull/148) fix `validators` api does now show correct height issue
 
 ## v0.32.3-binance.3
-- [sync] [\#147](https://github.com/binance-chain/bnc-tendermint/pull/147) fix not panic when do not have block under state sync
+- [sync] [\#147](https://github.com/bnb-chain/bnc-tendermint/pull/147) fix not panic when do not have block under state sync
 
 ## v0.32.3-binance.2
 ### BUG FIXES:
-- [status] [\#140](https://github.com/binance-chain/bnc-tendermint/pull/140) fix hot sync not a catched up status
-- [consensus] [\#141](https://github.com/binance-chain/bnc-tendermint/pull/141)  fix bug in load last validator set
-- [index] [\#142](https://github.com/binance-chain/bnc-tendermint/pull/142) fix index height can not set after state sync
+- [status] [\#140](https://github.com/bnb-chain/bnc-tendermint/pull/140) fix hot sync not a catched up status
+- [consensus] [\#141](https://github.com/bnb-chain/bnc-tendermint/pull/141)  fix bug in load last validator set
+- [index] [\#142](https://github.com/bnb-chain/bnc-tendermint/pull/142) fix index height can not set after state sync
 
 ## v0.32.3-binance.1
 
 ### IMPROVEMENTS:
 
-- [Performance] [\#110](https://github.com/binance-chain/bnc-tendermint/pull/110) Improve performance
+- [Performance] [\#110](https://github.com/bnb-chain/bnc-tendermint/pull/110) Improve performance
 
 ### BUG FIXES:
 
-- [index] [\#129](https://github.com/binance-chain/bnc-tendermint/pull/129) fix tx indexer lag behind block
+- [index] [\#129](https://github.com/bnb-chain/bnc-tendermint/pull/129) fix tx indexer lag behind block
 
 ## v0.32.3
 
@@ -296,20 +300,20 @@ accepting new peers and only allowing `ed25519` pubkeys.
 ## v0.31.5-binance.2
 *Sep 6th, 2019*
 ### FEATURES:
-- [config] [\#115](https://github.com/binance-chain/bnc-tendermint/pull/115) add option to enable range query for tx indexer;add option to disable websocket
-- [sync] [\#97](https://github.com/binance-chain/bnc-tendermint/pull/97) supoort hot sync reactor
+- [config] [\#115](https://github.com/bnb-chain/bnc-tendermint/pull/115) add option to enable range query for tx indexer;add option to disable websocket
+- [sync] [\#97](https://github.com/bnb-chain/bnc-tendermint/pull/97) supoort hot sync reactor
 
 ### IMPROVEMENTS:
-- [index] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/106) index service recover from data lost
-- [P2P] [\#106](https://github.com/binance-chain/bnc-tendermint/pull/107) introduce skip_tx_from_persistent config and other basic p2p improvement
+- [index] [\#106](https://github.com/bnb-chain/bnc-tendermint/pull/106) index service recover from data lost
+- [P2P] [\#106](https://github.com/bnb-chain/bnc-tendermint/pull/107) introduce skip_tx_from_persistent config and other basic p2p improvement
 
 
 ## v0.31.5-binance.1
 *July 17th, 2019*
 
 ### IMPROVEMENTS:
-- [mempool] [\#100](https://github.com/binance-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool
-- [metrics] [\#96](https://github.com/binance-chain/bnc-tendermint/pull/96) monitor: add more metrics about p2p
+- [mempool] [\#100](https://github.com/bnb-chain/bnc-tendermint/pull/100) add OnlyPersistent to config of mempool
+- [metrics] [\#96](https://github.com/bnb-chain/bnc-tendermint/pull/96) monitor: add more metrics about p2p
 
 
 ## v0.31.5

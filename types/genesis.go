@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -49,7 +49,7 @@ func (genDoc *GenesisDoc) SaveAs(file string) error {
 	if err != nil {
 		return err
 	}
-	return cmn.WriteFile(file, genDocBytes, 0644)
+	return cmn.WriteFile(file, genDocBytes, 0600)
 }
 
 // ValidatorHash returns the hash of the validator set contained in the GenesisDoc
@@ -117,7 +117,7 @@ func GenesisDocFromJSON(jsonBlob []byte) (*GenesisDoc, error) {
 
 // GenesisDocFromFile reads JSON data from a file and unmarshalls it into a GenesisDoc.
 func GenesisDocFromFile(genDocFile string) (*GenesisDoc, error) {
-	jsonBlob, err := ioutil.ReadFile(genDocFile)
+	jsonBlob, err := os.ReadFile(genDocFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't read GenesisDoc file")
 	}

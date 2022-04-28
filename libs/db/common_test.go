@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sync"
 	"testing"
 
@@ -64,7 +64,7 @@ func checkValuePanics(t *testing.T, itr Iterator) {
 }
 
 func newTempDB(t *testing.T, backend DBBackendType) (db DB, dbDir string) {
-	dirname, err := ioutil.TempDir("", "db_common_test")
+	dirname, err := os.MkdirTemp("", "db_common_test")
 	require.Nil(t, err)
 	return NewDB("testdb", backend, dirname), dirname
 }

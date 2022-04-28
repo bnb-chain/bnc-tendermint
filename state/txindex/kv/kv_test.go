@@ -2,7 +2,6 @@ package kv
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -291,7 +290,6 @@ func TestIndexAllTags(t *testing.T) {
 	assert.Equal(t, []*types.TxResult{txResult}, results)
 }
 
-
 func TestDisableRangeQuery(t *testing.T) {
 	indexer := NewTxIndex(db.NewMemDB(), IndexAllTags())
 
@@ -317,7 +315,7 @@ func txResultWithEvents(events []abci.Event) *types.TxResult {
 }
 
 func benchmarkTxIndex(txsCount int64, b *testing.B) {
-	dir, err := ioutil.TempDir("", "tx_index_db")
+	dir, err := os.MkdirTemp("", "tx_index_db")
 	if err != nil {
 		b.Fatal(err)
 	}
