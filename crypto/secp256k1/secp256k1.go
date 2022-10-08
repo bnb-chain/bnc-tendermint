@@ -5,21 +5,18 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"fmt"
+	secp256k1 "github.com/btcsuite/btcd/btcec"
 	"io"
 	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
-
-	secp256k1 "github.com/btcsuite/btcd/btcec"
-
-	insecp256k1 "github.com/tendermint/tendermint/crypto/secp256k1/internal/secp256k1"
 
 	"github.com/tendermint/go-amino"
 
 	"github.com/tendermint/tendermint/crypto"
 )
 
-//-------------------------------------
+// -------------------------------------
 const (
 	PrivKeyAminoName = "tendermint/PrivKeySecp256k1"
 	PubKeyAminoName  = "tendermint/PubKeySecp256k1"
@@ -65,14 +62,6 @@ func (privKey PrivKeySecp256k1) Equals(other crypto.PrivKey) bool {
 		return subtle.ConstantTimeCompare(privKey[:], otherSecp[:]) == 1
 	}
 	return false
-}
-
-// RecoverPubkey returns the public key of the signer.
-// msg must be the 32-byte hash of the message to be signed.
-// sig must be a 65-byte compact ECDSA signature containing the
-// recovery id as the last element.
-func RecoverPubkey(msg []byte, sig []byte) ([]byte, error) {
-	return insecp256k1.RecoverPubkey(msg, sig)
 }
 
 // GenPrivKey generates a new ECDSA private key on curve secp256k1 private key.

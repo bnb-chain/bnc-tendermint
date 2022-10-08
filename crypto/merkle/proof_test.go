@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -134,6 +135,18 @@ func TestProofOperators(t *testing.T) {
 	popz = []ProofOperator{}
 	err = popz.Verify(bz("OUTPUT4"), "/KEY4/KEY2/KEY1", [][]byte{bz("INPUT1")})
 	assert.NotNil(t, err)
+
+	// Test OP Verifier 1
+	popz = []ProofOperator{op1, op2, op3, op4}
+	err = popz.VerifyValue(bz("OUTPUT4"), "/KEY4/KEY2/KEY1", bz("INPUT1"), func(operator ProofOperator) error {
+		return nil
+	})
+	assert.Nil(t, err)
+
+	err = popz.VerifyValue(bz("OUTPUT4"), "/KEY4/KEY2/KEY1", bz("INPUT1"), func(operator ProofOperator) error {
+		return fmt.Errorf("suspend")
+	})
+	assert.EqualError(t, err, "suspend")
 }
 
 func bz(s string) []byte {
