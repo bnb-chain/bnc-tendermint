@@ -173,8 +173,11 @@ func (pool *BlockPool) IsCaughtUp() bool {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
-	// Need at least 1 peer to be considered caught up.
-	if len(pool.peers) == 0 {
+	// Normally it needs at least 1 peer to be considered caught up.
+	// There is a change that a node with the majority of voting power has no peers, it will never have changes
+	// to catch up and switch to consensus reactor, resulting in stopping the chain.
+	// So we add a 10 minutes timeout to prevent this case.
+	if len(pool.peers) == 0 && time.Since(pool.startTime) < 10*time.Minute {
 		pool.Logger.Debug("Blockpool has no peers")
 		return false
 	}
@@ -187,6 +190,7 @@ func (pool *BlockPool) IsCaughtUp() bool {
 	receivedBlockOrTimedOut := pool.height > 0 || time.Since(pool.startTime) > 5*time.Second
 	ourChainIsLongestAmongPeers := pool.maxPeerHeight == 0 || pool.height >= (pool.maxPeerHeight-1)
 	isCaughtUp := receivedBlockOrTimedOut && ourChainIsLongestAmongPeers
+	pool.Logger.Debug("IsCaughtUp", "isCaughtUp", isCaughtUp, "receivedBlockOrTimedOut", receivedBlockOrTimedOut, "ourChainIsLongestAmongPeers", ourChainIsLongestAmongPeers, "pool.maxPeerHeight", pool.maxPeerHeight, "pool.height", pool.height, "pool.startTime", pool.startTime)
 	return isCaughtUp
 }
 
