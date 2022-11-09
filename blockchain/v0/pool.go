@@ -177,8 +177,11 @@ func (pool *BlockPool) IsCaughtUp() bool {
 	// There is a change that a node with the majority of voting power has no peers, it will never have changes
 	// to catch up and switch to consensus reactor, resulting in stopping the chain.
 	// So we add a 10 minutes timeout to prevent this case.
-	if len(pool.peers) == 0 && time.Since(pool.startTime) < 10*time.Minute {
-		pool.Logger.Debug("Blockpool has no peers")
+	if len(pool.peers) == 0 {
+		pool.Logger.Debug("Blockpool has no peers", "duration", time.Since(pool.startTime), "height", pool.height, "initHeight", pool.initHeight)
+		if time.Since(pool.startTime) > 1*time.Minute && pool.height == pool.initHeight {
+			return true
+		}
 		return false
 	}
 
