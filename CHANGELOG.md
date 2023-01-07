@@ -1,4 +1,8 @@
 # Changelog
+## v0.32.3-bc.8
+- [Licence] [\#171](https://github.com/bnb-chain/bnc-tendermint/pull/171) change opensource license to `Mozilla Public License Version 2.0`
+- [bug-fix] [\#174](https://github.com/bnb-chain/bnc-tendermint/pull/174) add timeout for catch up condition check with no peers
+
 ## v0.32.3-binance.7
 - [bug-fix] [\#167](https://github.com/bnb-chain/bnc-tendermint/pull/167) change file permission and add error handling
 - [go] [\#168](https://github.com/bnb-chain/bnc-tendermint/pull/168) upgrade go version to 1.17 and replace ioutil with io/os
