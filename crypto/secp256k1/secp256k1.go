@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -23,6 +24,9 @@ const (
 
 	KeyType     = "secp256k1"
 	PrivKeySize = 32
+
+	SignatureLength  = 65
+	RecoveryIDOffset = 64
 )
 
 var cdc = amino.NewCodec()
@@ -74,12 +78,30 @@ func (privKey PrivKeySecp256k1) Type() string {
 // msg must be the 32-byte hash of the message to be signed.
 // sig must be a 65-byte compact ECDSA signature containing the
 // recovery id as the last element.
+// copied from go-ethereum
+// https://github.com/ethereum/go-ethereum/blob/e5eb32acee19cc9fca6a03b10283b7484246b15a/crypto/signature_nocgo.go#L42
 func RecoverPubkey(msg []byte, sig []byte) ([]byte, error) {
-	pub, _, err := ecdsa.RecoverCompact(sig, msg)
+	pub, err := sigToPub(msg, sig)
 	if err != nil {
 		return nil, err
 	}
-	return pub.SerializeCompressed(), nil
+	bytes := pub.SerializeUncompressed()
+	return bytes, err
+}
+
+// copied from go-ethereum
+// https://github.com/ethereum/go-ethereum/blob/e5eb32acee19cc9fca6a03b10283b7484246b15a/crypto/signature_nocgo.go#L42
+func sigToPub(hash, sig []byte) (*secp256k1.PublicKey, error) {
+	if len(sig) != SignatureLength {
+		return nil, errors.New("invalid signature")
+	}
+	// Convert to btcec input format with 'recovery id' v at the beginning.
+	btcsig := make([]byte, SignatureLength)
+	btcsig[0] = sig[RecoveryIDOffset] + 27
+	copy(btcsig[1:], sig)
+
+	pub, _, err := ecdsa.RecoverCompact(btcsig, hash)
+	return pub, err
 }
 
 // GenPrivKey generates a new ECDSA private key on curve secp256k1 private key.
