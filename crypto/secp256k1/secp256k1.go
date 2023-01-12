@@ -207,12 +207,16 @@ func (pubKey PubKeySecp256k1) Address() crypto.Address {
 }
 
 func (pubKey PubKeySecp256k1) String() string {
-	return fmt.Sprintf("PubKeySecp256k1{%X}", pubKey.Bytes())
+	return fmt.Sprintf("PubKeySecp256k1{%X}", []byte(pubKey))
 }
 
 // Bytes returns the pubkey marshaled with amino encoding.
 func (pubKey PubKeySecp256k1) Bytes() []byte {
-	return []byte(pubKey)
+	bz, err := cdc.MarshalBinaryBare(pubKey)
+	if err != nil {
+		panic(err)
+	}
+	return bz
 }
 
 func (pubKey PubKeySecp256k1) Equals(other crypto.PubKey) bool {
