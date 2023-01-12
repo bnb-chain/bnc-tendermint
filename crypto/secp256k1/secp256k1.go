@@ -70,6 +70,18 @@ func (privKey PrivKeySecp256k1) Type() string {
 	return KeyType
 }
 
+// RecoverPubkey returns the public key of the signer.
+// msg must be the 32-byte hash of the message to be signed.
+// sig must be a 65-byte compact ECDSA signature containing the
+// recovery id as the last element.
+func RecoverPubkey(msg []byte, sig []byte) ([]byte, error) {
+	pub, _, err := ecdsa.RecoverCompact(msg, sig)
+	if err != nil {
+		return nil, err
+	}
+	return pub.SerializeCompressed(), nil
+}
+
 // GenPrivKey generates a new ECDSA private key on curve secp256k1 private key.
 // It uses OS randomness to generate the private key.
 func GenPrivKey() PrivKeySecp256k1 {
