@@ -75,7 +75,7 @@ func (privKey PrivKeySecp256k1) Type() string {
 // sig must be a 65-byte compact ECDSA signature containing the
 // recovery id as the last element.
 func RecoverPubkey(msg []byte, sig []byte) ([]byte, error) {
-	pub, _, err := ecdsa.RecoverCompact(msg, sig)
+	pub, _, err := ecdsa.RecoverCompact(sig, msg)
 	if err != nil {
 		return nil, err
 	}
