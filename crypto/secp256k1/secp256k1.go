@@ -207,7 +207,7 @@ func (pubKey PubKeySecp256k1) Address() crypto.Address {
 }
 
 func (pubKey PubKeySecp256k1) String() string {
-	return fmt.Sprintf("PubKeySecp256k1{%X}", pubKey[:])
+	return fmt.Sprintf("PubKeySecp256k1{%X}", pubKey.Bytes())
 }
 
 // Bytes returns the pubkey marshaled with amino encoding.
