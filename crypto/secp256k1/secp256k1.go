@@ -43,12 +43,12 @@ func init() {
 
 var _ crypto.PrivKey = PrivKeySecp256k1{}
 
-// PrivKey implements PrivKey.
+// PrivKeySecp256k1 implements PrivKey.
 type PrivKeySecp256k1 []byte
 
 // Bytes marshalls the private key using amino encoding.
 func (privKey PrivKeySecp256k1) Bytes() []byte {
-	return []byte(privKey)
+	return cdc.MustMarshalBinaryBare(privKey)
 }
 
 // PubKey performs the point-scalar multiplication from the privKey on the
@@ -204,6 +204,10 @@ func (pubKey PubKeySecp256k1) Address() crypto.Address {
 	_, _ = hasherRIPEMD160.Write(sha) // does not error
 
 	return crypto.Address(hasherRIPEMD160.Sum(nil))
+}
+
+func (pubKey PubKeySecp256k1) String() string {
+	return fmt.Sprintf("PubKeySecp256k1{%X}", pubKey[:])
 }
 
 // Bytes returns the pubkey marshaled with amino encoding.
