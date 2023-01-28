@@ -1,4 +1,9 @@
 # Changelog
+
+## v0.32.3-bc.9
+- [bug-fix] [\#179](https://github.com/bnb-chain/bnc-tendermint/pull/179) update deps that were reported in OSV issues
+- [bug-fix] [\#180](https://github.com/bnb-chain/bnc-tendermint/pull/180) remove unused mintnet-kubernetes from tools due to it is outdated
+
 ## v0.32.3-bc.8
 - [Licence] [\#171](https://github.com/bnb-chain/bnc-tendermint/pull/171) change opensource license to `Mozilla Public License Version 2.0`
 - [bug-fix] [\#174](https://github.com/bnb-chain/bnc-tendermint/pull/174) add timeout for catch up condition check with no peers
