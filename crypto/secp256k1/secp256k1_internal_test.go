@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	underlyingSecp256k1 "github.com/btcsuite/btcd/btcec"
+	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 )
 
 func Test_genPrivKey(t *testing.T) {
@@ -25,10 +25,11 @@ func Test_genPrivKey(t *testing.T) {
 		shouldPanic bool
 	}{
 		{"empty bytes (panics because 1st 32 bytes are zero and 0 is not a valid field element)", empty, true},
-		{"curve order: N", underlyingSecp256k1.S256().N.Bytes(), true},
+		{"curve order: N", secp256k1.S256().N.Bytes(), true},
 		{"valid because 0 < 1 < N", validOne, false},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.shouldPanic {
 				require.Panics(t, func() {
@@ -38,8 +39,41 @@ func Test_genPrivKey(t *testing.T) {
 			}
 			got := genPrivKey(bytes.NewReader(tt.notSoRand))
 			fe := new(big.Int).SetBytes(got[:])
-			require.True(t, fe.Cmp(underlyingSecp256k1.S256().N) < 0)
+			require.True(t, fe.Cmp(secp256k1.S256().N) < 0)
 			require.True(t, fe.Sign() > 0)
 		})
+	}
+}
+
+// Ensure that signature verification works, and that
+// non-canonical signatures fail.
+// Note: run with CGO_ENABLED=0 or go test -tags !cgo.
+func TestSignatureVerificationAndRejectUpperS(t *testing.T) {
+	msg := []byte("We have lingered long enough on the shores of the cosmic ocean.")
+	for i := 0; i < 500; i++ {
+		priv := GenPrivKey()
+		sigStr, err := priv.Sign(msg)
+		require.NoError(t, err)
+		r, s, err := signatureFromBytes(sigStr)
+		require.NoError(t, err)
+		require.False(t, s.IsOverHalfOrder())
+
+		pub := priv.PubKey()
+		require.True(t, pub.VerifyBytes(msg, sigStr))
+
+		//malleate:
+		byteS := s.Bytes()
+		ss := big.NewInt(0).SetBytes(byteS[:])
+		ss.Sub(secp256k1.S256().CurveParams.N, ss)
+		s.SetByteSlice(ss.Bytes())
+		require.True(t, s.IsOverHalfOrder())
+
+		malSigStr := serializeSig(r, s)
+
+		require.False(t, pub.VerifyBytes(msg, malSigStr),
+			"VerifyBytes incorrect with malleated & invalid S. sig=%v, key=%v",
+			sigStr,
+			priv,
+		)
 	}
 }
