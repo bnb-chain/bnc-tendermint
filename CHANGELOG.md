@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.32.3-bc.10
+- [bug-fix] [\#183](https://github.com/bnb-chain/bnc-tendermint/pull/183) update deps that were reported in OSV issues
+
 ## v0.32.3-bc.9
 - [bug-fix] [\#179](https://github.com/bnb-chain/bnc-tendermint/pull/179) update deps that were reported in OSV issues
 - [bug-fix] [\#180](https://github.com/bnb-chain/bnc-tendermint/pull/180) remove unused mintnet-kubernetes from tools due to it is outdated
