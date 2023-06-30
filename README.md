@@ -1,13 +1,13 @@
 # Tendermint
 This repo is forked from [tendermint](https://github.com/tendermint/tendermint). Tendermint Core is Byzantine Fault Tolerant (BFT) middleware that takes a state transition machine - written in any programming language -
-and securely replicates it on many machines. 
+and securely replicates it on many machines.
 
 For protocol details, see [the specification](/docs/spec).
 
 ## Key Features
 We implement several key features based on the Tendermint fork:
 
-1. State Sync. State sync is a way to help newly-joined users sync the latest status of the binance chain. It syncs the latest sync-able peer's status so that fullnode user (who wants to catch up with chain as soon as possible with a cost that discards all historical blocks locally) doesn't need sync from block height 0. Refer to [BEP18](https://github.com/bnb-chain/BEPs/blob/master/BEP18.md) for more details. 
+1. State Sync. State sync is a way to help newly-joined users sync the latest status of the BNB Chain. It syncs the latest sync-able peer's status so that fullnode user (who wants to catch up with chain as soon as possible with a cost that discards all historical blocks locally) doesn't need sync from block height 0. Refer to [BEP18](https://github.com/bnb-chain/BEPs/blob/master/BEP18.md) for more details.
 2. Hot Sync. A new block sync protocol to reduce network and CPU resources for full node. Refer to this [PR](https://github.com/bnb-chain/bnc-tendermint/pull/97) for more details.
 3. Capacity improvement. Parallelization, dedicated cache, priority lock and many other program skills are applied to improvement the capacity of BNB Beacon Chain.
 
