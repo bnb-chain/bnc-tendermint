@@ -34,7 +34,7 @@ across different criteria:
 
 ### Implementation Question
 * What is the format of a snapshot
-    * Complete snapshot 
+    * Complete snapshot
     * Ordered IAVL key ranges
     * Compressed individually chunks which can be validated
 * How is data validated
@@ -58,7 +58,7 @@ request time. This solution would create an auxiliary data structure
 optimized for batch read/writes.
 
 Additionally the propsosals tend to vary on how they provide safety
-properties. 
+properties.
 
 **LightClient** Where a client can aquire the merkle root from the block
 headers synchronized from a trusted validator set. Subsets of the application state,
@@ -104,9 +104,9 @@ chunks and snappy compressed. Hashes of snappy compressed chunks are stored in a
 manifest file which co-ordinates the state-sync. Obtaining a correct manifest
 file seems to require an honest majority of peers. This means you may not find
 out the state is incorrect until you download the whole thing and compare it
-with a verified block header. 
+with a verified block header.
 
-A similar solution was implemented by Binance in
+A similar solution was implemented by BNB Chain in
 [#3594](https://github.com/tendermint/tendermint/pull/3594)
 based on their initial implementation in
 [PR #3243](https://github.com/tendermint/tendermint/pull/3243)
@@ -128,7 +128,7 @@ read/write patterns necessitated by serving a snapshot chunk.
 Specifically, Lazy State Sync performs random reads to the underlying data
 structure while Eager can optimize for sequential reads.
 
-This distinctin between approaches was demonstrated by Binance's
+This distinctin between approaches was demonstrated by BNB Chain's
 [ackratos](https://github.com/ackratos) in their implementation of [Lazy
 State sync](https://github.com/tendermint/tendermint/pull/3243), The
 [analysis](https://docs.google.com/document/d/1npGTAa1qxe8EQZ1wG0a0Sip9t5oX2vYZNUDwr_LVRR4/)
