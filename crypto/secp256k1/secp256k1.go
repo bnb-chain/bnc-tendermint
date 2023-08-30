@@ -193,9 +193,9 @@ type PubKeySecp256k1 []byte
 
 // Address returns a Bitcoin style addresses: RIPEMD160(SHA256(pubkey))
 func (pubKey PubKeySecp256k1) Address() crypto.Address {
-	if len(pubKey) != PubKeySize {
-		panic("length of pubkey is incorrect")
-	}
+	//if len(pubKey) != PubKeySize {
+	//	panic("length of pubkey is incorrect")
+	//}
 	hasherSHA256 := sha256.New()
 	_, _ = hasherSHA256.Write(pubKey) // does not error
 	sha := hasherSHA256.Sum(nil)
